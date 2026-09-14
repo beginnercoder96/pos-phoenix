@@ -1,0 +1,14 @@
+services:
+  pos:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
+      BOOTSTRAP_ADMIN_PASSWORD: change-me-now
+      SESSION_SECURE: "false"
+    volumes:
+      - pos-data:/data
+
+volumes:
+  pos-data:

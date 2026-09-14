@@ -1,0 +1,37 @@
+# Binaries
+pos-phoenix
+server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Database & SQLite storage
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets & Local credentials
+.env
+credentials.md
+
+# Dependencies & Build artifacts
+node_modules/
+web/static/css/app.css
+
+# OS & Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Test artifacts & scratch
+*.png
+test_*.js
+scratch/
+coverage.out
+
+# Reference materials & heavy assets
+figma-component/
+imageclienthere/
+

@@ -1,0 +1,49 @@
+{{define "loading.html"}}<!doctype html>
+<html lang="{{.Language}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Loading · POS Phoenix</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script defer src="/static/js/app.js"></script>
+  {{if .RedirectURL}}
+  <meta http-equiv="refresh" content="2;url={{.RedirectURL}}">
+  {{end}}
+</head>
+<body class="app-body flex min-h-screen flex-col items-center justify-center p-5">
+  <main class="flex flex-col items-center text-center">
+    <!-- Pardis Logo on top of label -->
+    <div class="relative mb-6 flex items-center justify-center">
+      <div class="absolute -inset-3 rounded-3xl bg-emerald-500/20 blur-xl animate-pulse"></div>
+      <div class="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-emerald-500 p-1 shadow-2xl ring-4 ring-emerald-500/30">
+        <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-full w-full rounded-xl object-cover shadow-inner">
+      </div>
+      <div class="pointer-events-none absolute -inset-4 rounded-3xl border-2 border-emerald-500/40 border-t-transparent animate-spin"></div>
+    </div>
+
+    <!-- Middle Label -->
+    <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100">
+      we prepare something good for you
+    </h1>
+
+    <p class="mt-2.5 text-xs font-semibold uppercase tracking-[.18em] text-emerald-600 dark:text-emerald-400">
+      Pardis Barber Shop · POS Phoenix
+    </p>
+
+    <!-- Animated Loading Bouncing Indicators -->
+    <div class="mt-7 flex items-center gap-2">
+      <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]"></span>
+      <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]"></span>
+      <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-bounce"></span>
+    </div>
+
+    {{if .RedirectURL}}
+    <p class="mt-5 text-xs text-slate-400">
+      Redirecting you shortly... <a href="{{.RedirectURL}}" class="underline hover:text-emerald-500 font-bold">Click here</a> if not redirected.
+    </p>
+    {{end}}
+  </main>
+</body>
+</html>
+{{end}}
+
