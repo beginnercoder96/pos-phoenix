@@ -74,7 +74,7 @@
     border-color: #0e173e;
   }
 
-  .preference-select { @apply min-h-11 appearance-none rounded-xl border border-white/20 bg-white/10 px-3 font-bold text-white outline-none ring-emerald-400 transition focus:ring-2; }
+  .preference-select { @apply min-h-11 appearance-none rounded-xl border border-slate-300 bg-white px-3 font-bold text-slate-900 outline-none ring-emerald-400 transition focus:ring-2; }
   [data-theme="dark"] .preference-select {
     background-color: #010318;
     border-color: #121c47;
