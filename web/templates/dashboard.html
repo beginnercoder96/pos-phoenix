@@ -7,7 +7,14 @@
   <link rel="stylesheet" href="/static/css/app.css">
   <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script id="catalog-data" type="application/json">{{.CatalogJSON}}</script>
-  <script>window.POS_CATALOG = {{.CatalogJS}};</script>
+  <script>
+    try {
+      var cDataEl = document.getElementById("catalog-data");
+      window.POS_CATALOG = cDataEl ? JSON.parse(cDataEl.textContent) : [];
+    } catch (e) {
+      window.POS_CATALOG = [];
+    }
+  </script>
   <script defer src="/static/js/app.js?v=20260913-dropdown-popover"></script>
 </head>
 <body class="app-body">
@@ -24,6 +31,7 @@
         <a class="flex min-h-11 items-center rounded-xl bg-emerald-500/15 px-4 font-bold text-emerald-300" href="/">▦ <span class="ml-3">{{label .Language "dashboard"}}</span></a>
         {{if eq .User.Role "superadmin"}}
         <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/operators">♙ <span class="ml-3">{{label .Language "operators"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/">⚙ <span class="ml-3">Backoffice</span></a>
         {{end}}
       </nav>
       <div class="mt-auto border-t border-white/10 pt-4">
@@ -141,7 +149,7 @@
                 <div class="relative inline-block">
                   <button type="button" id="chart-calendar-toggle-btn" class="btn-secondary min-h-11 px-3 text-xs font-bold flex items-center gap-1.5 shadow-sm {{if eq .ChartPeriod "custom"}}border-emerald-500/60 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30{{end}}" onclick="toggleCalendarPanel()">
                     <span>📅</span>
-                    <span id="chart-cal-btn-label">{{if eq .ChartPeriod "custom"}}{{.ChartFrom}} - {{.ChartTo}}{{else}}{{label .Language "calendarPicker"}}{{end}}</span>
+                    <span id="chart-cal-btn-label" data-label-picker='{{label .Language "calendarPicker"}}' data-label-open='{{label .Language "calendarOpen"}}'>{{if eq .ChartPeriod "custom"}}{{.ChartFrom}} - {{.ChartTo}}{{else}}{{label .Language "calendarPicker"}}{{end}}</span>
                   </button>
 
                   <!-- Calendar Dropdown Popover attached directly ON THE BUTTON -->
@@ -221,8 +229,14 @@
 
           <!-- Inline Script for Seamless Instant Interactivity -->
           <script>
-            var calLabelPicker = {{label .Language "calendarPicker"}};
-            var calLabelOpen = {{label .Language "calendarOpen"}};
+            function getCalPickerText() {
+              var el = document.getElementById("chart-cal-btn-label");
+              return (el && el.getAttribute("data-label-picker")) || "Calendar Picker";
+            }
+            function getCalOpenText() {
+              var el = document.getElementById("chart-cal-btn-label");
+              return (el && el.getAttribute("data-label-open")) || "Calendar (Open)";
+            }
 
             function toggleCalendarPanel(forceOpen) {
               var panel = document.getElementById("chart-inline-calendar-panel");
@@ -235,7 +249,7 @@
                 panel.style.display = "block";
                 panel.classList.remove("hidden");
                 if (periodSelect) periodSelect.value = "custom";
-                if (btnLabel) btnLabel.textContent = calLabelOpen;
+                if (btnLabel) btnLabel.textContent = getCalOpenText();
                 if (typeof window.renderChartCalendar === "function") {
                   window.renderChartCalendar();
                 }
@@ -248,7 +262,7 @@
                   if (periodSelect && periodSelect.value === "custom" && fromEl && toEl && fromEl.value && toEl.value) {
                     btnLabel.textContent = fromEl.value + " - " + toEl.value;
                   } else {
-                    btnLabel.textContent = calLabelPicker;
+                    btnLabel.textContent = getCalPickerText();
                   }
                 }
               }

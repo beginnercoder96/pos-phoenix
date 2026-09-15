@@ -1,1 +1,143 @@
-{{define "operators.html"}}<!doctype html><html lang="{{.Language}}" data-theme="{{.Theme}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Operators · POS Phoenix</title><link rel="stylesheet" href="/static/css/app.css"><script defer src="/static/js/app.js"></script></head><body class="app-body"><div class="min-h-screen lg:flex"><aside class="hidden w-64 shrink-0 flex-col bg-[#172033] p-5 text-white lg:flex"><div class="flex items-center gap-3"><img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg"><a class="font-black tracking-tight" href="/">Pardis Barber Shop</a></div><nav class="mt-12 flex-1 space-y-2"><a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/">▦ <span class="ml-3">{{label .Language "dashboard"}}</span></a><a class="flex min-h-11 items-center rounded-xl bg-emerald-500/15 px-4 font-bold text-emerald-300" href="/operators">♙ <span class="ml-3">{{label .Language "operators"}}</span></a></nav><div class="mt-6 shrink-0 border-t border-white/10 pt-4"><form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="flex min-h-11 w-full items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" type="submit">↪ <span class="ml-3">{{label .Language "signOut"}}</span></button></form></div></aside><div class="min-w-0 flex-1"><header class="topbar"><div class="topbar-inner"><div class="flex min-w-0 items-center gap-3 lg:hidden"><img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg"><div class="min-w-0"><a class="text-lg font-black tracking-tight" href="/">Pardis Barber Shop</a><p class="muted truncate text-xs">{{label .Language "operatorAdministration"}}</p></div></div><div class="hidden lg:block"><p class="text-sm font-bold text-slate-300">{{label .Language "operatorAdministration"}}</p></div><div class="flex flex-wrap items-center justify-end gap-2"><form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="return_to" value="{{.CurrentURL}}"><label class="sr-only" for="language">{{label .Language "language"}}</label><select id="language" name="language" class="preference-select" aria-label="{{label .Language "language"}}"><option value="en" {{if eq .Language "en"}}selected{{end}}>EN</option><option value="id" {{if eq .Language "id"}}selected{{end}}>ID</option></select><label class="sr-only" for="theme">{{label .Language "theme"}}</label><select id="theme" name="theme" class="preference-select" aria-label="{{label .Language "theme"}}"><option value="light" {{if eq .Theme "light"}}selected{{end}}>☀</option><option value="dark" {{if eq .Theme "dark"}}selected{{end}}>☾</option></select><noscript><button type="submit" class="btn-secondary">{{label .Language "save"}}</button></noscript></form><a class="btn-secondary" href="/">{{label .Language "dashboard"}}</a><form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn-secondary" type="submit">{{label .Language "signOut"}}</button></form></div></div></header><main class="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6"><section class="surface p-5 sm:p-6"><h1 class="text-2xl font-black tracking-tight">{{label .Language "createOperator"}}</h1>{{if .Error}}<div role="alert" class="mt-3 rounded-xl bg-red-100 p-3 text-red-800">{{.Error}}</div>{{end}}<form method="post" action="/operators" class="mt-4 grid gap-3 sm:grid-cols-2"><input type="hidden" name="csrf" value="{{.CSRF}}"><label><span class="field-label">{{label .Language "displayName"}}</span><input class="field" name="display_name" maxlength="80" required></label><label><span class="field-label">{{label .Language "email"}}</span><input class="field" type="email" name="email" maxlength="254" autocomplete="username" required></label><label class="sm:col-span-2"><span class="field-label">{{label .Language "temporaryPassword"}}</span><input class="field" type="password" name="password" minlength="12" maxlength="128" autocomplete="new-password" required><span class="muted mt-1 block text-xs">{{label .Language "passwordHint"}}</span></label><button class="btn-primary sm:col-span-2" type="submit">{{label .Language "createOperator"}}</button></form></section><section><h2 class="mb-3 text-xl font-black">{{label .Language "operators"}}</h2><div class="space-y-2">{{range .Operators}}<article class="surface flex items-center justify-between gap-3 p-4"><div class="min-w-0"><p class="truncate font-bold">{{.DisplayName}}</p><p class="truncate text-sm text-slate-500">{{.Email}}</p><p class="mt-1 text-xs font-bold {{if .Active}}text-emerald-700{{else}}text-rose-700{{end}}">{{if .Active}}{{label $.Language "active"}}{{else}}{{label $.Language "inactive"}}{{end}}</p></div><form method="post" action="/operators/{{.ID}}/active"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="active" value="{{if .Active}}false{{else}}true{{end}}"><button class="btn-secondary min-h-11 {{if .Active}}border-rose-300 text-rose-700{{else}}border-emerald-300 text-emerald-700{{end}}" type="submit">{{if .Active}}{{label $.Language "deactivate"}}{{else}}{{label $.Language "activate"}}{{end}}</button></form></article>{{else}}<div class="rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center text-slate-500">{{label .Language "noOperators"}}</div>{{end}}</div></section></main></div></div></body></html>{{end}}
+{{define "operators.html"}}<!doctype html>
+<html lang="{{.Language}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Operators · POS Phoenix</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script defer src="/static/js/app.js"></script>
+</head>
+<body class="app-body">
+  <div class="min-h-screen lg:flex">
+    <aside class="hidden w-64 shrink-0 flex-col bg-[#172033] p-5 text-white lg:flex">
+      <div class="flex items-center gap-3">
+        <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+        <a class="font-black tracking-tight" href="/">Pardis Barber Shop</a>
+      </div>
+      <nav class="mt-12 flex-1 space-y-2">
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/">▦ <span class="ml-3">{{label .Language "dashboard"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl bg-emerald-500/15 px-4 font-bold text-emerald-300" href="/operators">♙ <span class="ml-3">{{label .Language "operators"}}</span></a>
+        {{if eq .User.Role "superadmin"}}
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/">⚙ <span class="ml-3">Backoffice</span></a>
+        {{end}}
+      </nav>
+      <div class="mt-6 shrink-0 border-t border-white/10 pt-4">
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button class="flex min-h-11 w-full items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" type="submit">↪ <span class="ml-3">{{label .Language "signOut"}}</span></button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="min-w-0 flex-1">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+            <div class="min-w-0">
+              <a class="text-lg font-black tracking-tight" href="/">Pardis Barber Shop</a>
+              <p class="muted truncate text-xs">{{label .Language "operatorAdministration"}}</p>
+            </div>
+          </div>
+          <div class="hidden lg:block">
+            <p class="text-sm font-bold text-slate-300">{{label .Language "operatorAdministration"}}</p>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit>
+              <input type="hidden" name="csrf" value="{{.CSRF}}">
+              <input type="hidden" name="return_to" value="{{.CurrentURL}}">
+              <label class="sr-only" for="language">{{label .Language "language"}}</label>
+              <select id="language" name="language" class="preference-select" aria-label="{{label .Language "language"}}">
+                <option value="en" {{if eq .Language "en"}}selected{{end}}>EN</option>
+                <option value="id" {{if eq .Language "id"}}selected{{end}}>ID</option>
+              </select>
+              <label class="sr-only" for="theme">{{label .Language "theme"}}</label>
+              <select id="theme" name="theme" class="preference-select" aria-label="{{label .Language "theme"}}">
+                <option value="light" {{if eq .Theme "light"}}selected{{end}}>☀</option>
+                <option value="dark" {{if eq .Theme "dark"}}selected{{end}}>☾</option>
+              </select>
+              <noscript><button type="submit" class="btn-secondary">{{label .Language "save"}}</button></noscript>
+            </form>
+            <a class="btn-secondary" href="/">{{label .Language "dashboard"}}</a>
+            <form method="post" action="/logout">
+              <input type="hidden" name="csrf" value="{{.CSRF}}">
+              <button class="btn-secondary" type="submit">{{label .Language "signOut"}}</button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+        <section class="surface p-5 sm:p-6">
+          <h1 class="text-2xl font-black tracking-tight">{{label .Language "createOperator"}}</h1>
+          {{if .Error}}<div role="alert" class="mt-3 rounded-xl bg-red-100 p-3 text-red-800">{{.Error}}</div>{{end}}
+          <form method="post" action="/operators" class="mt-4 grid gap-3 sm:grid-cols-2">
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <label>
+              <span class="field-label">{{label .Language "displayName"}}</span>
+              <input class="field" name="display_name" maxlength="80" required>
+            </label>
+            <label>
+              <span class="field-label">{{label .Language "email"}}</span>
+              <input class="field" type="email" name="email" maxlength="254" autocomplete="username" required>
+            </label>
+            <label>
+              <span class="field-label">Cabang</span>
+              <select class="field min-h-11" name="branch_id">
+                <option value="0">-- Pilih Cabang (Opsional) --</option>
+                {{range .Branches}}
+                <option value="{{.ID}}">{{.Name}}</option>
+                {{end}}
+              </select>
+            </label>
+            <label>
+              <span class="field-label">Tipe Staf</span>
+              <select class="field min-h-11" name="staff_type">
+                <option value="barberman">Barberman</option>
+                <option value="cashier">Kasir</option>
+                <option value="manager">Manager</option>
+              </select>
+            </label>
+            <label class="sm:col-span-2">
+              <span class="field-label">{{label .Language "temporaryPassword"}}</span>
+              <input class="field" type="password" name="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+              <span class="muted mt-1 block text-xs">{{label .Language "passwordHint"}}</span>
+            </label>
+            <button class="btn-primary sm:col-span-2" type="submit">{{label .Language "createOperator"}}</button>
+          </form>
+        </section>
+
+        <section>
+          <h2 class="mb-3 text-xl font-black">{{label .Language "operators"}}</h2>
+          <div class="space-y-2">
+            {{range .Operators}}
+            <article class="surface flex items-center justify-between gap-3 p-4">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="truncate font-bold">{{.DisplayName}}</p>
+                  {{if .StaffType}}<span class="px-2 py-0.5 rounded text-[10px] bg-slate-500/20 uppercase font-semibold">{{.StaffType}}</span>{{end}}
+                </div>
+                <p class="truncate text-sm text-slate-500">{{.Email}}</p>
+                <p class="mt-1 text-xs font-bold {{if .Active}}text-emerald-700{{else}}text-rose-700{{end}}">
+                  {{if .Active}}{{label $.Language "active"}}{{else}}{{label $.Language "inactive"}}{{end}}
+                </p>
+              </div>
+              <form method="post" action="/operators/{{.ID}}/active">
+                <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="active" value="{{if .Active}}false{{else}}true{{end}}">
+                <button class="btn-secondary min-h-11 {{if .Active}}border-rose-300 text-rose-700{{else}}border-emerald-300 text-emerald-700{{end}}" type="submit">
+                  {{if .Active}}{{label $.Language "deactivate"}}{{else}}{{label $.Language "activate"}}{{end}}
+                </button>
+              </form>
+            </article>
+            {{else}}
+            <div class="rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center text-slate-500">{{label .Language "noOperators"}}</div>
+            {{end}}
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
+{{end}}

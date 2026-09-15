@@ -1,0 +1,177 @@
+{{define "backoffice_discounts.html"}}<!doctype html>
+<html lang="{{.Language}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Pardis Barbershop Backoffice — Discount and bundling management.">
+  <title>{{label .Language "boDiscounts"}} · Pardis Backoffice</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="app-body">
+  <div class="min-h-screen lg:flex">
+    <aside class="hidden w-64 shrink-0 flex-col bg-[#172033] p-5 text-white lg:flex">
+      <div class="flex items-center gap-3">
+        <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+        <div>
+          <p class="font-black tracking-tight">Pardis {{label .Language "boBackoffice"}}</p>
+          <p class="text-xs text-slate-300">{{.User.DisplayName}}</p>
+        </div>
+      </div>
+      <nav class="mt-12 space-y-2" aria-label="Backoffice navigation">
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/">📊 <span class="ml-3">{{label .Language "boDashboard"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/profit-sharing">💰 <span class="ml-3">{{label .Language "boProfitSharing"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl bg-emerald-500/15 px-4 font-bold text-emerald-300" href="/backoffice/discounts">🏷️ <span class="ml-3">{{label .Language "boDiscounts"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/products">📦 <span class="ml-3">{{label .Language "boProducts"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/payroll">📋 <span class="ml-3">{{label .Language "boPayroll"}}</span></a>
+        <hr class="border-white/10 my-4">
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/">{{label .Language "boMainPOS"}}</a>
+      </nav>
+      <div class="mt-auto border-t border-white/10 pt-4">
+        <p class="mb-3 text-xs text-slate-400">{{.CurrentDateTime}}</p>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button class="flex min-h-11 w-full items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" type="submit">↪ <span class="ml-3">{{label .Language "boSignOut"}}</span></button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="min-w-0 flex-1">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+            <div class="min-w-0">
+              <a class="text-lg font-black tracking-tight" href="/">Pardis Barber Shop</a>
+              <p class="muted truncate text-xs">{{label .Language "boDiscountsTitle"}}</p>
+            </div>
+          </div>
+          <div class="hidden lg:block">
+            <p class="text-sm font-bold text-slate-300">{{label .Language "boDiscountsTitle"}}</p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit>
+              <input type="hidden" name="csrf" value="{{.CSRF}}">
+              <input type="hidden" name="return_to" value="{{.CurrentURL}}">
+              <select name="language" class="preference-select" aria-label="Language" id="bo-disc-language">
+                <option value="en" {{if eq .Language "en"}}selected{{end}}>EN</option>
+                <option value="id" {{if eq .Language "id"}}selected{{end}}>ID</option>
+              </select>
+              <select name="theme" class="preference-select" aria-label="Theme" id="bo-disc-theme">
+                <option value="light" {{if eq .Theme "light"}}selected{{end}}>☀</option>
+                <option value="dark" {{if eq .Theme "dark"}}selected{{end}}>☾</option>
+              </select>
+              <noscript><button type="submit" class="btn-secondary">{{label .Language "save"}}</button></noscript>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <!-- Create Discount Form -->
+        <section class="rounded-2xl p-5 shadow-sm surface" id="discount-form-section">
+          <h2 class="text-lg font-black tracking-tight mb-4">{{label .Language "boAddDiscount"}}</h2>
+          <form method="post" action="/backoffice/discounts" class="mt-4 space-y-4" id="discount-form">
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label>
+                <span class="field-label">{{label .Language "boDiscCode"}}</span>
+                <input type="text" name="code" class="field min-h-11" placeholder="DISKON10" id="discount-code">
+              </label>
+              <label>
+                <span class="field-label">{{label .Language "boDiscName"}}</span>
+                <input type="text" name="name" class="field min-h-11" placeholder="Diskon Tahun Baru" required id="discount-name">
+              </label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <label>
+                <span class="field-label">{{label .Language "boDiscType"}}</span>
+                <select name="type" class="field min-h-11" id="discount-type">
+                  <option value="PERCENTAGE">{{label .Language "boDiscTypePct"}}</option>
+                  <option value="FIXED_AMOUNT">{{label .Language "boDiscTypeFixed"}}</option>
+                  <option value="BUNDLE">{{label .Language "boDiscTypeBundle"}}</option>
+                </select>
+              </label>
+              <label>
+                <span class="field-label">{{label .Language "boDiscValue"}}</span>
+                <input type="number" name="value" class="field min-h-11" placeholder="10" min="0" id="discount-value">
+              </label>
+              <label>
+                <span class="field-label">{{label .Language "boDiscStatus"}}</span>
+                <select name="is_active" class="field min-h-11" id="discount-active">
+                  <option value="1">{{label .Language "boDiscActive"}}</option>
+                  <option value="0">{{label .Language "boDiscInactive"}}</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label>
+                <span class="field-label">{{label .Language "boDiscServiceRatio"}}</span>
+                <input type="number" name="service_ratio" class="field min-h-11" value="1.0" min="0" max="1" step="0.1" id="discount-service-ratio">
+              </label>
+              <label>
+                <span class="field-label">{{label .Language "boDiscProductRatio"}}</span>
+                <input type="number" name="product_ratio" class="field min-h-11" value="0.0" min="0" max="1" step="0.1" id="discount-product-ratio">
+              </label>
+            </div>
+            <button type="submit" class="btn-primary h-11 px-6" id="discount-save-btn">{{label .Language "boDiscSave"}}</button>
+          </form>
+        </section>
+
+        <!-- Discounts List -->
+        <section class="rounded-2xl p-5 shadow-sm surface" id="discounts-list-section">
+          <h2 class="text-lg font-black tracking-tight mb-4">{{label .Language "boDiscList"}}</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm" id="discounts-table">
+              <thead>
+                <tr class="border-b">
+                  <th class="text-left py-2 px-3">{{label .Language "boDiscCode"}}</th>
+                  <th class="text-left py-2 px-3">{{label .Language "boDiscName"}}</th>
+                  <th class="text-left py-2 px-3">{{label .Language "boDiscType"}}</th>
+                  <th class="text-right py-2 px-3">{{label .Language "boDiscValue"}}</th>
+                  <th class="text-center py-2 px-3">{{label .Language "boDiscStatus"}}</th>
+                  <th class="text-center py-2 px-3">{{label .Language "boAction"}}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{range .Discounts}}
+                <tr class="border-b hover:bg-white/5">
+                  <td class="py-2 px-3 font-mono text-xs">{{.Code}}</td>
+                  <td class="py-2 px-3 font-medium">{{.Name}}</td>
+                  <td class="py-2 px-3">
+                    {{if eq .Type "PERCENTAGE"}}{{label $.Language "boDiscTypePctLabel"}}
+                    {{else if eq .Type "FIXED_AMOUNT"}}{{label $.Language "boDiscTypeFixedLabel"}}
+                    {{else}}{{label $.Language "boDiscTypeBundleLabel"}}{{end}}
+                  </td>
+                  <td class="py-2 px-3 text-right">
+                    {{if eq .Type "PERCENTAGE"}}{{.Value}}%
+                    {{else}}{{money .Value}}{{end}}
+                  </td>
+                  <td class="py-2 px-3 text-center">
+                    {{if .IsActive}}<span class="text-emerald-500 font-bold">{{label $.Language "boDiscActive"}}</span>
+                    {{else}}<span class="text-red-400">{{label $.Language "boDiscInactive"}}</span>{{end}}
+                  </td>
+                  <td class="py-2 px-3 text-center">
+                    <form method="post" action="/backoffice/discounts/{{.ID}}/delete" class="inline">
+                      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                      <button type="submit" class="text-red-400 hover:text-red-300 text-xs" onclick="return confirm('{{label $.Language "boDiscConfirmDelete"}}')">{{label $.Language "boDiscActionDelete"}}</button>
+                    </form>
+                  </td>
+                </tr>
+                {{else}}
+                <tr><td colspan="6" class="py-8 text-center muted">{{label .Language "boDiscEmpty"}}</td></tr>
+                {{end}}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    document.querySelectorAll('[data-auto-submit] select').forEach(function(sel) {
+      sel.addEventListener('change', function() { this.closest('form').submit(); });
+    });
+  </script>
+</body>
+</html>
+{{end}}

@@ -10,15 +10,20 @@ import (
 )
 
 type Item struct {
-	ID            int64
-	TransactionID int64
-	Category      string
-	ItemName      string
-	AmountCents   int64
+	ID               int64
+	TransactionID    int64
+	Category         string
+	ItemName         string
+	AmountCents      int64
+	ItemType         string
+	BarberID         int64
+	DiscountAmount   int64
+	CommissionEarned int64
 }
 
 type Entry struct {
 	ID, OperatorID, AmountCents        int64
+	BranchID                           int64
 	ReversalOfID, ReversedByID         sql.NullInt64
 	OperatorName, Kind, Category, Note string
 	OccurredAt                         time.Time
@@ -69,7 +74,11 @@ func (r Repository) Create(ctx context.Context, e Entry) error {
 		return err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `INSERT INTO transactions(operator_id,kind,amount_cents,category,note,occurred_at) VALUES(?,?,?,?,?,?)`, e.OperatorID, e.Kind, e.AmountCents, e.Category, e.Note, e.OccurredAt.UTC())
+	var bID any = nil
+	if e.BranchID > 0 {
+		bID = e.BranchID
+	}
+	result, err := tx.ExecContext(ctx, `INSERT INTO transactions(operator_id,kind,amount_cents,category,note,occurred_at,branch_id) VALUES(?,?,?,?,?,?,?)`, e.OperatorID, e.Kind, e.AmountCents, e.Category, e.Note, e.OccurredAt.UTC(), bID)
 	if err != nil {
 		return err
 	}
@@ -81,12 +90,21 @@ func (r Repository) Create(ctx context.Context, e Entry) error {
 		for _, item := range e.Items {
 			cat := strings.TrimSpace(item.Category)
 			itemName := strings.TrimSpace(item.ItemName)
-			if _, err := tx.ExecContext(ctx, `INSERT INTO transaction_items(transaction_id,category,item_name,amount_cents) VALUES(?,?,?,?)`, transactionID, cat, itemName, item.AmountCents); err != nil {
+			itemType := item.ItemType
+			if itemType == "" {
+				itemType = "SERVICE"
+			}
+			var barberID any = nil
+			if item.BarberID > 0 {
+				barberID = item.BarberID
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO transaction_items(transaction_id,category,item_name,amount_cents,item_type,barber_id,discount_amount,commission_earned) VALUES(?,?,?,?,?,?,?,?)`,
+				transactionID, cat, itemName, item.AmountCents, itemType, barberID, item.DiscountAmount, item.CommissionEarned); err != nil {
 				return err
 			}
 		}
 	} else if strings.TrimSpace(e.Category) != "" {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO transaction_items(transaction_id,category,item_name,amount_cents) VALUES(?,?,?,?)`, transactionID, strings.TrimSpace(e.Category), "", e.AmountCents); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO transaction_items(transaction_id,category,item_name,amount_cents,item_type) VALUES(?,?,?,?,'SERVICE')`, transactionID, strings.TrimSpace(e.Category), "", e.AmountCents); err != nil {
 			return err
 		}
 	}
