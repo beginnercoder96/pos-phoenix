@@ -1,6 +1,6 @@
 # Binaries
 pos-phoenix
-server
+/server
 *.exe
 *.exe~
 *.dll
@@ -34,4 +34,7 @@ coverage.out
 # Reference materials & heavy assets
 figma-component/
 imageclienthere/
+
+# Local run helper
+run.bat
 

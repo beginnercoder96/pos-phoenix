@@ -22,8 +22,10 @@ func setupTestDB(t *testing.T) *sql.DB {
 		email TEXT NOT NULL UNIQUE,
 		display_name TEXT NOT NULL,
 		password_hash TEXT NOT NULL,
-		role TEXT NOT NULL CHECK(role IN ('superadmin','operator')),
+		role TEXT NOT NULL,
 		active INTEGER NOT NULL DEFAULT 1,
+		branch_id INTEGER,
+		staff_type TEXT,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE TABLE sessions (

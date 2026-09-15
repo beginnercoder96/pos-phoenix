@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/mekari/pos-phoenix/internal/auth"
+	"github.com/mekari/pos-phoenix/internal/backoffice"
 	transactionstore "github.com/mekari/pos-phoenix/internal/transaction"
 )
 
@@ -27,6 +28,7 @@ const userKey contextKey = "user"
 type Server struct {
 	auth         auth.Service
 	transactions transactionstore.Repository
+	backoffice   *backoffice.Repository
 	templates    *template.Template
 	secure       bool
 	location     *time.Location
@@ -78,6 +80,7 @@ type pageData struct {
 	CatalogJS                   template.JS
 	Greeting                    string
 	RedirectURL                 string
+	Branches                    []backoffice.Branch
 }
 
 func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error) {
@@ -94,7 +97,7 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{auth: auth.Service{DB: db}, transactions: transactionstore.Repository{DB: db}, templates: t, secure: secure, location: location, now: time.Now}
+	s := &Server{auth: auth.Service{DB: db}, transactions: transactionstore.Repository{DB: db}, backoffice: &backoffice.Repository{DB: db}, templates: t, secure: secure, location: location, now: time.Now}
 	mux := http.NewServeMux()
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(safeDir("web/static"))))
 	mux.HandleFunc("GET /login", s.loginPage)
@@ -110,6 +113,23 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	mux.HandleFunc("GET /operators", s.withUser(s.adminOnly(s.operatorsPage)))
 	mux.HandleFunc("POST /operators", s.withUser(s.adminOnly(s.createOperator)))
 	mux.HandleFunc("POST /operators/{id}/active", s.withUser(s.adminOnly(s.setOperatorActive)))
+	// Backoffice routes (admin-only)
+	mux.HandleFunc("GET /backoffice", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/backoffice/", http.StatusSeeOther)
+	})
+	mux.HandleFunc("GET /backoffice/", s.withUser(s.adminOnly(s.backofficeDashboard)))
+	mux.HandleFunc("GET /backoffice/profit-sharing", s.withUser(s.adminOnly(s.backofficeProfitSharing)))
+	mux.HandleFunc("POST /backoffice/profit-sharing", s.withUser(s.adminOnly(s.backofficeSaveProfitSharing)))
+	mux.HandleFunc("GET /backoffice/discounts", s.withUser(s.adminOnly(s.backofficeDiscounts)))
+	mux.HandleFunc("POST /backoffice/discounts", s.withUser(s.adminOnly(s.backofficeSaveDiscount)))
+	mux.HandleFunc("POST /backoffice/discounts/{id}/delete", s.withUser(s.adminOnly(s.backofficeDeleteDiscount)))
+	mux.HandleFunc("GET /backoffice/products", s.withUser(s.adminOnly(s.backofficeProducts)))
+	mux.HandleFunc("POST /backoffice/products", s.withUser(s.adminOnly(s.backofficeSaveProduct)))
+	mux.HandleFunc("GET /backoffice/payroll", s.withUser(s.adminOnly(s.backofficePayroll)))
+	mux.HandleFunc("GET /backoffice/payroll/slip", s.withUser(s.adminOnly(s.backofficePayrollSlip)))
+	mux.HandleFunc("GET /backoffice/payroll/slip-all", s.withUser(s.adminOnly(s.backofficePayrollSlipAll)))
+	mux.HandleFunc("GET /backoffice/reports.xlsx", s.withUser(s.adminOnly(s.backofficeFinancialReport)))
+	mux.HandleFunc("GET /backoffice/api/analytics/trend-24m", s.withUser(s.adminOnly(s.backofficeAnalyticsAPI)))
 	return s.securityHeaders(mux), nil
 }
 
@@ -441,6 +461,22 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 	if len(itemNames) == 0 {
 		itemNames = r.PostForm["item_name[]"]
 	}
+	itemTypes := r.PostForm["item_type"]
+	if len(itemTypes) == 0 {
+		itemTypes = r.PostForm["item_type[]"]
+	}
+	barberIDs := r.PostForm["barber_id"]
+	if len(barberIDs) == 0 {
+		barberIDs = r.PostForm["barber_id[]"]
+	}
+	discounts := r.PostForm["discount_amount"]
+	if len(discounts) == 0 {
+		discounts = r.PostForm["discount_amount[]"]
+	}
+	commissions := r.PostForm["commission_earned"]
+	if len(commissions) == 0 {
+		commissions = r.PostForm["commission_earned[]"]
+	}
 
 	var items []transactionstore.Item
 	var totalCents int64
@@ -470,10 +506,30 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 			if i < len(itemNames) {
 				itemName = strings.TrimSpace(itemNames[i])
 			}
+			var itType string
+			if i < len(itemTypes) {
+				itType = strings.TrimSpace(itemTypes[i])
+			}
+			var bID int64
+			if i < len(barberIDs) {
+				bID, _ = strconv.ParseInt(barberIDs[i], 10, 64)
+			}
+			var discAmt int64
+			if i < len(discounts) {
+				discAmt, _ = transactionstore.ParseCents(discounts[i])
+			}
+			var commEarned int64
+			if i < len(commissions) {
+				commEarned, _ = transactionstore.ParseCents(commissions[i])
+			}
 			items = append(items, transactionstore.Item{
-				Category:    cat,
-				ItemName:    itemName,
-				AmountCents: cents,
+				Category:         cat,
+				ItemName:         itemName,
+				AmountCents:      cents,
+				ItemType:         itType,
+				BarberID:         bID,
+				DiscountAmount:   discAmt,
+				CommissionEarned: commEarned,
 			})
 			totalCents += cents
 			if !seenCat[cat] {
@@ -507,8 +563,17 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 		joinedCategory = joinedCategory[:255]
 	}
 
+	var branchID int64
+	if bStr := r.FormValue("branch_id"); bStr != "" {
+		branchID, _ = strconv.ParseInt(bStr, 10, 64)
+	}
+	if branchID <= 0 && u.BranchID > 0 {
+		branchID = u.BranchID
+	}
+
 	err = s.transactions.Create(r.Context(), transactionstore.Entry{
 		OperatorID:  u.ID,
+		BranchID:    branchID,
 		Kind:        kind,
 		AmountCents: totalCents,
 		Category:    joinedCategory,
@@ -551,7 +616,8 @@ func (s *Server) operatorsPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to load operators", http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, CSRF: s.csrf(w, r), CurrentURL: r.URL.RequestURI()}))
+	branches, _ := s.backoffice.ListBranches(r.Context())
+	s.render(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, Branches: branches, CSRF: s.csrf(w, r), CurrentURL: r.URL.RequestURI()}))
 }
 
 func (s *Server) createOperator(w http.ResponseWriter, r *http.Request) {
@@ -559,7 +625,12 @@ func (s *Server) createOperator(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusForbidden)
 		return
 	}
-	if err := s.auth.CreateOperator(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password")); err != nil {
+	var branchID int64
+	if bStr := r.FormValue("branch_id"); bStr != "" {
+		branchID, _ = strconv.ParseInt(bStr, 10, 64)
+	}
+	staffType := strings.TrimSpace(r.FormValue("staff_type"))
+	if err := s.auth.CreateOperatorWithBranch(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), "operator", staffType, branchID); err != nil {
 		operators, _ := s.auth.ListOperators(r.Context())
 		s.renderStatus(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, CSRF: s.csrf(w, r), Error: err.Error()}), http.StatusBadRequest)
 		return

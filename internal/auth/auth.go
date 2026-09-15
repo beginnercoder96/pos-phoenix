@@ -15,6 +15,8 @@ type User struct {
 	ID                       int64
 	Email, DisplayName, Role string
 	Active                   bool
+	BranchID                 int64
+	StaffType                string
 }
 type Service struct {
 	DB  *sql.DB
@@ -22,7 +24,7 @@ type Service struct {
 }
 
 func (s Service) ListOperators(ctx context.Context) ([]User, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT id,email,display_name,role,active FROM users WHERE role='operator' ORDER BY display_name,email`)
+	rows, err := s.DB.QueryContext(ctx, `SELECT id,email,display_name,role,active,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE role IN ('operator','barberman','cashier') ORDER BY display_name,email`)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +32,29 @@ func (s Service) ListOperators(ctx context.Context) ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.Role, &user.Active); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.Role, &user.Active, &user.BranchID, &user.StaffType); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
+}
+
+// ListEmployees returns active employees (barbermen/cashiers) for a specific branch.
+func (s Service) ListEmployees(ctx context.Context, branchID int64) ([]User, error) {
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT id,email,display_name,role,active,COALESCE(branch_id,0),COALESCE(staff_type,'')
+		 FROM users WHERE branch_id=? AND active=1
+		 AND role IN ('operator','barberman','cashier')
+		 ORDER BY display_name,email`, branchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.Role, &user.Active, &user.BranchID, &user.StaffType); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -39,6 +63,10 @@ func (s Service) ListOperators(ctx context.Context) ([]User, error) {
 }
 
 func (s Service) CreateOperator(ctx context.Context, email, displayName, password string) error {
+	return s.CreateOperatorWithBranch(ctx, email, displayName, password, "operator", "barberman", 0)
+}
+
+func (s Service) CreateOperatorWithBranch(ctx context.Context, email, displayName, password, role, staffType string, branchID int64) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 	displayName = strings.TrimSpace(displayName)
 	if email == "" || !strings.Contains(email, "@") || len(email) > 254 {
@@ -47,11 +75,21 @@ func (s Service) CreateOperator(ctx context.Context, email, displayName, passwor
 	if displayName == "" || len(displayName) > 80 {
 		return errors.New("display name is required")
 	}
+	if role == "" {
+		role = "operator"
+	}
+	if staffType == "" {
+		staffType = "barberman"
+	}
 	hash, err := HashPassword(password)
 	if err != nil {
 		return err
 	}
-	_, err = s.DB.ExecContext(ctx, `INSERT INTO users(email,display_name,password_hash,role) VALUES(?,?,?,'operator')`, email, displayName, hash)
+	var bID any = branchID
+	if branchID <= 0 {
+		bID = nil
+	}
+	_, err = s.DB.ExecContext(ctx, `INSERT INTO users(email,display_name,password_hash,role,branch_id,staff_type) VALUES(?,?,?,?,?,?)`, email, displayName, hash, role, bID, staffType)
 	if err != nil {
 		return errors.New("an account with that email already exists")
 	}
@@ -64,7 +102,7 @@ func (s Service) SetOperatorActive(ctx context.Context, operatorID int64, active
 		return err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `UPDATE users SET active=? WHERE id=? AND role='operator'`, active, operatorID)
+	result, err := tx.ExecContext(ctx, `UPDATE users SET active=? WHERE id=? AND role IN ('operator','barberman','cashier')`, active, operatorID)
 	if err != nil {
 		return err
 	}
@@ -84,12 +122,13 @@ type fixedCredential struct {
 	Password    string
 	DisplayName string
 	Role        string
+	StaffType   string
 }
 
 var temporaryFixedCredentials = map[string]fixedCredential{
-	"admin@example.com": {Password: "adminsupervisor", DisplayName: "Administrator", Role: "superadmin"},
-	"ipang@example.com": {Password: "adminsupervisor", DisplayName: "Ipang", Role: "superadmin"},
-	"yogi@contoh.com":   {Password: "yogioperator", DisplayName: "yogi", Role: "operator"},
+	"admin@example.com": {Password: "adminsupervisor", DisplayName: "Administrator", Role: "superadmin", StaffType: "owner"},
+	"ipang@example.com": {Password: "adminsupervisor", DisplayName: "Ipang", Role: "superadmin", StaffType: "owner"},
+	"yogi@contoh.com":   {Password: "yogioperator", DisplayName: "yogi", Role: "operator", StaffType: "barberman"},
 }
 
 func (s Service) Authenticate(ctx context.Context, email, password string) (User, error) {
@@ -98,13 +137,13 @@ func (s Service) Authenticate(ctx context.Context, email, password string) (User
 	// Check temporary fixed credentials
 	if fixed, ok := temporaryFixedCredentials[cleanEmail]; ok && fixed.Password == password {
 		var u User
-		err := s.DB.QueryRowContext(ctx, `SELECT id,email,display_name,role FROM users WHERE email=? AND active=1`, cleanEmail).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role)
+		err := s.DB.QueryRowContext(ctx, `SELECT id,email,display_name,role,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE email=? AND active=1`, cleanEmail).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType)
 		if err == nil {
 			return u, nil
 		}
 		// If the user does not exist in DB yet, safely create it so foreign keys (sessions, transactions) work
 		hash, _ := HashPassword(fixed.Password)
-		res, err := s.DB.ExecContext(ctx, `INSERT INTO users(email,display_name,password_hash,role,active) VALUES(?,?,?,?,1)`, cleanEmail, fixed.DisplayName, hash, fixed.Role)
+		res, err := s.DB.ExecContext(ctx, `INSERT INTO users(email,display_name,password_hash,role,active,staff_type) VALUES(?,?,?,?,1,?)`, cleanEmail, fixed.DisplayName, hash, fixed.Role, fixed.StaffType)
 		if err == nil {
 			id, _ := res.LastInsertId()
 			return User{
@@ -113,13 +152,14 @@ func (s Service) Authenticate(ctx context.Context, email, password string) (User
 				DisplayName: fixed.DisplayName,
 				Role:        fixed.Role,
 				Active:      true,
+				StaffType:   fixed.StaffType,
 			}, nil
 		}
 	}
 
 	var u User
 	var hash string
-	err := s.DB.QueryRowContext(ctx, `SELECT id,email,display_name,role,password_hash FROM users WHERE email=? AND active=1`, cleanEmail).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &hash)
+	err := s.DB.QueryRowContext(ctx, `SELECT id,email,display_name,role,password_hash,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE email=? AND active=1`, cleanEmail).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &hash, &u.BranchID, &u.StaffType)
 	if err != nil || !VerifyPassword(hash, password) {
 		return User{}, errors.New("invalid credentials")
 	}
@@ -140,7 +180,7 @@ func (s Service) CreateSession(ctx context.Context, userID int64) (string, error
 func (s Service) UserForSession(ctx context.Context, token string) (User, error) {
 	sum := sha256.Sum256([]byte(token))
 	var u User
-	err := s.DB.QueryRowContext(ctx, `SELECT u.id,u.email,u.display_name,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1`, base64.RawStdEncoding.EncodeToString(sum[:]), s.now().UTC()).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role)
+	err := s.DB.QueryRowContext(ctx, `SELECT u.id,u.email,u.display_name,u.role,COALESCE(u.branch_id,0),COALESCE(u.staff_type,'') FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1`, base64.RawStdEncoding.EncodeToString(sum[:]), s.now().UTC()).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType)
 	return u, err
 }
 

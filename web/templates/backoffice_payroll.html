@@ -1,0 +1,154 @@
+{{define "backoffice_payroll.html"}}<!doctype html>
+<html lang="{{.Language}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Pardis Barbershop Backoffice — Employee payroll, generate and download Excel slips.">
+  <title>{{label .Language "boPayroll"}} · Pardis Backoffice</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="app-body">
+  <div class="min-h-screen lg:flex">
+    <aside class="hidden w-64 shrink-0 flex-col bg-[#172033] p-5 text-white lg:flex">
+      <div class="flex items-center gap-3">
+        <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+        <div>
+          <p class="font-black tracking-tight">Pardis {{label .Language "boBackoffice"}}</p>
+          <p class="text-xs text-slate-300">{{.User.DisplayName}}</p>
+        </div>
+      </div>
+      <nav class="mt-12 space-y-2" aria-label="Backoffice navigation">
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/">📊 <span class="ml-3">{{label .Language "boDashboard"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/profit-sharing">💰 <span class="ml-3">{{label .Language "boProfitSharing"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/discounts">🏷️ <span class="ml-3">{{label .Language "boDiscounts"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/products">📦 <span class="ml-3">{{label .Language "boProducts"}}</span></a>
+        <a class="flex min-h-11 items-center rounded-xl bg-emerald-500/15 px-4 font-bold text-emerald-300" href="/backoffice/payroll">📋 <span class="ml-3">{{label .Language "boPayroll"}}</span></a>
+        <hr class="border-white/10 my-4">
+        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/">{{label .Language "boMainPOS"}}</a>
+      </nav>
+      <div class="mt-auto border-t border-white/10 pt-4">
+        <p class="mb-3 text-xs text-slate-400">{{.CurrentDateTime}}</p>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button class="flex min-h-11 w-full items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" type="submit">↪ <span class="ml-3">{{label .Language "boSignOut"}}</span></button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="min-w-0 flex-1">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+            <div class="min-w-0">
+              <a class="text-lg font-black tracking-tight" href="/">Pardis Barber Shop</a>
+              <p class="muted truncate text-xs">{{label .Language "boPayrollTitle"}}</p>
+            </div>
+          </div>
+          <div class="hidden lg:block">
+            <p class="text-sm font-bold text-slate-300">{{label .Language "boPayrollTitle"}}</p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit>
+              <input type="hidden" name="csrf" value="{{.CSRF}}">
+              <input type="hidden" name="return_to" value="{{.CurrentURL}}">
+              <select name="language" class="preference-select" aria-label="Language" id="bo-payroll-language">
+                <option value="en" {{if eq .Language "en"}}selected{{end}}>EN</option>
+                <option value="id" {{if eq .Language "id"}}selected{{end}}>ID</option>
+              </select>
+              <select name="theme" class="preference-select" aria-label="Theme" id="bo-payroll-theme">
+                <option value="light" {{if eq .Theme "light"}}selected{{end}}>☀</option>
+                <option value="dark" {{if eq .Theme "dark"}}selected{{end}}>☾</option>
+              </select>
+              <noscript><button type="submit" class="btn-secondary">{{label .Language "save"}}</button></noscript>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <!-- Filters — auto-submit on change -->
+        <section class="rounded-2xl p-5 shadow-sm surface" id="payroll-filter">
+          <form method="get" action="/backoffice/payroll" class="flex flex-wrap gap-3 items-end" id="payroll-filter-form">
+            <label class="min-w-0">
+              <span class="field-label">{{label .Language "boBranch"}}</span>
+              <select name="branch" class="field min-h-11" id="payroll-branch-select">
+                {{range .Branches}}
+                <option value="{{.Code}}" {{if eq $.SelectedBranch .Code}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+              </select>
+            </label>
+            <label class="min-w-0">
+              <span class="field-label">{{label .Language "boPeriod"}}</span>
+              <input type="month" name="period" value="{{.SelectedPeriod}}" class="field min-h-11" id="payroll-period-input">
+            </label>
+            <noscript><button class="btn-primary h-11 px-4" type="submit">{{label .Language "boShow"}}</button></noscript>
+          </form>
+        </section>
+
+        <!-- Download All Button -->
+        <section class="rounded-2xl p-5 shadow-sm surface" id="payroll-download-all">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-black tracking-tight">{{label .Language "boPayrollRecap"}} — {{.SelectedBranch}}</h2>
+              <p class="muted text-xs">{{label .Language "boPeriod"}}: {{.SelectedPeriod}}</p>
+            </div>
+            <a href="/backoffice/payroll/slip-all?branch={{.SelectedBranch}}&period={{.SelectedPeriod}}" class="btn-primary h-11 flex items-center gap-2 px-4" id="btn-download-all-slips">
+              {{label .Language "boDownloadAll"}}
+            </a>
+          </div>
+        </section>
+
+        <!-- Payroll Table -->
+        <section class="rounded-2xl p-5 shadow-sm surface" id="payroll-table-section">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm" id="payroll-table">
+              <thead>
+                <tr class="border-b">
+                  <th class="text-left py-2 px-3">{{label .Language "boEmpName"}}</th>
+                  <th class="text-right py-2 px-3">{{label .Language "boProfitSharePct"}}</th>
+                  <th class="text-right py-2 px-3">{{label .Language "boProfitShareAmt"}}</th>
+                  <th class="text-right py-2 px-3">{{label .Language "boProductComm"}}</th>
+                  <th class="text-right py-2 px-3 font-bold">{{label .Language "boTakeHome"}}</th>
+                  <th class="text-center py-2 px-3">{{label .Language "boAction"}}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{range .PayrollSummaries}}
+                <tr class="border-b hover:bg-white/5">
+                  <td class="py-3 px-3 font-medium">{{.DisplayName}}</td>
+                  <td class="py-3 px-3 text-right">{{printf "%.1f" .ServiceSharePercent}}%</td>
+                  <td class="py-3 px-3 text-right text-emerald-500">{{money .ServiceShareCents}}</td>
+                  <td class="py-3 px-3 text-right text-blue-400">{{money .ProductCommission}}</td>
+                  <td class="py-3 px-3 text-right font-black text-lg">{{money .TotalPayCents}}</td>
+                  <td class="py-3 px-3 text-center">
+                    <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}" class="btn-secondary text-xs px-3 py-1" id="btn-slip-{{.UserID}}">
+                      {{label $.Language "boDownloadSlip"}}
+                    </a>
+                  </td>
+                </tr>
+                {{else}}
+                <tr><td colspan="6" class="py-8 text-center muted">{{label .Language "boNoPayroll"}}</td></tr>
+                {{end}}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('[data-auto-submit] select').forEach(function(sel) {
+      sel.addEventListener('change', function() { this.closest('form').submit(); });
+    });
+    var payrollFilterForm = document.getElementById('payroll-filter-form');
+    if (payrollFilterForm) {
+      payrollFilterForm.querySelectorAll('select, input[type="month"]').forEach(function(el) {
+        el.addEventListener('change', function() { payrollFilterForm.submit(); });
+      });
+    }
+  </script>
+</body>
+</html>
+{{end}}
