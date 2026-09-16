@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Profit sharing configuration per branch.">
   <title>{{label .Language "boProfitSharing"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-blue2">
-  <script defer src="/static/js/app.js?v=20260916-toast"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -69,7 +69,7 @@
           <form method="get" action="/backoffice/profit-sharing" class="flex flex-wrap gap-3 items-end" id="ps-filter-form">
             <label class="min-w-0">
               <span class="field-label">{{label .Language "boBranch"}}</span>
-              <select name="branch" class="field min-h-11" id="ps-branch-select">
+              <select name="branch" class="field h-11 min-h-11" id="ps-branch-select">
                 {{range .Branches}}
                 <option value="{{.Code}}" {{if eq $.SelectedBranch .Code}}selected{{end}}>{{.Name}}</option>
                 {{end}}
@@ -77,7 +77,7 @@
             </label>
             <label class="min-w-0">
               <span class="field-label">{{label .Language "boPeriod"}}</span>
-              <input type="month" name="period" value="{{.SelectedPeriod}}" class="field min-h-11" id="ps-period-input">
+              <input type="month" name="period" value="{{.SelectedPeriod}}" class="field h-11 min-h-11" id="ps-period-input">
             </label>
             <noscript><button class="btn-primary h-11 px-4" type="submit">{{label .Language "boShow"}}</button></noscript>
           </form>
@@ -116,7 +116,7 @@
                   <p class="muted text-xs">{{label .Language "boOwnerShareDesc"}}</p>
                 </div>
                 <div class="w-24">
-                  <input type="number" name="owner_percentage" value="{{printf "%.1f" .OwnerPercentage}}" min="0" max="100" step="0.1" class="field min-h-11 text-right" id="owner-pct-input">
+                  <input type="number" name="owner_percentage" value="{{printf "%.1f" .OwnerPercentage}}" min="0" max="100" step="0.1" class="field h-11 min-h-11 text-right" id="owner-pct-input">
                 </div>
                 <span class="text-sm font-bold">%</span>
               </div>
@@ -129,7 +129,7 @@
                   <p class="muted text-xs">{{label $.Language "boEmpShareDesc"}} {{money .ShareAmount}}</p>
                 </div>
                 <div class="w-24">
-                  <input type="number" name="employee_percentage" value="{{printf "%.1f" .Percentage}}" min="0" max="100" step="0.1" class="field min-h-11 text-right emp-pct-input">
+                  <input type="number" name="employee_percentage" value="{{printf "%.1f" .Percentage}}" min="0" max="100" step="0.1" class="field h-11 min-h-11 text-right emp-pct-input">
                 </div>
                 <span class="text-sm font-bold">%</span>
               </div>

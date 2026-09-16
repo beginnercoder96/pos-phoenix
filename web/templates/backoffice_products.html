@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Product catalog and commission settings.">
   <title>{{label .Language "boProducts"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-blue2">
-  <script defer src="/static/js/app.js?v=20260916-toast"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -76,29 +76,29 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label>
                 <span class="field-label">{{label .Language "boProdName"}}</span>
-                <input type="text" name="name" class="field min-h-11" placeholder="Pomade Death Waterbased" required id="product-name">
+                <input type="text" name="name" class="field h-11 min-h-11" placeholder="Pomade Death Waterbased" required id="product-name">
               </label>
               <label>
                 <span class="field-label">{{label .Language "boProdCategory"}}</span>
-                <input type="text" name="category" class="field min-h-11" placeholder="Product / Haircut Services" id="product-category">
+                <input type="text" name="category" class="field h-11 min-h-11" placeholder="Product / Haircut Services" id="product-category">
               </label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <label>
                 <span class="field-label">{{label .Language "boProdType"}}</span>
-                <select name="item_type" class="field min-h-11" id="product-type">
+                <select name="item_type" class="field h-11 min-h-11" id="product-type">
                   <option value="SERVICE">{{label .Language "boProdTypeService"}}</option>
                   <option value="PRODUCT">{{label .Language "boProdTypeProduct"}}</option>
                 </select>
               </label>
               <label>
                 <span class="field-label">{{label .Language "boProdPrice"}}</span>
-                <input type="number" name="price_cents" class="field min-h-11" placeholder="12000000" min="0" id="product-price">
+                <input type="number" name="price_cents" class="field h-11 min-h-11" placeholder="12000000" min="0" id="product-price">
                 <span class="muted text-xs">{{label .Language "boProdPriceHint"}}</span>
               </label>
               <label>
                 <span class="field-label">{{label .Language "boProdComm"}}</span>
-                <input type="number" name="commission_amount" class="field min-h-11" placeholder="500000" min="0" id="product-commission">
+                <input type="number" name="commission_amount" class="field h-11 min-h-11" placeholder="500000" min="0" id="product-commission">
                 <span class="muted text-xs">{{label .Language "boProdCommHint"}}</span>
               </label>
             </div>

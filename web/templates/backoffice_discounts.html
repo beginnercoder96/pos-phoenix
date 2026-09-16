@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Discount and bundling management.">
   <title>{{label .Language "boDiscounts"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-blue2">
-  <script defer src="/static/js/app.js?v=20260916-toast"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -76,17 +76,17 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label>
                 <span class="field-label">{{label .Language "boDiscCode"}}</span>
-                <input type="text" name="code" class="field min-h-11" placeholder="DISKON10" id="discount-code">
+                <input type="text" name="code" class="field h-11 min-h-11" placeholder="DISKON10" id="discount-code">
               </label>
               <label>
                 <span class="field-label">{{label .Language "boDiscName"}}</span>
-                <input type="text" name="name" class="field min-h-11" placeholder="Diskon Tahun Baru" required id="discount-name">
+                <input type="text" name="name" class="field h-11 min-h-11" placeholder="Diskon Tahun Baru" required id="discount-name">
               </label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <label>
                 <span class="field-label">{{label .Language "boDiscType"}}</span>
-                <select name="type" class="field min-h-11" id="discount-type">
+                <select name="type" class="field h-11 min-h-11" id="discount-type">
                   <option value="PERCENTAGE">{{label .Language "boDiscTypePct"}}</option>
                   <option value="FIXED_AMOUNT">{{label .Language "boDiscTypeFixed"}}</option>
                   <option value="BUNDLE">{{label .Language "boDiscTypeBundle"}}</option>
@@ -94,11 +94,11 @@
               </label>
               <label>
                 <span class="field-label">{{label .Language "boDiscValue"}}</span>
-                <input type="number" name="value" class="field min-h-11" placeholder="10" min="0" id="discount-value">
+                <input type="number" name="value" class="field h-11 min-h-11" placeholder="10" min="0" id="discount-value">
               </label>
               <label>
                 <span class="field-label">{{label .Language "boDiscStatus"}}</span>
-                <select name="is_active" class="field min-h-11" id="discount-active">
+                <select name="is_active" class="field h-11 min-h-11" id="discount-active">
                   <option value="1">{{label .Language "boDiscActive"}}</option>
                   <option value="0">{{label .Language "boDiscInactive"}}</option>
                 </select>
@@ -107,11 +107,11 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label>
                 <span class="field-label">{{label .Language "boDiscServiceRatio"}}</span>
-                <input type="number" name="service_ratio" class="field min-h-11" value="1.0" min="0" max="1" step="0.1" id="discount-service-ratio">
+                <input type="number" name="service_ratio" class="field h-11 min-h-11" value="1.0" min="0" max="1" step="0.1" id="discount-service-ratio">
               </label>
               <label>
                 <span class="field-label">{{label .Language "boDiscProductRatio"}}</span>
-                <input type="number" name="product_ratio" class="field min-h-11" value="0.0" min="0" max="1" step="0.1" id="discount-product-ratio">
+                <input type="number" name="product_ratio" class="field h-11 min-h-11" value="0.0" min="0" max="1" step="0.1" id="discount-product-ratio">
               </label>
             </div>
             <button type="submit" class="btn-primary h-11 px-6" id="discount-save-btn">{{label .Language "boDiscSave"}}</button>

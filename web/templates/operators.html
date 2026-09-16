@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Operators · POS Phoenix</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-blue2">
-  <script defer src="/static/js/app.js?v=20260916-toast"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -87,7 +87,7 @@
             </label>
             <label>
               <span class="field-label">Cabang</span>
-              <select class="field min-h-11" name="branch_id">
+              <select class="field" name="branch_id">
                 <option value="0">-- Pilih Cabang (Opsional) --</option>
                 {{range .Branches}}
                 <option value="{{.ID}}">{{.Name}}</option>
@@ -96,7 +96,7 @@
             </label>
             <label>
               <span class="field-label">Tipe Staf</span>
-              <select class="field min-h-11" name="staff_type">
+              <select class="field" name="staff_type">
                 <option value="barberman">Barberman</option>
                 <option value="cashier">Kasir</option>
                 <option value="manager">Manager</option>
@@ -167,23 +167,23 @@
                   <input type="hidden" name="csrf" value="{{$.CSRF}}">
                   <label>
                     <span class="field-label text-xs">Nama Lengkap</span>
-                    <input class="field text-xs py-1.5" name="display_name" value="{{$op.DisplayName}}" required>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="display_name" value="{{$op.DisplayName}}" required>
                   </label>
                   <label>
                     <span class="field-label text-xs">Nomor HP / WA</span>
-                    <input class="field text-xs py-1.5" name="phone_number" value="{{$op.PhoneNumber}}" placeholder="08123456789">
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="phone_number" value="{{$op.PhoneNumber}}" placeholder="08123456789">
                   </label>
                   <label>
                     <span class="field-label text-xs">Nama / Kode Bank</span>
-                    <input class="field text-xs py-1.5" name="bank_name" value="{{$op.BankName}}" placeholder="Contoh: BCA, Mandiri, BRI, BNI">
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_name" value="{{$op.BankName}}" placeholder="Contoh: BCA, Mandiri, BRI, BNI">
                   </label>
                   <label>
                     <span class="field-label text-xs">Nomor Rekening</span>
-                    <input class="field text-xs py-1.5" name="bank_account_number" value="{{$op.BankAccountNumber}}" placeholder="Nomor rekening">
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_account_number" value="{{$op.BankAccountNumber}}" placeholder="Nomor rekening">
                   </label>
                   <label>
                     <span class="field-label text-xs">Cabang</span>
-                    <select class="field text-xs py-1.5 min-h-9" name="branch_id">
+                    <select class="field text-xs py-1.5 h-9 min-h-9" name="branch_id">
                       <option value="0">-- Pilih Cabang --</option>
                       {{range $.Branches}}
                       <option value="{{.ID}}" {{if eq .ID $op.BranchID}}selected{{end}}>{{.Name}}</option>
@@ -192,7 +192,7 @@
                   </label>
                   <label>
                     <span class="field-label text-xs">Tipe Staf</span>
-                    <select class="field text-xs py-1.5 min-h-9" name="staff_type">
+                    <select class="field text-xs py-1.5 h-9 min-h-9" name="staff_type">
                       <option value="barberman" {{if eq $op.StaffType "barberman"}}selected{{end}}>Barberman</option>
                       <option value="cashier" {{if eq $op.StaffType "cashier"}}selected{{end}}>Kasir</option>
                       <option value="manager" {{if eq $op.StaffType "manager"}}selected{{end}}>Manager</option>

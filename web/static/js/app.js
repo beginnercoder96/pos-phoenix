@@ -361,21 +361,21 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
     newRow.innerHTML =
       '<div>' +
         '<label class="sr-only">' + (isId ? 'Kategori' : 'Category') + '</label>' +
-        '<select name="category[]" class="field min-h-11 category-select" required>' +
+        '<select name="category[]" class="field h-11 min-h-11 category-select" required>' +
         '</select>' +
       '</div>' +
       '<div>' +
         '<label class="sr-only">' + (isId ? 'Item / Layanan' : 'Item / Service') + '</label>' +
-        '<select name="item_name[]" class="field min-h-11 item-select">' +
+        '<select name="item_name[]" class="field h-11 min-h-11 item-select">' +
           '<option value="">-- ' + (isId ? 'Pilih layanan / item' : 'Select service / item') + ' --</option>' +
         '</select>' +
       '</div>' +
       '<div>' +
         '<label class="sr-only">' + (isId ? 'Jumlah' : 'Amount') + '</label>' +
-        '<input type="text" name="amount[]" class="field min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">' +
+        '<input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">' +
       '</div>' +
       '<div class="flex justify-end sm:justify-center">' +
-        '<button type="button" class="btn-secondary min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
+        '<button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
       '</div>';
 
     container.appendChild(newRow);
