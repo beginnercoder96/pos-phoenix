@@ -17,6 +17,9 @@ type User struct {
 	Active                   bool
 	BranchID                 int64
 	StaffType                string
+	PhoneNumber              string
+	BankName                 string
+	BankAccountNumber        string
 }
 type Service struct {
 	DB  *sql.DB
@@ -24,7 +27,7 @@ type Service struct {
 }
 
 func (s Service) ListOperators(ctx context.Context) ([]User, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT id,email,display_name,role,active,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE role IN ('operator','barberman','cashier') ORDER BY display_name,email`)
+	rows, err := s.DB.QueryContext(ctx, `SELECT id,email,display_name,role,active,COALESCE(branch_id,0),COALESCE(staff_type,''),COALESCE(phone_number,''),COALESCE(bank_name,''),COALESCE(bank_account_number,'') FROM users WHERE role IN ('operator','barberman','cashier') ORDER BY display_name,email`)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +35,7 @@ func (s Service) ListOperators(ctx context.Context) ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.Role, &user.Active, &user.BranchID, &user.StaffType); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.Role, &user.Active, &user.BranchID, &user.StaffType, &user.PhoneNumber, &user.BankName, &user.BankAccountNumber); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -43,7 +46,7 @@ func (s Service) ListOperators(ctx context.Context) ([]User, error) {
 // ListEmployees returns active employees (barbermen/cashiers) for a specific branch.
 func (s Service) ListEmployees(ctx context.Context, branchID int64) ([]User, error) {
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT id,email,display_name,role,active,COALESCE(branch_id,0),COALESCE(staff_type,'')
+		`SELECT id,email,display_name,role,active,COALESCE(branch_id,0),COALESCE(staff_type,''),COALESCE(phone_number,''),COALESCE(bank_name,''),COALESCE(bank_account_number,'')
 		 FROM users WHERE branch_id=? AND active=1
 		 AND role IN ('operator','barberman','cashier')
 		 ORDER BY display_name,email`, branchID)
@@ -54,7 +57,7 @@ func (s Service) ListEmployees(ctx context.Context, branchID int64) ([]User, err
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.Role, &user.Active, &user.BranchID, &user.StaffType); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.Role, &user.Active, &user.BranchID, &user.StaffType, &user.PhoneNumber, &user.BankName, &user.BankAccountNumber); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -67,8 +70,15 @@ func (s Service) CreateOperator(ctx context.Context, email, displayName, passwor
 }
 
 func (s Service) CreateOperatorWithBranch(ctx context.Context, email, displayName, password, role, staffType string, branchID int64) error {
+	return s.CreateOperatorWithBranchAndCredentials(ctx, email, displayName, password, role, staffType, branchID, "", "", "")
+}
+
+func (s Service) CreateOperatorWithBranchAndCredentials(ctx context.Context, email, displayName, password, role, staffType string, branchID int64, phoneNumber, bankName, bankAccountNumber string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 	displayName = strings.TrimSpace(displayName)
+	phoneNumber = strings.TrimSpace(phoneNumber)
+	bankName = strings.TrimSpace(bankName)
+	bankAccountNumber = strings.TrimSpace(bankAccountNumber)
 	if email == "" || !strings.Contains(email, "@") || len(email) > 254 {
 		return errors.New("enter a valid email")
 	}
@@ -89,9 +99,32 @@ func (s Service) CreateOperatorWithBranch(ctx context.Context, email, displayNam
 	if branchID <= 0 {
 		bID = nil
 	}
-	_, err = s.DB.ExecContext(ctx, `INSERT INTO users(email,display_name,password_hash,role,branch_id,staff_type) VALUES(?,?,?,?,?,?)`, email, displayName, hash, role, bID, staffType)
+	_, err = s.DB.ExecContext(ctx, `INSERT INTO users(email,display_name,password_hash,role,branch_id,staff_type,phone_number,bank_name,bank_account_number) VALUES(?,?,?,?,?,?,?,?,?)`, email, displayName, hash, role, bID, staffType, phoneNumber, bankName, bankAccountNumber)
 	if err != nil {
 		return errors.New("an account with that email already exists")
+	}
+	return nil
+}
+
+func (s Service) UpdateOperatorCredentials(ctx context.Context, operatorID int64, displayName, phoneNumber, bankName, bankAccountNumber string, branchID int64, staffType string) error {
+	displayName = strings.TrimSpace(displayName)
+	phoneNumber = strings.TrimSpace(phoneNumber)
+	bankName = strings.TrimSpace(bankName)
+	bankAccountNumber = strings.TrimSpace(bankAccountNumber)
+	if displayName == "" || len(displayName) > 80 {
+		return errors.New("display name is required")
+	}
+	var bID any = branchID
+	if branchID <= 0 {
+		bID = nil
+	}
+	result, err := s.DB.ExecContext(ctx, `UPDATE users SET display_name=?, phone_number=?, bank_name=?, bank_account_number=?, branch_id=?, staff_type=? WHERE id=? AND role IN ('operator','barberman','cashier')`, displayName, phoneNumber, bankName, bankAccountNumber, bID, staffType, operatorID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil || changed != 1 {
+		return errors.New("operator not found")
 	}
 	return nil
 }

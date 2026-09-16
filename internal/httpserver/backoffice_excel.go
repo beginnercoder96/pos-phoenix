@@ -11,15 +11,21 @@ import (
 )
 
 type payrollSlipData struct {
-	BranchName      string
-	EmployeeName    string
-	Period          string
-	NetServiceRev   int64
-	SharePercentage float64
-	ServiceShare    int64
-	ProductComm     int64
-	TakeHomePay     int64
-	ProductSales    []backoffice.EmployeeProductSaleItem
+	BranchName        string
+	EmployeeID        int64
+	EmployeeName      string
+	StaffType         string
+	PhoneNumber       string
+	BankName          string
+	BankAccountNumber string
+	Period            string
+	PrintDate         string
+	NetServiceRev     int64
+	SharePercentage   float64
+	ServiceShare      int64
+	ProductComm       int64
+	TakeHomePay       int64
+	ProductSales      []backoffice.EmployeeProductSaleItem
 }
 
 type branchReportData struct {

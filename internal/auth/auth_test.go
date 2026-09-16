@@ -26,6 +26,9 @@ func setupTestDB(t *testing.T) *sql.DB {
 		active INTEGER NOT NULL DEFAULT 1,
 		branch_id INTEGER,
 		staff_type TEXT,
+		phone_number TEXT,
+		bank_name TEXT,
+		bank_account_number TEXT,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE TABLE sessions (

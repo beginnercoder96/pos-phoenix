@@ -87,7 +87,7 @@ func ensureBackofficeColumns(db *sql.DB) error {
 		}
 	}
 
-	// Add branch_id and staff_type to users if missing
+	// Add branch_id, staff_type, phone_number, bank_name, bank_account_number to users if missing
 	if !hasColumn(db, "users", "branch_id") {
 		if _, err := db.Exec(`ALTER TABLE users ADD COLUMN branch_id INTEGER REFERENCES branches(id)`); err != nil {
 			_ = err
@@ -98,6 +98,17 @@ func ensureBackofficeColumns(db *sql.DB) error {
 			_ = err
 		}
 	}
+	for _, col := range []string{"phone_number", "bank_name", "bank_account_number"} {
+		if !hasColumn(db, "users", col) {
+			if _, err := db.Exec(fmt.Sprintf(`ALTER TABLE users ADD COLUMN %s TEXT`, col)); err != nil {
+				_ = err
+			}
+		}
+	}
+
+	// Seed distinct dummy bank credentials for sample employees
+	seedSampleEmployeeBankCredentials(db)
+
 
 	// Add new columns to transaction_items if missing
 	for _, col := range []struct {
@@ -213,6 +224,9 @@ func seedBranches(db *sql.DB) error {
 				ledokID, ledokID)
 		}
 
+		// Seed dummy bank credentials for sample employees
+		seedSampleEmployeeBankCredentials(db)
+
 		// Seed profit sharing rules for current month and 2026-01
 		periods := []string{"2026-01", time.Now().Format("2006-01")}
 		for _, period := range periods {
@@ -225,6 +239,28 @@ func seedBranches(db *sql.DB) error {
 
 	return nil
 }
+
+// seedSampleEmployeeBankCredentials populates distinct bank credentials for sample employees
+func seedSampleEmployeeBankCredentials(db *sql.DB) {
+	updates := []struct {
+		email       string
+		displayName string
+		bankName    string
+		bankAccount string
+		phone       string
+	}{
+		{"karyawan1.klaseman@pardis.com", "Karyawan 1 (Klaseman)", "BCA", "001 1234567", "081234567890"},
+		{"karyawan2.klaseman@pardis.com", "Karyawan 2 (Klaseman)", "Mandiri", "137 000123456", "081298765432"},
+		{"karyawan1.ledok@pardis.com", "Karyawan 1 (Ledok)", "BRI", "0123 0100 1234 501", "081311223344"},
+		{"karyawan2.ledok@pardis.com", "Karyawan 2 (Ledok)", "BNI", "0234 5678 91", "081355667788"},
+		{"yogi@contoh.com", "yogi", "BSI", "712 3456 789", "081388990011"},
+	}
+	for _, emp := range updates {
+		_, _ = db.Exec(`UPDATE users SET bank_name=?, bank_account_number=?, phone_number=? WHERE email=? OR display_name=?`,
+			emp.bankName, emp.bankAccount, emp.phone, emp.email, emp.displayName)
+	}
+}
+
 
 func seedProfitSharingForPeriod(db *sql.DB, klasemanID, ledokID int64, period string) {
 	// Klaseman: Owner 20%, Unallocated 10%, Karyawan 1 35%, Karyawan 2 35%

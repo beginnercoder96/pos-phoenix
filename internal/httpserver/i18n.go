@@ -11,6 +11,22 @@ func templateFuncs(location *time.Location) map[string]any {
 		"money": func(cents int64) string { return formatRupiah(cents) },
 		"date":  func(t time.Time) string { return t.In(location).Format("02 Jan 2006 15:04") },
 		"sub":   func(a, b int64) int64 { return a - b },
+		"add": func(a, b any) int64 {
+			var aInt, bInt int64
+			switch v := a.(type) {
+			case int:
+				aInt = int64(v)
+			case int64:
+				aInt = v
+			}
+			switch v := b.(type) {
+			case int:
+				bInt = int64(v)
+			case int64:
+				bInt = v
+			}
+			return aInt + bInt
+		},
 		"barClass": func(height int) string {
 			if height <= 0 {
 				return "bar-height-0"
@@ -45,7 +61,7 @@ func translate(language, key string) string {
 	en := map[string]string{
 		"language": "Language", "theme": "Theme", "english": "English", "indonesian": "Indonesian", "light": "Light", "dark": "Dark", "save": "Save", "currency": "Indonesian Rupiah", "appName": "POS Phoenix", "welcome": "Welcome back", "secureCashflow": "A place where the nice haircut trim come from us!", "email": "Email", "password": "Password", "signIn": "Sign in", "cashflowReport": "Cash-flow report", "today": "Today", "thisMonth": "This month", "from": "From", "to": "To", "apply": "Apply", "downloadCSV": "Download CSV", "income": "Income", "expense": "Expense", "balance": "Balance", "newTransaction": "New transaction", "type": "Type", "amount": "Amount", "category": "Category", "note": "Note", "saveTransaction": "Save transaction", "transactions": "Transactions", "records": "records", "page": "page", "previous": "Previous", "next": "Next", "noTransactions": "No transactions in this period.", "reverseReason": "Reversal reason", "reverse": "Reverse", "reversedBy": "Reversed by transaction", "operatorAdministration": "Operator administration", "dashboard": "Dashboard", "createOperator": "Create operator", "displayName": "Display name", "temporaryPassword": "Temporary password", "passwordHint": "12–128 characters. Share it securely.", "operators": "Operators", "active": "Active", "inactive": "Inactive", "deactivate": "Deactivate", "activate": "Activate", "noOperators": "No operators created yet.", "signOut": "Sign out", "reversal": "Reversal", "customerRefund": "Customer refund",
 		"addCategory": "Add Category / Item", "item": "Item / Service", "total": "Total", "remove": "Remove", "selectCategory": "Select category", "selectItem": "Select service / item", "customItem": "Custom item", "items": "Items", "downloadExcel": "Download Excel (.xlsx)",
-		"customDate": "Custom Date",
+		"customDate":    "Custom Date",
 		"cashflowTrend": "Cash-flow trend", "trendSubtitle": "Income and expense by period",
 		"chartPeriod": "Chart period", "todayHourly": "Today (Hourly)", "last7Days": "Last 7 Days", "monthly": "Monthly",
 		"calendarPicker": "Calendar Picker", "calendarOpen": "Calendar (Open)",
@@ -62,33 +78,33 @@ func translate(language, key string) string {
 		"boDashboard": "Dashboard", "boProfitSharing": "Profit Sharing", "boDiscounts": "Discounts & Bundling",
 		"boProducts": "Catalog & Commission", "boPayroll": "Payroll",
 		"boDownloadReport": "Download Financial Report (Excel)",
-		"boBranchFilter": "Filter Branch:", "boAllBranches": "All Branches (Consolidated)",
+		"boBranchFilter":   "Filter Branch:", "boAllBranches": "All Branches (Consolidated)",
 		"boChartTitle": "24-Month Revenue Trend", "boChartSubtitle": "Service Revenue vs Product Retail per month",
 		"boServiceRevenue": "Service Revenue", "boProductRevenue": "Product Revenue",
 		"boGrossRevenue": "Gross Revenue", "boMonth": "Month", "boCadangan": "Reserve Balance",
 		"boTotalGross": "Total Gross Revenue (24 Mo)", "boTotalService": "Total Service Revenue",
 		"boTotalProduct": "Total Product Revenue", "boTotalReserve": "Total Reserve Balance",
-		"boTotalMonths": "Total Months",
-		"boDetailTitle": "Monthly Revenue Detail (24 Months)",
-		"boDiscount": "Discount",
+		"boTotalMonths":    "Total Months",
+		"boDetailTitle":    "Monthly Revenue Detail (24 Months)",
+		"boDiscount":       "Discount",
 		"boChartHoverHint": "Hover over a bar to see monthly details.",
-		"boNoData": "No revenue data to display yet.",
-		"boBranch": "Branch", "boPeriod": "Period (Month)", "boShow": "Show",
+		"boNoData":         "No revenue data to display yet.",
+		"boBranch":         "Branch", "boPeriod": "Period (Month)", "boShow": "Show",
 		"boConfigTitle": "Profit Sharing Configuration", "boPercentageTitle": "Percentage Settings",
 		"boOwnerShare": "Owner Share (Ipang)", "boOwnerShareDesc": "Owner percentage of service revenue",
 		"boEmpShareDesc": "Share amount:",
-		"boUnallocated": "Unallocated Reserve Balance", "boUnallocatedDesc": "Automatically calculated from remaining percentage",
-		"boTotalAlloc": "Total Allocation",
-		"boSaveConfig": "💾 Save Profit Sharing Configuration",
+		"boUnallocated":  "Unallocated Reserve Balance", "boUnallocatedDesc": "Automatically calculated from remaining percentage",
+		"boTotalAlloc":  "Total Allocation",
+		"boSaveConfig":  "💾 Save Profit Sharing Configuration",
 		"boNoEmployees": "No employees assigned to this branch. Add employees via the Operators page.",
-		"boNetRevenue": "Branch Net Service Revenue", "boReserveBalance": "Unallocated Reserve",
+		"boNetRevenue":  "Branch Net Service Revenue", "boReserveBalance": "Unallocated Reserve",
 		"boReserveRemainder": "remaining reserve",
-		"boPayrollTitle": "Employee Payroll", "boPayrollRecap": "Payroll Summary",
+		"boPayrollTitle":     "Employee Payroll", "boPayrollRecap": "Payroll Summary",
 		"boEmpName": "Employee Name", "boProfitSharePct": "Share (%)",
 		"boProfitShareAmt": "Service Share", "boProductComm": "Product Commission",
 		"boTakeHome": "Net Take-Home Pay", "boAction": "Action",
-		"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download All Payroll Slips (Excel)",
-		"boNoPayroll": "No employees assigned to this branch, or no profit sharing config for this period.",
+		"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download All Payroll Slips (PDF)",
+		"boNoPayroll":      "No employees assigned to this branch, or no profit sharing config for this period.",
 		"boDiscountsTitle": "Discount & Bundling Management", "boAddDiscount": "Add New Discount / Bundling",
 		"boProductsTitle": "Product Catalog & Commission Settings", "boAddProduct": "Add / Edit Catalog Item",
 		// Discounts form
@@ -115,7 +131,7 @@ func translate(language, key string) string {
 		id := map[string]string{
 			"language": "Bahasa", "theme": "Tema", "english": "Inggris", "indonesian": "Indonesia", "light": "Terang", "dark": "Gelap", "save": "Simpan", "currency": "Rupiah Indonesia", "appName": "POS Phoenix", "welcome": "Selamat datang kembali", "secureCashflow": "Tempat untuk mendapatkan potongan rambut terbaik Anda!", "email": "Email", "password": "Kata sandi", "signIn": "Masuk", "cashflowReport": "Laporan arus kas", "today": "Hari ini", "thisMonth": "Bulan ini", "from": "Dari", "to": "Sampai", "apply": "Terapkan", "downloadCSV": "Unduh CSV", "income": "Pemasukan", "expense": "Pengeluaran", "balance": "Saldo", "newTransaction": "Transaksi baru", "type": "Jenis", "amount": "Jumlah", "category": "Kategori", "note": "Catatan", "saveTransaction": "Simpan transaksi", "transactions": "Transaksi", "records": "catatan", "page": "halaman", "previous": "Sebelumnya", "next": "Berikutnya", "noTransactions": "Tidak ada transaksi pada periode ini.", "reverseReason": "Alasan pembatalan", "reverse": "Batalkan", "reversedBy": "Dibatalkan oleh transaksi", "operatorAdministration": "Administrasi operator", "dashboard": "Dasbor", "createOperator": "Buat operator", "displayName": "Nama tampilan", "temporaryPassword": "Kata sandi sementara", "passwordHint": "12–128 karakter. Bagikan dengan aman.", "operators": "Operator", "active": "Aktif", "inactive": "Tidak aktif", "deactivate": "Nonaktifkan", "activate": "Aktifkan", "noOperators": "Belum ada operator.", "signOut": "Keluar", "reversal": "Pembatalan", "customerRefund": "Pengembalian dana pelanggan",
 			"addCategory": "Tambah Kategori / Item", "item": "Item / Layanan", "total": "Total", "remove": "Hapus", "selectCategory": "Pilih kategori", "selectItem": "Pilih layanan / item", "customItem": "Item lainnya", "items": "Item", "downloadExcel": "Unduh Excel (.xlsx)",
-			"customDate": "Tanggal Khusus",
+			"customDate":    "Tanggal Khusus",
 			"cashflowTrend": "Tren arus kas", "trendSubtitle": "Pemasukan dan pengeluaran per periode",
 			"chartPeriod": "Periode grafik", "todayHourly": "Hari ini (Per jam)", "last7Days": "7 Hari Terakhir", "monthly": "Bulanan",
 			"calendarPicker": "Pilih Kalender", "calendarOpen": "Kalender (Buka)",
@@ -132,33 +148,33 @@ func translate(language, key string) string {
 			"boDashboard": "Dasbor", "boProfitSharing": "Bagi Hasil", "boDiscounts": "Diskon & Bundling",
 			"boProducts": "Katalog & Komisi", "boPayroll": "Slip Gaji",
 			"boDownloadReport": "Unduh Laporan Keuangan (Excel)",
-			"boBranchFilter": "Filter Cabang:", "boAllBranches": "Semua Cabang (Konsolidasi)",
+			"boBranchFilter":   "Filter Cabang:", "boAllBranches": "Semua Cabang (Konsolidasi)",
 			"boChartTitle": "Tren Pendapatan 24 Bulan", "boChartSubtitle": "Perbandingan Omzet Jasa vs Retail Produk tiap bulan",
 			"boServiceRevenue": "Omzet Jasa", "boProductRevenue": "Omzet Produk",
 			"boGrossRevenue": "Omzet Kotor", "boMonth": "Bulan", "boCadangan": "Kas Cadangan",
 			"boTotalGross": "Total Omzet Kotor (24 Bln)", "boTotalService": "Total Omzet Jasa",
 			"boTotalProduct": "Total Omzet Produk", "boTotalReserve": "Total Sisa Kas Cadangan",
-			"boTotalMonths": "Jumlah Periode Bulan",
-			"boDetailTitle": "Detail Pendapatan Bulanan (24 Bulan)",
-			"boDiscount": "Diskon",
+			"boTotalMonths":    "Jumlah Periode Bulan",
+			"boDetailTitle":    "Detail Pendapatan Bulanan (24 Bulan)",
+			"boDiscount":       "Diskon",
 			"boChartHoverHint": "Arahkan kursor ke salah satu bar bulan untuk melihat detail.",
-			"boNoData": "Belum ada data pendapatan untuk ditampilkan.",
-			"boBranch": "Cabang", "boPeriod": "Periode Bulan", "boShow": "Tampilkan",
+			"boNoData":         "Belum ada data pendapatan untuk ditampilkan.",
+			"boBranch":         "Cabang", "boPeriod": "Periode Bulan", "boShow": "Tampilkan",
 			"boConfigTitle": "Konfigurasi Bagi Hasil Cabang", "boPercentageTitle": "Pengaturan Persentase",
 			"boOwnerShare": "Porsi Owner (Ipang)", "boOwnerShareDesc": "Persentase bagian owner dari omzet jasa",
 			"boEmpShareDesc": "Bagi hasil:",
-			"boUnallocated": "Sisa Saldo Tidak Terpakai (Cadangan)", "boUnallocatedDesc": "Otomatis dihitung dari sisa persentase",
-			"boTotalAlloc": "Total Alokasi",
-			"boSaveConfig": "💾 Simpan Konfigurasi Bagi Hasil",
+			"boUnallocated":  "Sisa Saldo Tidak Terpakai (Cadangan)", "boUnallocatedDesc": "Otomatis dihitung dari sisa persentase",
+			"boTotalAlloc":  "Total Alokasi",
+			"boSaveConfig":  "💾 Simpan Konfigurasi Bagi Hasil",
 			"boNoEmployees": "Belum ada karyawan yang ditugaskan ke cabang ini. Tambahkan karyawan melalui halaman Operators.",
-			"boNetRevenue": "Net Omzet Jasa Cabang", "boReserveBalance": "Saldo Cadangan (Tidak Terpakai)",
+			"boNetRevenue":  "Net Omzet Jasa Cabang", "boReserveBalance": "Saldo Cadangan (Tidak Terpakai)",
 			"boReserveRemainder": "sisa saldo",
-			"boPayrollTitle": "Slip Gaji Karyawan", "boPayrollRecap": "Rekap Gaji",
+			"boPayrollTitle":     "Slip Gaji Karyawan", "boPayrollRecap": "Rekap Gaji",
 			"boEmpName": "Nama Karyawan", "boProfitSharePct": "Bagi Hasil (%)",
 			"boProfitShareAmt": "Bagi Hasil Jasa", "boProductComm": "Komisi Produk",
 			"boTakeHome": "Total Gaji Bersih", "boAction": "Aksi",
-			"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download Semua Slip Gaji (Excel)",
-			"boNoPayroll": "Belum ada karyawan yang ditugaskan ke cabang ini, atau belum ada konfigurasi bagi hasil untuk periode ini.",
+			"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download Semua Slip Gaji (PDF)",
+			"boNoPayroll":      "Belum ada karyawan yang ditugaskan ke cabang ini, atau belum ada konfigurasi bagi hasil untuk periode ini.",
 			"boDiscountsTitle": "Manajemen Diskon & Bundling", "boAddDiscount": "Tambah Diskon / Bundling Baru",
 			"boProductsTitle": "Katalog Produk & Pengaturan Komisi", "boAddProduct": "Tambah / Edit Item Katalog",
 			// Discounts form (ID)

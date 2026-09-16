@@ -27,6 +27,7 @@ web/static/css/app.css
 
 # Test artifacts & scratch
 *.png
+!web/static/img/*.png
 test_*.js
 scratch/
 coverage.out

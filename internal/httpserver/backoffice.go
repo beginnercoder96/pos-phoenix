@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mekari/pos-phoenix/internal/auth"
 	"github.com/mekari/pos-phoenix/internal/backoffice"
@@ -487,12 +488,20 @@ func (s *Server) backofficePayrollSlip(w http.ResponseWriter, r *http.Request) {
 	rule, empRules, _ := s.backoffice.GetProfitSharingConfig(r.Context(), branch.ID, periodMonth)
 
 	var empName string
+	var empStaffType string
+	var empPhone string
+	var empBankName string
+	var empBankAccount string
 	var empPct float64
 	var empServiceShare int64
 	employees, _ := s.auth.ListEmployees(r.Context(), branch.ID)
 	for _, emp := range employees {
 		if emp.ID == employeeID {
 			empName = emp.DisplayName
+			empStaffType = emp.StaffType
+			empPhone = emp.PhoneNumber
+			empBankName = emp.BankName
+			empBankAccount = emp.BankAccountNumber
 			break
 		}
 	}
@@ -509,30 +518,49 @@ func (s *Server) backofficePayrollSlip(w http.ResponseWriter, r *http.Request) {
 	thp := backoffice.CalculateTakeHomePay(empServiceShare, prodComm, 0, 0)
 
 	prodSales, _ := s.backoffice.GetEmployeeItemizedProductSales(r.Context(), branch.ID, employeeID, periodMonth)
+	now := s.now().In(s.location)
 
 	slipData := payrollSlipData{
-		BranchName:      branch.Name,
-		EmployeeName:    empName,
-		Period:          periodMonth,
-		NetServiceRev:   netServiceRevenue,
-		SharePercentage: empPct,
-		ServiceShare:    empServiceShare,
-		ProductComm:     prodComm,
-		TakeHomePay:     thp,
-		ProductSales:    prodSales,
+		BranchName:        branch.Name,
+		EmployeeID:        employeeID,
+		EmployeeName:      empName,
+		StaffType:         empStaffType,
+		PhoneNumber:       empPhone,
+		BankName:          empBankName,
+		BankAccountNumber: empBankAccount,
+		Period:            formatPeriodIndo(periodMonth),
+		PrintDate:         now.Format("02-01-2006"),
+		NetServiceRev:     netServiceRevenue,
+		SharePercentage:   empPct,
+		ServiceShare:      empServiceShare,
+		ProductComm:       prodComm,
+		TakeHomePay:       thp,
+		ProductSales:      prodSales,
 	}
 
-	excelBytes, err := generatePayrollSlipExcel(slipData)
-	if err != nil {
-		http.Error(w, "unable to generate payroll slip", http.StatusInternalServerError)
+	if r.URL.Query().Get("format") == "excel" {
+		excelBytes, err := generatePayrollSlipExcel(slipData)
+		if err != nil {
+			http.Error(w, "unable to generate payroll slip", http.StatusInternalServerError)
+			return
+		}
+
+		filename := fmt.Sprintf("slip-gaji-%s-%s.xlsx", empName, periodMonth)
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+		w.Header().Set("Content-Length", strconv.Itoa(len(excelBytes)))
+		_, _ = w.Write(excelBytes)
 		return
 	}
 
-	filename := fmt.Sprintf("slip-gaji-%s-%s-%s.xlsx", branchCode, periodMonth, strings.ReplaceAll(empName, " ", "_"))
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(excelBytes)))
-	w.Write(excelBytes)
+	viewData := payrollSlipViewData{
+		Slips:          []payrollSlipData{slipData},
+		IsBulk:         false,
+		SelectedBranch: branchCode,
+		SelectedPeriod: periodMonth,
+		ExcelURL:       fmt.Sprintf("/backoffice/payroll/slip?branch=%s&period=%s&employee_id=%d&format=excel", branchCode, periodMonth, employeeID),
+	}
+	s.renderTemplate(w, "payroll_slip.html", viewData)
 }
 
 func (s *Server) backofficePayrollSlipAll(w http.ResponseWriter, r *http.Request) {
@@ -556,6 +584,7 @@ func (s *Server) backofficePayrollSlipAll(w http.ResponseWriter, r *http.Request
 	rule, empRules, _ := s.backoffice.GetProfitSharingConfig(r.Context(), branch.ID, periodMonth)
 
 	var slips []payrollSlipData
+	now := s.now().In(s.location)
 	for _, emp := range employees {
 		var empPct float64
 		var empServiceShare int64
@@ -573,29 +602,47 @@ func (s *Server) backofficePayrollSlipAll(w http.ResponseWriter, r *http.Request
 		empProdSales, _ := s.backoffice.GetEmployeeItemizedProductSales(r.Context(), branch.ID, emp.ID, periodMonth)
 
 		slips = append(slips, payrollSlipData{
-			BranchName:      branch.Name,
-			EmployeeName:    emp.DisplayName,
-			Period:          periodMonth,
-			NetServiceRev:   netServiceRevenue,
-			SharePercentage: empPct,
-			ServiceShare:    empServiceShare,
-			ProductComm:     prodComm,
-			TakeHomePay:     thp,
-			ProductSales:    empProdSales,
+			BranchName:        branch.Name,
+			EmployeeID:        emp.ID,
+			EmployeeName:      emp.DisplayName,
+			StaffType:         emp.StaffType,
+			PhoneNumber:       emp.PhoneNumber,
+			BankName:          emp.BankName,
+			BankAccountNumber: emp.BankAccountNumber,
+			Period:            formatPeriodIndo(periodMonth),
+			PrintDate:         now.Format("02-01-2006"),
+			NetServiceRev:     netServiceRevenue,
+			SharePercentage:   empPct,
+			ServiceShare:      empServiceShare,
+			ProductComm:       prodComm,
+			TakeHomePay:       thp,
+			ProductSales:      empProdSales,
 		})
 	}
 
-	excelBytes, err := generatePayrollSlipAllExcel(slips)
-	if err != nil {
-		http.Error(w, "unable to generate payroll slips", http.StatusInternalServerError)
+	if r.URL.Query().Get("format") == "excel" {
+		excelBytes, err := generatePayrollSlipAllExcel(slips)
+		if err != nil {
+			http.Error(w, "unable to generate payroll slips", http.StatusInternalServerError)
+			return
+		}
+
+		filename := fmt.Sprintf("slip-gaji-semua-%s-%s.xlsx", branchCode, periodMonth)
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(excelBytes)))
+		w.Write(excelBytes)
 		return
 	}
 
-	filename := fmt.Sprintf("slip-gaji-semua-%s-%s.xlsx", branchCode, periodMonth)
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(excelBytes)))
-	w.Write(excelBytes)
+	viewData := payrollSlipViewData{
+		Slips:          slips,
+		IsBulk:         true,
+		SelectedBranch: branchCode,
+		SelectedPeriod: periodMonth,
+		ExcelURL:       fmt.Sprintf("/backoffice/payroll/slip-all?branch=%s&period=%s&format=excel", branchCode, periodMonth),
+	}
+	s.renderTemplate(w, "payroll_slip.html", viewData)
 }
 
 func (s *Server) backofficeFinancialReport(w http.ResponseWriter, r *http.Request) {
@@ -627,11 +674,35 @@ func (s *Server) backofficeFinancialReport(w http.ResponseWriter, r *http.Reques
 	w.Write(excelBytes)
 }
 
-func (s *Server) renderBackoffice(w http.ResponseWriter, name string, data backofficeData) {
+type payrollSlipViewData struct {
+	Slips          []payrollSlipData
+	IsBulk         bool
+	SelectedBranch string
+	SelectedPeriod string
+	ExcelURL       string
+}
+
+func formatPeriodIndo(p string) string {
+	t, err := time.Parse("2006-01", p)
+	if err != nil {
+		return p
+	}
+	months := []string{"", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
+	if int(t.Month()) < len(months) {
+		return fmt.Sprintf("%s %d", months[t.Month()], t.Year())
+	}
+	return p
+}
+
+func (s *Server) renderTemplate(w http.ResponseWriter, name string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.ExecuteTemplate(w, name, data); err != nil {
 		http.Error(w, "template error: "+err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (s *Server) renderBackoffice(w http.ResponseWriter, name string, data backofficeData) {
+	s.renderTemplate(w, name, data)
 }
 
 // Ensure unused import is consumed.

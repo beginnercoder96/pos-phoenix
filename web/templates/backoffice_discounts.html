@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Discount and bundling management.">
   <title>{{label .Language "boDiscounts"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-blue2">
+  <script defer src="/static/js/app.js?v=20260916-toast"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -153,7 +154,7 @@
                   <td class="py-2 px-3 text-center">
                     <form method="post" action="/backoffice/discounts/{{.ID}}/delete" class="inline">
                       <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                      <button type="submit" class="text-red-400 hover:text-red-300 text-xs" onclick="return confirm('{{label $.Language "boDiscConfirmDelete"}}')">{{label $.Language "boDiscActionDelete"}}</button>
+                      <button type="submit" class="text-red-400 hover:text-red-300 text-xs" onclick="return confirm('{{label $.Language `boDiscConfirmDelete`}}')">{{label $.Language "boDiscActionDelete"}}</button>
                     </form>
                   </td>
                 </tr>
