@@ -1,5 +1,140 @@
+// Global Cross-Page Toast System with sessionStorage persistence
+(function () {
+  var TOAST_KEY = "pos_active_toast";
+
+  function renderToast(title, message, duration, remainingTime, type) {
+    var old = document.getElementById("global-pos-toast");
+    if (old) old.remove();
+
+    var isWarning = type === 'warning' || (title && (title.indexOf('Tidak Ada') !== -1 || title.indexOf('Peringatan') !== -1));
+    var isError = type === 'error' || (title && (title.indexOf('Gagal') !== -1 || title.indexOf('Error') !== -1));
+
+    var badgeBg = isWarning ? 'bg-amber-500 shadow-amber-500/30' : (isError ? 'bg-rose-600 shadow-rose-500/30' : 'bg-blue-600 shadow-blue-500/30');
+    var progressBg = isWarning ? 'bg-amber-500' : (isError ? 'bg-rose-600' : 'bg-blue-600');
+    var borderColor = isWarning ? 'border-amber-200/90 dark:border-amber-900' : (isError ? 'border-rose-200/90 dark:border-rose-900' : 'border-blue-200/90 dark:border-blue-900');
+    var iconSvg = isWarning 
+      ? '<svg style="width:18px;height:18px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
+      : (isError 
+        ? '<svg style="width:18px;height:18px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>'
+        : '<svg style="width:18px;height:18px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>');
+
+    var toast = document.createElement("div");
+    toast.id = "global-pos-toast";
+    toast.style.position = "fixed";
+    toast.style.top = "20px";
+    toast.style.right = "20px";
+    toast.style.zIndex = "999999";
+    toast.style.minWidth = "300px";
+    toast.style.maxWidth = "420px";
+    toast.style.boxShadow = "0 20px 35px -8px rgba(15,23,42,0.22), 0 8px 16px -4px rgba(37,99,235,0.18)";
+    toast.style.animation = "posToastSlideIn .35s cubic-bezier(.16,1,.3,1) forwards";
+    toast.className = "flex flex-col rounded-2xl border " + borderColor + " bg-white/95 dark:bg-[#060b24]/95 backdrop-blur-md p-4 text-slate-800 dark:text-slate-100 transition-all";
+
+    toast.innerHTML =
+      '<div class="flex items-start gap-3">' +
+        '<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' + badgeBg + ' text-white shadow-md font-black text-sm">' +
+          iconSvg +
+        '</div>' +
+        '<div class="min-w-0 flex-1 pr-1">' +
+          '<p class="font-black text-sm tracking-tight text-slate-900 dark:text-white">' + (title || 'Informasi') + '</p>' +
+          '<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed break-words">' + (message || '') + '</p>' +
+        '</div>' +
+        '<button type="button" id="global-pos-toast-close" class="shrink-0 rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition" aria-label="Tutup">' +
+          '<svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div class="mt-3 h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">' +
+        '<div id="global-pos-toast-progress" class="h-full ' + progressBg + ' transition-all ease-linear" style="width:100%"></div>' +
+      '</div>';
+
+    document.body.appendChild(toast);
+
+    var closeBtn = document.getElementById("global-pos-toast-close");
+    var progressBar = document.getElementById("global-pos-toast-progress");
+
+    function dismissToast() {
+      sessionStorage.removeItem(TOAST_KEY);
+      toast.style.transition = "opacity .3s, transform .3s";
+      toast.style.opacity = "0";
+      toast.style.transform = "translateX(50px) scale(.95)";
+      setTimeout(function () {
+        if (toast.parentNode) toast.remove();
+      }, 320);
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener("click", dismissToast);
+    }
+
+    var totalDuration = duration || 4500;
+    var currentRemaining = remainingTime != null ? remainingTime : totalDuration;
+    var startPercent = Math.max(0, Math.min(100, (currentRemaining / totalDuration) * 100));
+    if (progressBar) progressBar.style.width = startPercent + "%";
+
+    var startTime = Date.now();
+    var interval = setInterval(function () {
+      var passed = Date.now() - startTime;
+      var left = currentRemaining - passed;
+      if (left <= 0) {
+        clearInterval(interval);
+        dismissToast();
+      } else if (progressBar) {
+        var pct = (left / totalDuration) * 100;
+        progressBar.style.width = pct + "%";
+      }
+    }, 50);
+  }
+
+  window.showGlobalToast = function (title, message, duration, type) {
+    var d = duration || 4500;
+    try {
+      sessionStorage.setItem(TOAST_KEY, JSON.stringify({
+        title: title,
+        message: message,
+        startedAt: Date.now(),
+        duration: d,
+        type: type || 'info'
+      }));
+    } catch (e) {}
+    renderToast(title, message, d, d, type);
+  };
+
+  function checkToastOnLoad() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var savedParam = params.get("saved");
+      if (savedParam) {
+        params.delete("saved");
+        var newSearch = params.toString() ? "?" + params.toString() : "";
+        window.history.replaceState({}, document.title, window.location.pathname + newSearch);
+        window.showGlobalToast("Data Berhasil Disimpan", 'Perubahan data karyawan "' + decodeURIComponent(savedParam) + '" telah berhasil disimpan.', 4500, 'success');
+        return;
+      }
+
+      var raw = sessionStorage.getItem(TOAST_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      var elapsed = Date.now() - data.startedAt;
+      if (elapsed < data.duration) {
+        var remaining = data.duration - elapsed;
+        renderToast(data.title, data.message, data.duration, remaining, data.type);
+      } else {
+        sessionStorage.removeItem(TOAST_KEY);
+      }
+    } catch (e) {}
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", checkToastOnLoad);
+  } else {
+    checkToastOnLoad();
+  }
+})();
+
 document.addEventListener("htmx:responseError", function () {
-  window.dispatchEvent(new CustomEvent("toast", { detail: "Request failed. Please retry." }));
+  if (window.showGlobalToast) {
+    window.showGlobalToast("Gagal", "Permintaan gagal diproses. Silakan coba lagi.");
+  }
 });
 
 document.querySelectorAll("[data-auto-submit] select").forEach(function (select) {
@@ -226,21 +361,21 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
     newRow.innerHTML =
       '<div>' +
         '<label class="sr-only">' + (isId ? 'Kategori' : 'Category') + '</label>' +
-        '<select name="category[]" class="field min-h-11 category-select" required>' +
+        '<select name="category[]" class="field h-11 min-h-11 category-select" required>' +
         '</select>' +
       '</div>' +
       '<div>' +
         '<label class="sr-only">' + (isId ? 'Item / Layanan' : 'Item / Service') + '</label>' +
-        '<select name="item_name[]" class="field min-h-11 item-select">' +
+        '<select name="item_name[]" class="field h-11 min-h-11 item-select">' +
           '<option value="">-- ' + (isId ? 'Pilih layanan / item' : 'Select service / item') + ' --</option>' +
         '</select>' +
       '</div>' +
       '<div>' +
         '<label class="sr-only">' + (isId ? 'Jumlah' : 'Amount') + '</label>' +
-        '<input type="text" name="amount[]" class="field min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">' +
+        '<input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">' +
       '</div>' +
       '<div class="flex justify-end sm:justify-center">' +
-        '<button type="button" class="btn-secondary min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
+        '<button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
       '</div>';
 
     container.appendChild(newRow);

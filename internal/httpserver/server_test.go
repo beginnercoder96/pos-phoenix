@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -923,5 +924,173 @@ func TestIndonesianDashboardCardLabels(t *testing.T) {
 		}
 	}
 }
+
+func TestPayrollSlipViewAndDownload(t *testing.T) {
+	db, handler, authSvc := testServer(t)
+	superadminID := addUser(t, db, "superadmin@example.com", "superadmin")
+	empID := addUser(t, db, "barber@example.com", "operator")
+
+	// Assign branch
+	var branchID int64
+	_ = db.QueryRow(`SELECT id FROM branches WHERE code='KLASEMAN'`).Scan(&branchID)
+	if branchID > 0 {
+		_, _ = db.Exec(`UPDATE users SET branch_id=?, staff_type='barberman' WHERE id=?`, branchID, empID)
+	}
+
+	token, err := authSvc.CreateSession(context.Background(), superadminID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie := &http.Cookie{Name: "session", Value: token}
+
+	// 1. Single Employee Slip HTML View
+	req := httptest.NewRequest("GET", "/backoffice/payroll/slip?branch=KLASEMAN&period=2026-01&employee_id="+strconv.FormatInt(empID, 10), nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+	html := rec.Body.String()
+	if !strings.Contains(html, "SLIP GAJI") {
+		t.Errorf("expected HTML to contain 'SLIP GAJI'")
+	}
+	if !strings.Contains(html, "TAKE HOME PAY") {
+		t.Errorf("expected HTML to contain 'TAKE HOME PAY'")
+	}
+	if !strings.Contains(html, "Pendapatan") {
+		t.Errorf("expected HTML to contain 'Pendapatan'")
+	}
+
+	// 2. Single Employee Slip Excel Download
+	reqExcel := httptest.NewRequest("GET", "/backoffice/payroll/slip?branch=KLASEMAN&period=2026-01&employee_id="+strconv.FormatInt(empID, 10)+"&format=excel", nil)
+	reqExcel.AddCookie(cookie)
+	recExcel := httptest.NewRecorder()
+	handler.ServeHTTP(recExcel, reqExcel)
+
+	if recExcel.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for excel, got %d", recExcel.Code)
+	}
+	if !strings.Contains(recExcel.Header().Get("Content-Type"), "spreadsheetml") {
+		t.Errorf("expected spreadsheetml content type, got %s", recExcel.Header().Get("Content-Type"))
+	}
+
+	// 3. Bulk Slip-All HTML View
+	reqAll := httptest.NewRequest("GET", "/backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-01", nil)
+	reqAll.AddCookie(cookie)
+	recAll := httptest.NewRecorder()
+	handler.ServeHTTP(recAll, reqAll)
+
+	if recAll.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for slip-all HTML, got %d: %s", recAll.Code, recAll.Body.String())
+	}
+	if !strings.Contains(recAll.Body.String(), "SLIP GAJI") {
+		t.Errorf("expected slip-all HTML to contain 'SLIP GAJI'")
+	}
+
+	// 4. Bulk Slip-All Excel Download
+	reqAllExcel := httptest.NewRequest("GET", "/backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-01&format=excel", nil)
+	reqAllExcel.AddCookie(cookie)
+	recAllExcel := httptest.NewRecorder()
+	handler.ServeHTTP(recAllExcel, reqAllExcel)
+
+	if recAllExcel.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for slip-all excel, got %d", recAllExcel.Code)
+	}
+	if !strings.Contains(recAllExcel.Header().Get("Content-Type"), "spreadsheetml") {
+		t.Errorf("expected spreadsheetml content type, got %s", recAllExcel.Header().Get("Content-Type"))
+	}
+}
+
+func TestOperatorBankCredentialsAndSlipColors(t *testing.T) {
+	db, handler, authSvc := testServer(t)
+	adminID := addUser(t, db, "admin@example.com", "superadmin")
+	empID := addUser(t, db, "barber1@example.com", "operator")
+
+	var branchID int64
+	_ = db.QueryRow(`SELECT id FROM branches LIMIT 1`).Scan(&branchID)
+
+	token, _ := authSvc.CreateSession(context.Background(), adminID)
+	cookie := &http.Cookie{Name: "session", Value: token}
+
+	// 1. Update operator credentials via POST /operators/{id}/credentials
+	form := url.Values{
+		"csrf":                {"test-csrf"},
+		"display_name":        {"Budi Barberman"},
+		"phone_number":        {"081234567890"},
+		"bank_name":           {"BCA"},
+		"bank_account_number": {"1234567890"},
+		"branch_id":           {strconv.FormatInt(branchID, 10)},
+		"staff_type":          {"barberman"},
+	}
+	reqUpdate := httptest.NewRequest("POST", "/operators/"+strconv.FormatInt(empID, 10)+"/credentials", strings.NewReader(form.Encode()))
+	reqUpdate.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqUpdate.AddCookie(cookie)
+	reqUpdate.AddCookie(&http.Cookie{Name: "csrf", Value: "test-csrf"})
+	recUpdate := httptest.NewRecorder()
+	handler.ServeHTTP(recUpdate, reqUpdate)
+
+	if recUpdate.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther, got %d: %s", recUpdate.Code, recUpdate.Body.String())
+	}
+
+	// Verify in DB
+	var bName, bAcc, phone string
+	_ = db.QueryRow(`SELECT bank_name, bank_account_number, phone_number FROM users WHERE id=?`, empID).Scan(&bName, &bAcc, &phone)
+	if bName != "BCA" || bAcc != "1234567890" || phone != "081234567890" {
+		t.Fatalf("credentials not saved properly in DB: bank=%s acc=%s phone=%s", bName, bAcc, phone)
+	}
+
+	// 2. Fetch Slip and verify dynamic bank info and red/green colors
+	var branchCode string
+	_ = db.QueryRow(`SELECT code FROM branches WHERE id=?`, branchID).Scan(&branchCode)
+
+	reqSlip := httptest.NewRequest("GET", fmt.Sprintf("/backoffice/payroll/slip?branch=%s&period=2026-01&employee_id=%d", branchCode, empID), nil)
+	reqSlip.AddCookie(cookie)
+	recSlip := httptest.NewRecorder()
+	handler.ServeHTTP(recSlip, reqSlip)
+
+	if recSlip.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for slip, got %d", recSlip.Code)
+	}
+	slipHTML := recSlip.Body.String()
+
+	// Verify dynamic bank credentials rendered
+	if !strings.Contains(slipHTML, "1234567890 (BCA)") {
+		t.Errorf("expected slip to contain '1234567890 (BCA)', got: %s", slipHTML)
+	}
+	// Verify red header color (#dc2626)
+	if !strings.Contains(slipHTML, "#dc2626") {
+		t.Errorf("expected slip to contain red header color '#dc2626'")
+	}
+	// Verify green total color (#86efac)
+	if !strings.Contains(slipHTML, "#86efac") {
+		t.Errorf("expected slip to contain green total color '#86efac'")
+	}
+	// Verify deductions font is solid black
+	if !strings.Contains(slipHTML, `<span class="text-black">Potongan Telat</span>`) {
+		t.Errorf("expected slip to contain black deductions text 'Potongan Telat'")
+	}
+
+	// 3. Verify that distinct employees have different seeded bank accounts in users table
+	var k1Bank, k1Acc, k2Bank, k2Acc string
+	_ = db.QueryRow(`SELECT bank_name, bank_account_number FROM users WHERE email='karyawan1.klaseman@pardis.com'`).Scan(&k1Bank, &k1Acc)
+	_ = db.QueryRow(`SELECT bank_name, bank_account_number FROM users WHERE email='karyawan2.klaseman@pardis.com'`).Scan(&k2Bank, &k2Acc)
+	if k1Bank != "BCA" || k2Bank != "Mandiri" || k1Acc == k2Acc {
+		t.Errorf("expected distinct bank info for sample employees, got K1=%s %s, K2=%s %s", k1Bank, k1Acc, k2Bank, k2Acc)
+	}
+
+	// 4. Verify unconfigured employee shows "-" (strip)
+	emptyEmpID := addUser(t, db, "empty-bank@example.com", "operator")
+	reqEmptySlip := httptest.NewRequest("GET", fmt.Sprintf("/backoffice/payroll/slip?branch=%s&period=2026-01&employee_id=%d", branchCode, emptyEmpID), nil)
+	reqEmptySlip.AddCookie(cookie)
+	recEmptySlip := httptest.NewRecorder()
+	handler.ServeHTTP(recEmptySlip, reqEmptySlip)
+	if !strings.Contains(recEmptySlip.Body.String(), "-") {
+		t.Errorf("expected empty employee slip to show '-' for bank info")
+	}
+}
+
 
 

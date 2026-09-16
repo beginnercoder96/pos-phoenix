@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Dashboard · POS Phoenix</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
   <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script id="catalog-data" type="application/json">{{.CatalogJSON}}</script>
   <script>
@@ -15,7 +15,7 @@
       window.POS_CATALOG = [];
     }
   </script>
-  <script defer src="/static/js/app.js?v=20260913-dropdown-popover"></script>
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -97,11 +97,11 @@
             <input type="hidden" name="range" value="custom">
             <label class="min-w-0">
               <span class="field-label">{{label .Language "from"}}</span>
-              <input class="field min-h-11 px-2" type="date" name="from" value="{{.From}}" max="{{.Today}}" required>
+              <input class="field h-11 min-h-11 px-2" type="date" name="from" value="{{.From}}" max="{{.Today}}" required>
             </label>
             <label class="min-w-0">
               <span class="field-label">{{label .Language "to"}}</span>
-              <input class="field min-h-11 px-2" type="date" name="to" value="{{.To}}" max="{{.Today}}" required>
+              <input class="field h-11 min-h-11 px-2" type="date" name="to" value="{{.To}}" max="{{.Today}}" required>
             </label>
             <button class="btn-primary h-11 min-h-0 self-end px-4" type="submit">{{label .Language "apply"}}</button>
           </form>
@@ -387,7 +387,7 @@
               </label>
               <label>
                 <span class="mb-1 block text-sm font-semibold">{{label .Language "note"}}</span>
-                <input class="field min-h-12" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
+                <input class="field" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
               </label>
             </div>
 
@@ -401,7 +401,7 @@
                 <div class="category-row rounded-xl border border-slate-200 dark:border-slate-700 p-3 surface-soft space-y-2 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1fr_130px_auto] sm:gap-2 items-center">
                   <div>
                     <label class="sr-only">{{label .Language "category"}}</label>
-                    <select name="category[]" class="field min-h-11 category-select" required>
+                    <select name="category[]" class="field h-11 min-h-11 category-select" required>
                       <option value="">-- {{label .Language "selectCategory"}} --</option>
                       {{range .Catalog}}
                       <option value="{{.Name}}">{{.Name}}</option>
@@ -411,16 +411,16 @@
                   </div>
                   <div>
                     <label class="sr-only">{{label .Language "item"}}</label>
-                    <select name="item_name[]" class="field min-h-11 item-select">
+                    <select name="item_name[]" class="field h-11 min-h-11 item-select">
                       <option value="">-- {{label .Language "selectItem"}} --</option>
                     </select>
                   </div>
                   <div>
                     <label class="sr-only">{{label .Language "amount"}}</label>
-                    <input type="text" name="amount[]" class="field min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">
+                    <input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">
                   </div>
                   <div class="flex justify-end sm:justify-center">
-                    <button type="button" class="btn-secondary min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="{{label .Language "remove"}}" aria-label="{{label .Language "remove"}}">✕</button>
+                    <button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="{{label .Language "remove"}}" aria-label="{{label .Language "remove"}}">✕</button>
                   </div>
                 </div>
               </div>
@@ -480,8 +480,8 @@
                     <input type="hidden" name="csrf" value="{{$.CSRF}}">
                     <input type="hidden" name="return_to" value="{{$.CurrentURL}}">
                     <label class="sr-only" for="reason-{{.ID}}">{{label $.Language "reverseReason"}}</label>
-                    <input id="reason-{{.ID}}" name="reason" required minlength="5" maxlength="250" class="field min-h-11 min-w-0" placeholder="{{label $.Language "reverseReason"}}">
-                    <button class="min-h-11 rounded-xl bg-amber-600 px-4 font-bold text-white hover:bg-amber-700 transition" type="submit">{{label $.Language "reverse"}}</button>
+                    <input id="reason-{{.ID}}" name="reason" required minlength="5" maxlength="250" class="field h-11 min-h-11 min-w-0" placeholder="{{label $.Language "reverseReason"}}">
+                    <button class="h-11 min-h-11 rounded-xl bg-amber-600 px-4 font-bold text-white hover:bg-amber-700 transition" type="submit">{{label $.Language "reverse"}}</button>
                   </form>
                 {{end}}
               {{end}}

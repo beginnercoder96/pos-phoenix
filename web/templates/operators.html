@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Operators · POS Phoenix</title>
-  <link rel="stylesheet" href="/static/css/app.css">
-  <script defer src="/static/js/app.js"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -82,8 +82,12 @@
               <input class="field" type="email" name="email" maxlength="254" autocomplete="username" required>
             </label>
             <label>
+              <span class="field-label">Nomor HP / WhatsApp</span>
+              <input class="field" type="tel" name="phone_number" placeholder="Contoh: 08123456789">
+            </label>
+            <label>
               <span class="field-label">Cabang</span>
-              <select class="field min-h-11" name="branch_id">
+              <select class="field" name="branch_id">
                 <option value="0">-- Pilih Cabang (Opsional) --</option>
                 {{range .Branches}}
                 <option value="{{.ID}}">{{.Name}}</option>
@@ -92,11 +96,19 @@
             </label>
             <label>
               <span class="field-label">Tipe Staf</span>
-              <select class="field min-h-11" name="staff_type">
+              <select class="field" name="staff_type">
                 <option value="barberman">Barberman</option>
                 <option value="cashier">Kasir</option>
                 <option value="manager">Manager</option>
               </select>
+            </label>
+            <label>
+              <span class="field-label">Nama / Kode Bank</span>
+              <input class="field" name="bank_name" placeholder="Contoh: BCA, Mandiri, BRI, BNI">
+            </label>
+            <label class="sm:col-span-2">
+              <span class="field-label">Nomor Rekening Bank</span>
+              <input class="field" name="bank_account_number" placeholder="Contoh: 001 1234567">
             </label>
             <label class="sm:col-span-2">
               <span class="field-label">{{label .Language "temporaryPassword"}}</span>
@@ -109,26 +121,93 @@
 
         <section>
           <h2 class="mb-3 text-xl font-black">{{label .Language "operators"}}</h2>
-          <div class="space-y-2">
-            {{range .Operators}}
-            <article class="surface flex items-center justify-between gap-3 p-4">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <p class="truncate font-bold">{{.DisplayName}}</p>
-                  {{if .StaffType}}<span class="px-2 py-0.5 rounded text-[10px] bg-slate-500/20 uppercase font-semibold">{{.StaffType}}</span>{{end}}
+          <div class="space-y-3">
+            {{range $op := .Operators}}
+            <article id="operator-card-{{$op.ID}}" class="surface p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <p class="truncate font-bold operator-display-name">{{$op.DisplayName}}</p>
+                    {{if $op.StaffType}}<span class="px-2 py-0.5 rounded text-[10px] bg-slate-500/20 uppercase font-semibold">{{$op.StaffType}}</span>{{end}}
+                  </div>
+                  <p class="truncate text-sm text-slate-500">{{$op.Email}}</p>
+                  {{if or $op.BankName $op.BankAccountNumber $op.PhoneNumber}}
+                  <p class="mt-1 text-xs text-slate-600 flex flex-wrap items-center gap-2">
+                    {{if and $op.BankName $op.BankAccountNumber}}
+                    <span class="font-medium">🏦 {{$op.BankName}}: {{$op.BankAccountNumber}}</span>
+                    {{else if $op.BankAccountNumber}}
+                    <span class="font-medium">🏦 Rek: {{$op.BankAccountNumber}}</span>
+                    {{end}}
+                    {{if $op.PhoneNumber}}
+                    <span>📱 {{$op.PhoneNumber}}</span>
+                    {{end}}
+                  </p>
+                  {{end}}
+                  <p class="mt-1 text-xs font-bold {{if $op.Active}}text-emerald-700{{else}}text-rose-700{{end}}">
+                    {{if $op.Active}}{{label $.Language "active"}}{{else}}{{label $.Language "inactive"}}{{end}}
+                  </p>
                 </div>
-                <p class="truncate text-sm text-slate-500">{{.Email}}</p>
-                <p class="mt-1 text-xs font-bold {{if .Active}}text-emerald-700{{else}}text-rose-700{{end}}">
-                  {{if .Active}}{{label $.Language "active"}}{{else}}{{label $.Language "inactive"}}{{end}}
-                </p>
+                <div class="flex items-center gap-2">
+                  <form method="post" action="/operators/{{$op.ID}}/active">
+                    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                    <input type="hidden" name="active" value="{{if $op.Active}}false{{else}}true{{end}}">
+                    <button class="btn-secondary min-h-11 {{if $op.Active}}border-rose-300 text-rose-700{{else}}border-emerald-300 text-emerald-700{{end}}" type="submit">
+                      {{if $op.Active}}{{label $.Language "deactivate"}}{{else}}{{label $.Language "activate"}}{{end}}
+                    </button>
+                  </form>
+                </div>
               </div>
-              <form method="post" action="/operators/{{.ID}}/active">
-                <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                <input type="hidden" name="active" value="{{if .Active}}false{{else}}true{{end}}">
-                <button class="btn-secondary min-h-11 {{if .Active}}border-rose-300 text-rose-700{{else}}border-emerald-300 text-emerald-700{{end}}" type="submit">
-                  {{if .Active}}{{label $.Language "deactivate"}}{{else}}{{label $.Language "activate"}}{{end}}
-                </button>
-              </form>
+
+              <!-- Collapsible Form Edit Kredensial Bank & Kontak -->
+              <details class="mt-3 border-t border-slate-200 pt-2 text-xs">
+                <summary class="cursor-pointer font-semibold text-sky-700 hover:text-sky-800 select-none py-1">
+                  ⚙️ Edit Data Karyawan &amp; Kredensial Bank
+                </summary>
+                <form method="post" action="/operators/{{$op.ID}}/credentials" class="mt-2 grid gap-2 sm:grid-cols-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                  <label>
+                    <span class="field-label text-xs">Nama Lengkap</span>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="display_name" value="{{$op.DisplayName}}" required>
+                  </label>
+                  <label>
+                    <span class="field-label text-xs">Nomor HP / WA</span>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="phone_number" value="{{$op.PhoneNumber}}" placeholder="08123456789">
+                  </label>
+                  <label>
+                    <span class="field-label text-xs">Nama / Kode Bank</span>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_name" value="{{$op.BankName}}" placeholder="Contoh: BCA, Mandiri, BRI, BNI">
+                  </label>
+                  <label>
+                    <span class="field-label text-xs">Nomor Rekening</span>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_account_number" value="{{$op.BankAccountNumber}}" placeholder="Nomor rekening">
+                  </label>
+                  <label>
+                    <span class="field-label text-xs">Cabang</span>
+                    <select class="field text-xs py-1.5 h-9 min-h-9" name="branch_id">
+                      <option value="0">-- Pilih Cabang --</option>
+                      {{range $.Branches}}
+                      <option value="{{.ID}}" {{if eq .ID $op.BranchID}}selected{{end}}>{{.Name}}</option>
+                      {{end}}
+                    </select>
+                  </label>
+                  <label>
+                    <span class="field-label text-xs">Tipe Staf</span>
+                    <select class="field text-xs py-1.5 h-9 min-h-9" name="staff_type">
+                      <option value="barberman" {{if eq $op.StaffType "barberman"}}selected{{end}}>Barberman</option>
+                      <option value="cashier" {{if eq $op.StaffType "cashier"}}selected{{end}}>Kasir</option>
+                      <option value="manager" {{if eq $op.StaffType "manager"}}selected{{end}}>Manager</option>
+                    </select>
+                  </label>
+                  <div class="sm:col-span-2 flex items-center justify-end gap-2 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                    <button type="button" class="btn-cancel-edit hidden btn-secondary text-xs py-2 px-4 transition-all duration-200">
+                      Batal
+                    </button>
+                    <button class="btn-primary text-xs py-2 px-5 shadow-md shadow-blue-500/20" type="submit">
+                      Simpan Perubahan Kredensial
+                    </button>
+                  </div>
+                </form>
+              </details>
             </article>
             {{else}}
             <div class="rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center text-slate-500">{{label .Language "noOperators"}}</div>
@@ -138,6 +217,300 @@
       </main>
     </div>
   </div>
+
+  <!-- Redesigned Confirmation Modal (Spacious, Modern & Clean) -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 sm:p-6" style="background: rgba(10, 16, 35, 0.65); backdrop-filter: blur(6px);">
+    <div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 shadow-sm">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">Konfirmasi Perubahan</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pastikan data karyawan sudah benar sebelum disimpan.</p>
+        </div>
+      </div>
+
+      <!-- Employee Summary Card (Roomy, clear, not mepet) -->
+      <div class="mt-5 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 p-4">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-sm shadow-sm">
+            👤
+          </div>
+          <div class="min-w-0 flex-1">
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Nama Karyawan</span>
+            <span id="confirm-modal-emp-name" class="block font-black text-base text-slate-900 dark:text-white truncate">-</span>
+          </div>
+        </div>
+        <div id="confirm-modal-details" class="mt-3.5 pt-3 border-t border-slate-200/60 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
+          <!-- Dynamically filled: HP, Bank, Rekening, dsb -->
+        </div>
+      </div>
+
+      <!-- Question prompt with ample bottom spacing -->
+      <p class="mt-5 mb-6 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+        Apakah Anda yakin ingin menyimpan perubahan data dan kredensial untuk karyawan ini?
+      </p>
+
+      <!-- Action Buttons (Well-spaced footer, hover matches Create Operator) -->
+      <div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">
+        <button id="confirm-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition" type="button">
+          Batal
+        </button>
+        <button id="confirm-ok" class="btn-primary !min-h-11 px-6 text-xs sm:text-sm font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 active:scale-95 transition-all" type="button">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          <span id="confirm-ok-text">Ya, Simpan Perubahan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes modalPopIn {
+      from { opacity: 0; transform: scale(.93) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+  </style>
+
+  <script>
+    (function () {
+      var pendingForm = null;
+      var modal = document.getElementById('confirm-modal');
+      var modalEmpName = document.getElementById('confirm-modal-emp-name');
+      var modalDetails = document.getElementById('confirm-modal-details');
+      var confirmOkBtn = document.getElementById('confirm-ok');
+      var confirmOkText = document.getElementById('confirm-ok-text');
+      var confirmCancelBtn = document.getElementById('confirm-cancel');
+
+      function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        pendingForm = null;
+        confirmOkBtn.disabled = false;
+        confirmOkText.textContent = 'Ya, Simpan Perubahan';
+      }
+
+      function recordInitialValues(form) {
+        var nameInput = form.querySelector('[name="display_name"]');
+        var phoneInput = form.querySelector('[name="phone_number"]');
+        var bankInput = form.querySelector('[name="bank_name"]');
+        var accInput = form.querySelector('[name="bank_account_number"]');
+        var branchSelect = form.querySelector('[name="branch_id"]');
+        var staffSelect = form.querySelector('[name="staff_type"]');
+
+        form.dataset.initialName = nameInput ? nameInput.value.trim() : '';
+        form.dataset.initialPhone = phoneInput ? phoneInput.value.trim() : '';
+        form.dataset.initialBank = bankInput ? bankInput.value.trim() : '';
+        form.dataset.initialAccount = accInput ? accInput.value.trim() : '';
+        form.dataset.initialBranch = branchSelect ? branchSelect.value : '';
+        form.dataset.initialStaff = staffSelect ? staffSelect.value : '';
+      }
+
+      function checkFormChanges(form) {
+        var nameInput = form.querySelector('[name="display_name"]');
+        var phoneInput = form.querySelector('[name="phone_number"]');
+        var bankInput = form.querySelector('[name="bank_name"]');
+        var accInput = form.querySelector('[name="bank_account_number"]');
+        var branchSelect = form.querySelector('[name="branch_id"]');
+        var staffSelect = form.querySelector('[name="staff_type"]');
+        var cancelBtn = form.querySelector('.btn-cancel-edit');
+
+        var currentName = nameInput ? nameInput.value.trim() : '';
+        var currentPhone = phoneInput ? phoneInput.value.trim() : '';
+        var currentBank = bankInput ? bankInput.value.trim() : '';
+        var currentAccount = accInput ? accInput.value.trim() : '';
+        var currentBranch = branchSelect ? branchSelect.value : '';
+        var currentStaff = staffSelect ? staffSelect.value : '';
+
+        var hasChanges = (currentName !== (form.dataset.initialName || '')) ||
+                         (currentPhone !== (form.dataset.initialPhone || '')) ||
+                         (currentBank !== (form.dataset.initialBank || '')) ||
+                         (currentAccount !== (form.dataset.initialAccount || '')) ||
+                         (currentBranch !== (form.dataset.initialBranch || '')) ||
+                         (currentStaff !== (form.dataset.initialStaff || ''));
+
+        if (cancelBtn) {
+          if (hasChanges) {
+            cancelBtn.classList.remove('hidden');
+          } else {
+            cancelBtn.classList.add('hidden');
+          }
+        }
+        return hasChanges;
+      }
+
+      function resetFormToInitial(form) {
+        var nameInput = form.querySelector('[name="display_name"]');
+        var phoneInput = form.querySelector('[name="phone_number"]');
+        var bankInput = form.querySelector('[name="bank_name"]');
+        var accInput = form.querySelector('[name="bank_account_number"]');
+        var branchSelect = form.querySelector('[name="branch_id"]');
+        var staffSelect = form.querySelector('[name="staff_type"]');
+        var cancelBtn = form.querySelector('.btn-cancel-edit');
+
+        if (nameInput) nameInput.value = form.dataset.initialName || '';
+        if (phoneInput) phoneInput.value = form.dataset.initialPhone || '';
+        if (bankInput) bankInput.value = form.dataset.initialBank || '';
+        if (accInput) accInput.value = form.dataset.initialAccount || '';
+        if (branchSelect) branchSelect.value = form.dataset.initialBranch || '';
+        if (staffSelect) staffSelect.value = form.dataset.initialStaff || '';
+
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+      }
+
+      // Intercept all credentials edit forms
+      document.querySelectorAll('form[action*="/credentials"]').forEach(function (form) {
+        recordInitialValues(form);
+
+        // Real-time detection of changes to show/hide Batal button
+        form.addEventListener('input', function () {
+          checkFormChanges(form);
+        });
+        form.addEventListener('change', function () {
+          checkFormChanges(form);
+        });
+
+        // Batal button click handler to reset form
+        var cancelBtn = form.querySelector('.btn-cancel-edit');
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', function () {
+            resetFormToInitial(form);
+          });
+        }
+
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+
+          var hasChanges = checkFormChanges(form);
+          var nameInput = form.querySelector('[name="display_name"]');
+          var empName = (nameInput && nameInput.value.trim()) || form.dataset.initialName || 'Karyawan';
+
+          if (!hasChanges) {
+            if (window.showGlobalToast) {
+              window.showGlobalToast(
+                "Tidak Ada Perubahan",
+                'Data karyawan "' + empName + '" tidak ada yang diubah.',
+                3500,
+                'warning'
+              );
+            }
+            return;
+          }
+
+          pendingForm = form;
+          modalEmpName.textContent = empName;
+
+          var phoneInput = form.querySelector('[name="phone_number"]');
+          var bankInput = form.querySelector('[name="bank_name"]');
+          var accInput = form.querySelector('[name="bank_account_number"]');
+          var branchSelect = form.querySelector('[name="branch_id"]');
+
+          var currentPhone = phoneInput ? phoneInput.value.trim() : '';
+          var currentBank = bankInput ? bankInput.value.trim() : '';
+          var currentAccount = accInput ? accInput.value.trim() : '';
+
+          var detailsHTML = '';
+          if (currentPhone) {
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">No. HP / WA</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentPhone + '</span></div>';
+          }
+          if (currentBank) {
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">Bank</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentBank + '</span></div>';
+          }
+          if (currentAccount) {
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">No. Rekening</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentAccount + '</span></div>';
+          }
+          if (branchSelect && branchSelect.selectedIndex > 0) {
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">Cabang</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + branchSelect.options[branchSelect.selectedIndex].text + '</span></div>';
+          }
+          if (!detailsHTML) {
+            detailsHTML = '<div class="col-span-2 text-slate-400 italic">Tidak ada kredensial tambahan yang diisi.</div>';
+          }
+          modalDetails.innerHTML = detailsHTML;
+
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        });
+      });
+
+      // Confirm button click
+      confirmOkBtn.addEventListener('click', function () {
+        if (!pendingForm) return;
+        var form = pendingForm;
+        var nameInput = form.querySelector('[name="display_name"]');
+        var savedDisplayName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Karyawan';
+
+        // Show loading state on button
+        confirmOkBtn.disabled = true;
+        confirmOkText.textContent = 'Menyimpan...';
+
+        var formData = new FormData(form);
+
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function (res) {
+          if (!res.ok) {
+            throw new Error('Server returned ' + res.status);
+          }
+          return res.json().catch(function () { return { ok: true }; });
+        })
+        .then(function (data) {
+          // Update recorded initial values so subsequent clicks check against new state
+          recordInitialValues(form);
+          var cancelBtn = form.querySelector('.btn-cancel-edit');
+          if (cancelBtn) cancelBtn.classList.add('hidden');
+
+          closeModal();
+
+          // Close accordion details
+          var detailsEl = form.closest('details');
+          if (detailsEl) detailsEl.removeAttribute('open');
+
+          // Update employee display name on card live
+          var card = form.closest('article');
+          if (card) {
+            var nameEl = card.querySelector('.operator-display-name');
+            if (nameEl) nameEl.textContent = savedDisplayName;
+          }
+
+          // Trigger cross-page persistent toast!
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              "Data Berhasil Disimpan",
+              'Perubahan data karyawan "' + savedDisplayName + '" telah berhasil disimpan.',
+              4500,
+              'success'
+            );
+          }
+        })
+        .catch(function (err) {
+          console.warn('AJAX save failed, falling back to standard submit:', err);
+          // Fallback to standard form submit
+          form.submit();
+        });
+      });
+
+      confirmCancelBtn.addEventListener('click', closeModal);
+
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+          closeModal();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
 {{end}}

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -81,6 +82,7 @@ type pageData struct {
 	Greeting                    string
 	RedirectURL                 string
 	Branches                    []backoffice.Branch
+	SavedName                   string
 }
 
 func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error) {
@@ -113,6 +115,7 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	mux.HandleFunc("GET /operators", s.withUser(s.adminOnly(s.operatorsPage)))
 	mux.HandleFunc("POST /operators", s.withUser(s.adminOnly(s.createOperator)))
 	mux.HandleFunc("POST /operators/{id}/active", s.withUser(s.adminOnly(s.setOperatorActive)))
+	mux.HandleFunc("POST /operators/{id}/credentials", s.withUser(s.adminOnly(s.updateOperatorCredentials)))
 	// Backoffice routes (admin-only)
 	mux.HandleFunc("GET /backoffice", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/backoffice/", http.StatusSeeOther)
@@ -617,7 +620,8 @@ func (s *Server) operatorsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	branches, _ := s.backoffice.ListBranches(r.Context())
-	s.render(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, Branches: branches, CSRF: s.csrf(w, r), CurrentURL: r.URL.RequestURI()}))
+	savedName, _ := url.QueryUnescape(r.URL.Query().Get("saved"))
+	s.render(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, Branches: branches, CSRF: s.csrf(w, r), CurrentURL: r.URL.RequestURI(), SavedName: savedName}))
 }
 
 func (s *Server) createOperator(w http.ResponseWriter, r *http.Request) {
@@ -630,12 +634,65 @@ func (s *Server) createOperator(w http.ResponseWriter, r *http.Request) {
 		branchID, _ = strconv.ParseInt(bStr, 10, 64)
 	}
 	staffType := strings.TrimSpace(r.FormValue("staff_type"))
-	if err := s.auth.CreateOperatorWithBranch(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), "operator", staffType, branchID); err != nil {
+	phone := strings.TrimSpace(r.FormValue("phone_number"))
+	bankName := strings.TrimSpace(r.FormValue("bank_name"))
+	bankAccount := strings.TrimSpace(r.FormValue("bank_account_number"))
+
+	if err := s.auth.CreateOperatorWithBranchAndCredentials(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), "operator", staffType, branchID, phone, bankName, bankAccount); err != nil {
 		operators, _ := s.auth.ListOperators(r.Context())
-		s.renderStatus(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, CSRF: s.csrf(w, r), Error: err.Error()}), http.StatusBadRequest)
+		branches, _ := s.backoffice.ListBranches(r.Context())
+		s.renderStatus(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, Branches: branches, CSRF: s.csrf(w, r), Error: err.Error()}), http.StatusBadRequest)
 		return
 	}
 	http.Redirect(w, r, "/operators", http.StatusSeeOther)
+}
+
+func (s *Server) updateOperatorCredentials(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	operatorID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || operatorID <= 0 {
+		http.Error(w, "invalid operator", http.StatusBadRequest)
+		return
+	}
+	var branchID int64
+	if bStr := r.FormValue("branch_id"); bStr != "" {
+		branchID, _ = strconv.ParseInt(bStr, 10, 64)
+	}
+	staffType := strings.TrimSpace(r.FormValue("staff_type"))
+	displayName := strings.TrimSpace(r.FormValue("display_name"))
+	phone := strings.TrimSpace(r.FormValue("phone_number"))
+	bankName := strings.TrimSpace(r.FormValue("bank_name"))
+	bankAccount := strings.TrimSpace(r.FormValue("bank_account_number"))
+
+	if err := s.auth.UpdateOperatorCredentials(r.Context(), operatorID, displayName, phone, bankName, bankAccount, branchID, staffType); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		operators, _ := s.auth.ListOperators(r.Context())
+		branches, _ := s.backoffice.ListBranches(r.Context())
+		s.renderStatus(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, Branches: branches, CSRF: s.csrf(w, r), Error: err.Error()}), http.StatusBadRequest)
+		return
+	}
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":          true,
+			"displayName": displayName,
+			"phone":       phone,
+			"bankName":    bankName,
+			"bankAccount": bankAccount,
+			"branchID":    branchID,
+			"staffType":   staffType,
+		})
+		return
+	}
+	http.Redirect(w, r, "/operators?saved="+url.QueryEscape(displayName), http.StatusSeeOther)
 }
 
 func (s *Server) setOperatorActive(w http.ResponseWriter, r *http.Request) {

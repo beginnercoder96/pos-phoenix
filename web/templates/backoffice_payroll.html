@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Employee payroll, generate and download Excel slips.">
   <title>{{label .Language "boPayroll"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -72,7 +73,7 @@
           <form method="get" action="/backoffice/payroll" class="flex flex-wrap gap-3 items-end" id="payroll-filter-form">
             <label class="min-w-0">
               <span class="field-label">{{label .Language "boBranch"}}</span>
-              <select name="branch" class="field min-h-11" id="payroll-branch-select">
+              <select name="branch" class="field h-11 min-h-11" id="payroll-branch-select">
                 {{range .Branches}}
                 <option value="{{.Code}}" {{if eq $.SelectedBranch .Code}}selected{{end}}>{{.Name}}</option>
                 {{end}}
@@ -80,7 +81,7 @@
             </label>
             <label class="min-w-0">
               <span class="field-label">{{label .Language "boPeriod"}}</span>
-              <input type="month" name="period" value="{{.SelectedPeriod}}" class="field min-h-11" id="payroll-period-input">
+              <input type="month" name="period" value="{{.SelectedPeriod}}" class="field h-11 min-h-11" id="payroll-period-input">
             </label>
             <noscript><button class="btn-primary h-11 px-4" type="submit">{{label .Language "boShow"}}</button></noscript>
           </form>
@@ -93,9 +94,14 @@
               <h2 class="text-lg font-black tracking-tight">{{label .Language "boPayrollRecap"}} — {{.SelectedBranch}}</h2>
               <p class="muted text-xs">{{label .Language "boPeriod"}}: {{.SelectedPeriod}}</p>
             </div>
-            <a href="/backoffice/payroll/slip-all?branch={{.SelectedBranch}}&period={{.SelectedPeriod}}" class="btn-primary h-11 flex items-center gap-2 px-4" id="btn-download-all-slips">
-              {{label .Language "boDownloadAll"}}
-            </a>
+            <div class="flex items-center gap-2">
+              <a href="/backoffice/payroll/slip-all?branch={{.SelectedBranch}}&period={{.SelectedPeriod}}" class="btn-primary h-11 flex items-center gap-2 px-4 shadow-sm" id="btn-download-all-slips" target="_blank">
+                🖨️ {{label .Language "boDownloadAll"}}
+              </a>
+              <a href="/backoffice/payroll/slip-all?branch={{.SelectedBranch}}&period={{.SelectedPeriod}}&format=excel" class="btn-secondary h-11 flex items-center gap-2 px-3 text-xs" title="Download Excel">
+                📊 Excel
+              </a>
+            </div>
           </div>
         </section>
 
@@ -122,9 +128,14 @@
                   <td class="py-3 px-3 text-right text-blue-400">{{money .ProductCommission}}</td>
                   <td class="py-3 px-3 text-right font-black text-lg">{{money .TotalPayCents}}</td>
                   <td class="py-3 px-3 text-center">
-                    <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}" class="btn-secondary text-xs px-3 py-1" id="btn-slip-{{.UserID}}">
-                      {{label $.Language "boDownloadSlip"}}
-                    </a>
+                    <div class="flex items-center justify-center gap-1.5">
+                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}" class="btn-secondary text-xs px-2.5 py-1" id="btn-slip-{{.UserID}}" target="_blank" title="Cetak / Lihat Slip">
+                        🖨️ {{label $.Language "boDownloadSlip"}}
+                      </a>
+                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}&format=excel" class="btn-secondary text-xs px-2 py-1 text-slate-400 hover:text-white" title="Download Excel">
+                        📊
+                      </a>
+                    </div>
                   </td>
                 </tr>
                 {{else}}

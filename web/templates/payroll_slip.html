@@ -1,0 +1,346 @@
+{{define "payroll_slip.html"}}
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slip Gaji — {{if .IsBulk}}Semua Karyawan ({{.SelectedBranch}}){{else}}{{(index .Slips 0).EmployeeName}}{{end}}
+  </title>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <style>
+    .slip-total-row,
+    .slip-total-row td {
+      background-color: #86efac !important;
+      color: #000000 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    .slip-header-row,
+    thead th {
+      background-color: #dc2626 !important;
+      color: #ffffff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .page-break {
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+
+      .slip-card {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+
+      .slip-info-row {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+      }
+
+      .slip-payment-row {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        align-items: stretch !important;
+      }
+
+      thead th,
+      .slip-header-row,
+      .slip-header-row th {
+        background-color: #dc2626 !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .slip-total-row,
+      .slip-total-row td {
+        background-color: #86efac !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+
+
+      @page {
+        size: A4 portrait;
+        margin: 12mm 15mm;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-100 text-black font-sans antialiased min-h-screen">
+  <!-- Sticky Action Toolbar (Hidden during print) -->
+  <header class="no-print sticky top-0 z-30 bg-[#172033] text-white shadow-md border-b border-slate-700">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <a href="/backoffice/payroll?branch={{.SelectedBranch}}&period={{.SelectedPeriod}}"
+          class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 transition">
+          ← Kembali ke Payroll
+        </a>
+        <span class="text-sm font-bold text-slate-200 hidden sm:inline">
+          {{if .IsBulk}}Rekap Slip Gaji ({{len .Slips}} Karyawan) — Cabang {{.SelectedBranch}}{{else}}Slip Gaji:
+          {{(index .Slips 0).EmployeeName}}{{end}}
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="window.print()"
+          class="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition">
+          <span>🖨️</span> Cetak / Simpan PDF
+        </button>
+        <a href="{{.ExcelURL}}"
+          class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 font-semibold text-sm transition">
+          <span>📊</span> Download Excel
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Slip Container(s) -->
+  <main class="max-w-4xl mx-auto py-6 sm:py-10 px-3 sm:px-4">
+    {{range $i, $slip := .Slips}}
+    <article
+      class="slip-card bg-white p-8 sm:p-12 shadow-sm border border-slate-200 mb-8 {{if not (eq (add $i 1) (len $.Slips))}}page-break{{end}}">
+
+      <!-- Top Row: Logo di Kiri Atas Kecil & Judul SLIP GAJI di Kanan Atas -->
+      <div class="flex items-start justify-between">
+        <!-- Logo Kecil di Pojok Kiri Atas (Transparan & Proporsional) -->
+        <div>
+          <img src="/static/img/logopardis.png" alt="Pardis Barber Shop" class="h-8 sm:h-9 w-auto object-contain">
+        </div>
+        <!-- Judul SLIP GAJI di Pojok Kanan Atas -->
+        <div class="text-right">
+          <h1 class="text-3xl sm:text-4xl font-black text-black tracking-tight">SLIP GAJI</h1>
+          <p class="text-xs sm:text-sm text-black mt-1">{{$slip.Period}}</p>
+        </div>
+      </div>
+
+      <!-- Info Perusahaan (Kiri) & Info Karyawan (Kanan) Sejajar Sempurna -->
+      <div class="slip-info-row flex flex-nowrap items-start justify-between gap-4 mt-6 mb-8 text-xs sm:text-sm">
+        <!-- Info Perusahaan dalam Format Tabel (Semua Bold) -->
+        <table class="border-collapse shrink-0">
+          <tbody>
+            <tr>
+              <td class="py-0.5 font-bold text-black leading-normal">{{$slip.BranchName}}</td>
+            </tr>
+            <tr>
+              <td class="py-0.5 font-bold text-black leading-normal">Yogyakarta</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Info Karyawan dengan Kolon Sejajar (Judul & Isi Bold) -->
+        <table class="border-collapse shrink-0">
+          <tbody>
+            <tr>
+              <td class="py-0.5 pr-3 font-bold text-black whitespace-nowrap leading-normal">Nama - ID Karyawan</td>
+              <td class="py-0.5 px-2 text-center font-bold text-black leading-normal">:</td>
+              <td class="py-0.5 font-bold text-black leading-normal">{{$slip.EmployeeName}} - {{$slip.EmployeeID}}</td>
+            </tr>
+            <tr>
+              <td class="py-0.5 pr-3 font-bold text-black whitespace-nowrap leading-normal">Jabatan</td>
+              <td class="py-0.5 px-2 text-center font-bold text-black leading-normal">:</td>
+              <td class="py-0.5 font-bold text-black leading-normal">{{if
+                $slip.StaffType}}{{$slip.StaffType}}{{else}}barberman{{end}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tabel Pendapatan & Potongan (2 Kolom dengan Garis Pemisah Rapi) -->
+      <div class="border border-slate-300 overflow-hidden mb-8">
+        <table class="w-full text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="slip-header-row"
+              style="background-color: #dc2626 !important; color: #ffffff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+              <th class="py-2.5 px-4 text-left font-bold w-1/2 border-r border-red-700"
+                style="background-color: #dc2626 !important; color: #ffffff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                Pendapatan</th>
+              <th class="py-2.5 px-4 text-left font-bold w-1/2"
+                style="background-color: #dc2626 !important; color: #ffffff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                Potongan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Baris 1: Bagi Hasil Jasa vs Potongan Telat -->
+            <tr class="border-b border-slate-200">
+              <td class="py-2 px-4 border-r border-slate-200">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">Bagi Hasil Jasa</span>
+                  <span class="text-black font-medium shrink-0">{{money $slip.ServiceShare}}</span>
+                </div>
+              </td>
+              <td class="py-2 px-4">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">Potongan Telat</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Baris 2: Komisi Produk vs PPh 21 -->
+            <tr class="border-b border-slate-200">
+              <td class="py-2 px-4 border-r border-slate-200">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">Komisi Penjualan Produk</span>
+                  <span class="text-black font-medium shrink-0">{{money $slip.ProductComm}}</span>
+                </div>
+              </td>
+              <td class="py-2 px-4">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">PPh 21</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Baris 3: Transport vs BPJS Kesehatan -->
+            <tr class="border-b border-slate-200">
+              <td class="py-2 px-4 border-r border-slate-200">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">Uang Makan &amp; Transport</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+              <td class="py-2 px-4">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">BPJS Kesehatan</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Baris 4: Tunjangan Kesehatan vs BPJS Ketenagakerjaan -->
+            <tr class="border-b border-slate-200">
+              <td class="py-2 px-4 border-r border-slate-200">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">Tunjangan Operasional</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+              <td class="py-2 px-4">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">BPJS Ketenagakerjaan</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Baris 5: Tunjangan Lainnya vs Cicilan / Kasbon -->
+            <tr class="border-b border-slate-200">
+              <td class="py-2 px-4 border-r border-slate-200">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">Tunjangan Lainnya</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+              <td class="py-2 px-4">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="text-black">Cicilan Koperasi / Kasbon</span>
+                  <span class="text-black font-medium shrink-0">Rp 0,00</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Baris Terakhir Total -->
+            <tr class="slip-total-row font-bold text-black"
+              style="background-color: #86efac !important; color: #000000 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+              <td class="py-2.5 px-4 border-r border-emerald-300"
+                style="background-color: #86efac !important; color: #000000 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                <div class="flex justify-between items-center">
+                  <span class="uppercase font-bold tracking-wide text-black">TOTAL PENERIMAAN</span>
+                  <span class="font-bold text-base text-black">{{money (add $slip.ServiceShare
+                    $slip.ProductComm)}}</span>
+                </div>
+              </td>
+              <td class="py-2.5 px-4"
+                style="background-color: #86efac !important; color: #000000 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                <div class="flex justify-between items-center">
+                  <span class="uppercase font-bold tracking-wide text-black">TOTAL POTONGAN</span>
+                  <span class="font-bold text-base text-black">Rp 0,00</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Keterangan Pembayaran (Kiri) & Kotak TAKE HOME PAY (Kanan) -->
+      <div class="slip-payment-row flex flex-nowrap items-stretch justify-between gap-6"
+        style="margin-top: 24px; margin-bottom: 48px;">
+        <!-- Info Pembayaran Dinamis -->
+        <div class="text-xs sm:text-sm text-black leading-relaxed">
+          <p class="text-black">Pembayaran gaji telah dilakukan oleh perusahaan</p>
+          <p class="text-black">Secara transfer ke rekening karyawan</p>
+          <p class="text-black">
+            {{if and $slip.BankAccountNumber $slip.BankName}}
+            {{$slip.BankAccountNumber}} ({{$slip.BankName}})
+            {{else if $slip.BankAccountNumber}}
+            {{$slip.BankAccountNumber}}
+            {{else if $slip.BankName}}
+            Rek. ({{$slip.BankName}})
+            {{else}}
+            -
+            {{end}}
+          </p>
+          <p class="text-black">a.n. {{$slip.EmployeeName}} - {{$slip.EmployeeID}}</p>
+        </div>
+
+        <!-- Kotak TAKE HOME PAY (Border Hitam Tegas, Sejajar Penuh dengan Keterangan Pembayaran) -->
+        <div class="shrink-0 flex">
+          <div class="w-64 sm:w-72 px-4 py-3 text-center bg-white flex flex-col justify-center"
+            style="border: 2px solid #000000 !important;">
+            <p class="text-xs sm:text-sm font-bold uppercase tracking-wider text-black">TAKE HOME PAY</p>
+            <p class="text-xl sm:text-2xl font-bold text-black mt-1">{{money $slip.TakeHomePay}}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kolom Tanda Tangan & Tanggal -->
+      <div class="text-xs sm:text-sm text-black" style="margin-top: 24px; padding-top: 8px;">
+        <p class="text-right text-black" style="margin-bottom: 24px;">Tanggal {{$slip.PrintDate}}</p>
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-black">Disetujui Oleh:</p>
+            <div style="height: 100px; min-height: 100px;"></div>
+            <p class="text-black">Ipang</p>
+          </div>
+          <div class="text-right">
+            <p class="text-black">Diterima oleh:</p>
+            <div style="height: 100px; min-height: 100px;"></div>
+            <p class="text-black">{{$slip.EmployeeName}} - {{$slip.EmployeeID}}</p>
+          </div>
+        </div>
+      </div>
+
+    </article>
+    {{end}}
+  </main>
+</body>
+
+</html>
+{{end}}

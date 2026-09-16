@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — 24-month revenue analytics, profit sharing, and multi-branch management.">
   <title>{{label .Language "boDashboard"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
   <script id="analytics-data" type="application/json">{{.AnalyticsJSON}}</script>
+  <script defer src="/static/js/app.js?v=20260916-align"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -73,9 +74,17 @@
         <section class="rounded-2xl p-5 shadow-sm surface" id="branch-filter-section">
           <div class="flex flex-wrap items-center gap-3">
             <span class="font-bold text-sm">{{label .Language "boBranchFilter"}}</span>
-            <a href="/backoffice/?branch=all" class="btn-secondary {{if eq .SelectedBranch "all"}}bg-emerald-500 text-white font-bold{{end}}" id="filter-all">{{label .Language "boAllBranches"}}</a>
+            {{if eq .SelectedBranch "all"}}
+            <a href="/backoffice/?branch=all" class="btn-primary min-h-11 px-4 text-sm font-bold shadow-md shadow-blue-500/20" id="filter-all">{{label .Language "boAllBranches"}}</a>
+            {{else}}
+            <a href="/backoffice/?branch=all" class="btn-secondary min-h-11 px-4 text-sm font-semibold" id="filter-all">{{label .Language "boAllBranches"}}</a>
+            {{end}}
             {{range .Branches}}
-            <a href="/backoffice/?branch={{.Code}}" class="btn-secondary {{if eq $.SelectedBranch .Code}}bg-emerald-500 text-white font-bold{{end}}" id="filter-{{.Code}}">{{.Name}}</a>
+            {{if eq $.SelectedBranch .Code}}
+            <a href="/backoffice/?branch={{.Code}}" class="btn-primary min-h-11 px-4 text-sm font-bold shadow-md shadow-blue-500/20" id="filter-{{.Code}}">{{.Name}}</a>
+            {{else}}
+            <a href="/backoffice/?branch={{.Code}}" class="btn-secondary min-h-11 px-4 text-sm font-semibold" id="filter-{{.Code}}">{{.Name}}</a>
+            {{end}}
             {{end}}
           </div>
         </section>
