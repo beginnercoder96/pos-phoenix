@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Operators · POS Phoenix</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
-  <script defer src="/static/js/app.js?v=20260916-align"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260917-darkfix">
+  <script defer src="/static/js/app.js?v=20260917-darkfix"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -159,11 +159,11 @@
               </div>
 
               <!-- Collapsible Form Edit Kredensial Bank & Kontak -->
-              <details class="mt-3 border-t border-slate-200 pt-2 text-xs">
-                <summary class="cursor-pointer font-semibold text-sky-700 hover:text-sky-800 select-none py-1">
+              <details class="mt-3 border-t border-slate-200 dark:border-slate-800 pt-2 text-xs">
+                <summary class="cursor-pointer font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 select-none py-1">
                   ⚙️ Edit Data Karyawan &amp; Kredensial Bank
                 </summary>
-                <form method="post" action="/operators/{{$op.ID}}/credentials" class="mt-2 grid gap-2 sm:grid-cols-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <form method="post" action="/operators/{{$op.ID}}/credentials" class="mt-2 grid gap-2 sm:grid-cols-2 p-3 bg-slate-50 dark:bg-[#070e28] rounded-xl border border-slate-200 dark:border-[#142055]">
                   <input type="hidden" name="csrf" value="{{$.CSRF}}">
                   <label>
                     <span class="field-label text-xs">Nama Lengkap</span>
@@ -258,7 +258,7 @@
 
       <!-- Action Buttons (Well-spaced footer, hover matches Create Operator) -->
       <div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">
-        <button id="confirm-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition" type="button">
+        <button id="confirm-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition" type="button">
           Batal
         </button>
         <button id="confirm-ok" class="btn-primary !min-h-11 px-6 text-xs sm:text-sm font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 active:scale-95 transition-all" type="button">

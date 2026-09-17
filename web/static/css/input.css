@@ -171,15 +171,18 @@
     background-color: #1d4ed8 !important;
     color: #ffffff !important;
   }
-  .btn-secondary { @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700; }
+  .btn-secondary { 
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-slate-100/90 px-4 font-semibold text-slate-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50/70 hover:text-blue-700 active:scale-[0.98]; 
+  }
   [data-theme="dark"] .btn-secondary {
-    background-color: #010318;
-    border-color: #121c47;
+    background-color: #151f47;
+    border-color: #2b3d7d;
     color: #f1f5f9;
   }
   [data-theme="dark"] .btn-secondary:hover {
+    background-color: #1e2d63;
     border-color: #3b82f6;
-    color: #93c5fd;
+    color: #ffffff;
   }
 
   /* Stat cards */
