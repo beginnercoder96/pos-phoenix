@@ -83,6 +83,9 @@ type pageData struct {
 	RedirectURL                 string
 	Branches                    []backoffice.Branch
 	SavedName                   string
+	Success                     string
+	ResetToken                  string
+	ResetLink                   string
 }
 
 func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error) {
@@ -101,9 +104,17 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	}
 	s := &Server{auth: auth.Service{DB: db}, transactions: transactionstore.Repository{DB: db}, backoffice: &backoffice.Repository{DB: db}, templates: t, secure: secure, location: location, now: time.Now}
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(safeDir("web/static"))))
+	staticFS := http.StripPrefix("/static/", http.FileServer(safeDir("web/static")))
+	mux.HandleFunc("GET /static/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+		staticFS.ServeHTTP(w, r)
+	})
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.login)
+	mux.HandleFunc("GET /forgot-password", s.forgotPasswordPage)
+	mux.HandleFunc("POST /forgot-password", s.requestPasswordReset)
+	mux.HandleFunc("GET /reset-password", s.resetPasswordPage)
+	mux.HandleFunc("POST /reset-password", s.submitPasswordReset)
 	mux.HandleFunc("POST /logout", s.withUser(s.logout))
 	mux.HandleFunc("GET /loading", s.loadingPage)
 	mux.HandleFunc("GET /", s.withUser(s.dashboard))
@@ -154,9 +165,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusForbidden)
 		return
 	}
-	u, err := s.auth.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
+	username := strings.TrimSpace(r.FormValue("username"))
+	if username == "" || strings.Contains(username, "@") {
+		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect."}), http.StatusUnauthorized)
+		return
+	}
+	u, err := s.auth.Authenticate(r.Context(), username, r.FormValue("password"))
 	if err != nil {
-		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Email or password is incorrect."}), http.StatusUnauthorized)
+		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect."}), http.StatusUnauthorized)
 		return
 	}
 	token, err := s.auth.CreateSession(r.Context(), u.ID)
@@ -167,6 +183,96 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: "session", Value: token, Path: "/", HttpOnly: true, Secure: s.secure, SameSite: http.SameSiteLaxMode, MaxAge: 43200})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+func (s *Server) forgotPasswordPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, "forgot_password.html", localizedData(r, pageData{CSRF: s.csrf(w, r)}))
+}
+
+func (s *Server) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	email := strings.TrimSpace(r.FormValue("email"))
+	if email == "" {
+		s.renderStatus(w, "forgot_password.html", localizedData(r, pageData{
+			CSRF:  s.csrf(w, r),
+			Error: "Please enter your registered email address.",
+		}), http.StatusBadRequest)
+		return
+	}
+
+	token, resetLink, err := s.auth.CreatePasswordResetToken(r.Context(), email)
+	if err != nil {
+		s.renderStatus(w, "forgot_password.html", localizedData(r, pageData{
+			CSRF:  s.csrf(w, r),
+			Error: err.Error(),
+		}), http.StatusBadRequest)
+		return
+	}
+
+	s.render(w, "forgot_password.html", localizedData(r, pageData{
+		CSRF:       s.csrf(w, r),
+		Success:    "resetEmailSentMessage",
+		ResetToken: token,
+		ResetLink:  resetLink,
+	}))
+}
+
+func (s *Server) resetPasswordPage(w http.ResponseWriter, r *http.Request) {
+	token := strings.TrimSpace(r.URL.Query().Get("token"))
+	if token == "" {
+		http.Redirect(w, r, "/forgot-password", http.StatusSeeOther)
+		return
+	}
+	_, err := s.auth.ValidatePasswordResetToken(r.Context(), token)
+	if err != nil {
+		s.renderStatus(w, "reset_password.html", localizedData(r, pageData{
+			CSRF:       s.csrf(w, r),
+			Error:      "invalidOrExpiredToken",
+			ResetToken: token,
+		}), http.StatusBadRequest)
+		return
+	}
+	s.render(w, "reset_password.html", localizedData(r, pageData{
+		CSRF:       s.csrf(w, r),
+		ResetToken: token,
+	}))
+}
+
+func (s *Server) submitPasswordReset(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	token := strings.TrimSpace(r.FormValue("token"))
+	password := r.FormValue("password")
+	confirm := r.FormValue("password_confirm")
+
+	if password != confirm {
+		s.renderStatus(w, "reset_password.html", localizedData(r, pageData{
+			CSRF:       s.csrf(w, r),
+			Error:      "passwordsDoNotMatch",
+			ResetToken: token,
+		}), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.auth.ResetPasswordWithToken(r.Context(), token, password); err != nil {
+		s.renderStatus(w, "reset_password.html", localizedData(r, pageData{
+			CSRF:       s.csrf(w, r),
+			Error:      err.Error(),
+			ResetToken: token,
+		}), http.StatusBadRequest)
+		return
+	}
+
+	s.render(w, "login.html", localizedData(r, pageData{
+		CSRF:    s.csrf(w, r),
+		Success: "passwordResetSuccess",
+	}))
+}
+
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if !s.validCSRF(r) {
 		http.Error(w, "invalid request", 403)
@@ -633,12 +739,13 @@ func (s *Server) createOperator(w http.ResponseWriter, r *http.Request) {
 	if bStr := r.FormValue("branch_id"); bStr != "" {
 		branchID, _ = strconv.ParseInt(bStr, 10, 64)
 	}
+	username := strings.TrimSpace(r.FormValue("username"))
 	staffType := strings.TrimSpace(r.FormValue("staff_type"))
 	phone := strings.TrimSpace(r.FormValue("phone_number"))
 	bankName := strings.TrimSpace(r.FormValue("bank_name"))
 	bankAccount := strings.TrimSpace(r.FormValue("bank_account_number"))
 
-	if err := s.auth.CreateOperatorWithBranchAndCredentials(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), "operator", staffType, branchID, phone, bankName, bankAccount); err != nil {
+	if err := s.auth.CreateOperatorWithBranchAndCredentials(r.Context(), username, r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), "operator", staffType, branchID, phone, bankName, bankAccount); err != nil {
 		operators, _ := s.auth.ListOperators(r.Context())
 		branches, _ := s.backoffice.ListBranches(r.Context())
 		s.renderStatus(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, Branches: branches, CSRF: s.csrf(w, r), Error: err.Error()}), http.StatusBadRequest)

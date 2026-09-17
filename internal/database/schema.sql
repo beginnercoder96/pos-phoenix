@@ -1,5 +1,6 @@
 PRAGMA foreign_keys = ON;
-CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('superadmin','operator','barberman','cashier','manager')),active INTEGER NOT NULL DEFAULT 1,branch_id INTEGER REFERENCES branches(id),staff_type TEXT CHECK(staff_type IN ('barberman','cashier','manager','owner') OR staff_type IS NULL),phone_number TEXT,bank_name TEXT,bank_account_number TEXT,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE,email TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('superadmin','operator','barberman','cashier','manager')),active INTEGER NOT NULL DEFAULT 1,branch_id INTEGER REFERENCES branches(id),staff_type TEXT CHECK(staff_type IN ('barberman','cashier','manager','owner') OR staff_type IS NULL),phone_number TEXT,bank_name TEXT,bank_account_number TEXT,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL;
 CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires_at DATETIME NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
 CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,operator_id INTEGER NOT NULL REFERENCES users(id),kind TEXT NOT NULL CHECK(kind IN ('income','expense')),amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),category TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',occurred_at DATETIME NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,reversal_of_id INTEGER REFERENCES transactions(id),branch_id INTEGER REFERENCES branches(id));
@@ -112,3 +113,13 @@ CREATE TABLE IF NOT EXISTS discounts_and_bundles (
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash);

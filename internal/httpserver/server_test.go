@@ -1092,5 +1092,142 @@ func TestOperatorBankCredentialsAndSlipColors(t *testing.T) {
 	}
 }
 
+func TestUsernameLoginAndForgotPasswordHTTP(t *testing.T) {
+	db, handler, service := testServer(t)
+
+	// Seed admin user
+	adminID := addUser(t, db, "admin@example.com", "superadmin")
+	_, err := db.Exec(`UPDATE users SET username='admin' WHERE id=?`, adminID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	csrf := "01234567890123456789012345678901"
+
+	// 1. Test Login with Username (not email)
+	loginForm := url.Values{
+		"csrf":     {csrf},
+		"username": {"admin"},
+		"password": {"correct horse battery staple"},
+	}
+	reqLogin := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginForm.Encode()))
+	reqLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLogin.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLogin := httptest.NewRecorder()
+	handler.ServeHTTP(recLogin, reqLogin)
+
+	if recLogin.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on username login, got %d, body: %s", recLogin.Code, recLogin.Body.String())
+	}
+	if recLogin.Header().Get("Location") != "/" {
+		t.Fatalf("expected redirect to '/', got %s", recLogin.Header().Get("Location"))
+	}
+
+	// 2. Test GET /forgot-password
+	reqForgot := httptest.NewRequest(http.MethodGet, "/forgot-password", nil)
+	recForgot := httptest.NewRecorder()
+	handler.ServeHTTP(recForgot, reqForgot)
+	if recForgot.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /forgot-password, got %d", recForgot.Code)
+	}
+
+	// 3. Test POST /forgot-password
+	forgotForm := url.Values{
+		"csrf":  {csrf},
+		"email": {"admin@example.com"},
+	}
+	reqForgotPost := httptest.NewRequest(http.MethodPost, "/forgot-password", strings.NewReader(forgotForm.Encode()))
+	reqForgotPost.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqForgotPost.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recForgotPost := httptest.NewRecorder()
+	handler.ServeHTTP(recForgotPost, reqForgotPost)
+
+	if recForgotPost.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for POST /forgot-password, got %d, body: %s", recForgotPost.Code, recForgotPost.Body.String())
+	}
+	forgotHTML := recForgotPost.Body.String()
+	if !strings.Contains(forgotHTML, "/reset-password?token=") {
+		t.Fatalf("expected forgot-password response to contain mock reset link, got: %s", forgotHTML)
+	}
+
+	// Extract token from mock link in HTML
+	tokenIdx := strings.Index(forgotHTML, "/reset-password?token=")
+	if tokenIdx < 0 {
+		t.Fatal("token not found in response")
+	}
+	tokenSub := forgotHTML[tokenIdx+len("/reset-password?token="):]
+	endToken := strings.IndexAny(tokenSub, `"'> `)
+	token := tokenSub[:endToken]
+
+	// 4. Test GET /reset-password?token=...
+	reqResetGet := httptest.NewRequest(http.MethodGet, "/reset-password?token="+token, nil)
+	recResetGet := httptest.NewRecorder()
+	handler.ServeHTTP(recResetGet, reqResetGet)
+	if recResetGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /reset-password, got %d", recResetGet.Code)
+	}
+
+	// 5. Test POST /reset-password
+	newPassword := "brandNewSecurePassword999!"
+	resetForm := url.Values{
+		"csrf":             {csrf},
+		"token":            {token},
+		"password":         {newPassword},
+		"password_confirm": {newPassword},
+	}
+	reqResetPost := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(resetForm.Encode()))
+	reqResetPost.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqResetPost.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recResetPost := httptest.NewRecorder()
+	handler.ServeHTTP(recResetPost, reqResetPost)
+
+	if recResetPost.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for POST /reset-password, got %d, body: %s", recResetPost.Code, recResetPost.Body.String())
+	}
+	if !strings.Contains(recResetPost.Body.String(), "login") && !strings.Contains(recResetPost.Body.String(), "signIn") {
+		t.Fatalf("expected login page returned upon successful reset")
+	}
+
+	// 6. Test Login with new password and username
+	loginFormNew := url.Values{
+		"csrf":     {csrf},
+		"username": {"admin"},
+		"password": {newPassword},
+	}
+	reqLoginNew := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginFormNew.Encode()))
+	reqLoginNew.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLoginNew.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLoginNew := httptest.NewRecorder()
+	handler.ServeHTTP(recLoginNew, reqLoginNew)
+
+	if recLoginNew.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on login with new password, got %d", recLoginNew.Code)
+	}
+
+	// 7. Test Create Operator with Username
+	createOpForm := url.Values{
+		"csrf":         {csrf},
+		"username":     {"barber_anto"},
+		"email":        {"anto@example.com"},
+		"display_name": {"Anto Barber"},
+		"password":     {"secureanto12345"},
+		"staff_type":   {"barberman"},
+	}
+	recCreateOp := requestAs(t, handler, service, adminID, http.MethodPost, "/operators", createOpForm)
+	if recCreateOp.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 on create operator, got %d, body: %s", recCreateOp.Code, recCreateOp.Body.String())
+	}
+
+	var savedUname, savedEmail string
+	err = db.QueryRow(`SELECT username, email FROM users WHERE username='barber_anto'`).Scan(&savedUname, &savedEmail)
+	if err != nil {
+		t.Fatalf("operator barber_anto was not saved with username: %v", err)
+	}
+	if savedUname != "barber_anto" || savedEmail != "anto@example.com" {
+		t.Fatalf("unexpected operator data: uname=%s, email=%s", savedUname, savedEmail)
+	}
+}
+
+
 
 

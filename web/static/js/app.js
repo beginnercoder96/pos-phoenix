@@ -66,7 +66,7 @@
       closeBtn.addEventListener("click", dismissToast);
     }
 
-    var totalDuration = duration || 4500;
+    var totalDuration = duration || 3000;
     var currentRemaining = remainingTime != null ? remainingTime : totalDuration;
     var startPercent = Math.max(0, Math.min(100, (currentRemaining / totalDuration) * 100));
     if (progressBar) progressBar.style.width = startPercent + "%";
@@ -86,7 +86,7 @@
   }
 
   window.showGlobalToast = function (title, message, duration, type) {
-    var d = duration || 4500;
+    var d = duration || 3000;
     try {
       sessionStorage.setItem(TOAST_KEY, JSON.stringify({
         title: title,
@@ -107,7 +107,7 @@
         params.delete("saved");
         var newSearch = params.toString() ? "?" + params.toString() : "";
         window.history.replaceState({}, document.title, window.location.pathname + newSearch);
-        window.showGlobalToast("Data Berhasil Disimpan", 'Perubahan data karyawan "' + decodeURIComponent(savedParam) + '" telah berhasil disimpan.', 4500, 'success');
+        window.showGlobalToast("Data Berhasil Disimpan", 'Perubahan data karyawan "' + decodeURIComponent(savedParam) + '" telah berhasil disimpan.', 3000, 'success');
         return;
       }
 
@@ -1114,6 +1114,174 @@ window.handleChartPeriodChange = function (select) {
   }
 })();
 
+// Global Logout Confirmation Modal (Option A - Modern, elegant, non-intrusive)
+(function () {
+  var activeLogoutForm = null;
 
+  function createLogoutModal() {
+    var isId = (document.documentElement.lang || "id") === "id";
 
+    var title = isId ? "Konfirmasi Keluar" : "Confirm Sign Out";
+    var subtitle = isId ? "Sesi kasir Anda akan diakhiri." : "Your cashier session will be ended.";
+    var message = isId
+      ? "Apakah Anda yakin ingin keluar dari sistem POS Phoenix? Pastikan seluruh transaksi aktif Anda telah tersimpan."
+      : "Are you sure you want to sign out from POS Phoenix? Please make sure all active transactions have been saved.";
+    var cancelText = isId ? "Batal" : "Cancel";
+    var confirmText = isId ? "Ya, Keluar" : "Yes, Sign Out";
 
+    var modal = document.getElementById("pos-logout-modal");
+    if (modal) {
+      // Update text in case language was switched
+      var titleEl = document.getElementById("pos-logout-title");
+      var subEl = document.getElementById("pos-logout-subtitle");
+      var msgEl = document.getElementById("pos-logout-message");
+      var cancelEl = document.getElementById("pos-logout-cancel");
+      var confirmEl = document.getElementById("pos-logout-confirm");
+      if (titleEl) titleEl.textContent = title;
+      if (subEl) subEl.textContent = subtitle;
+      if (msgEl) msgEl.textContent = message;
+      if (cancelEl) cancelEl.textContent = cancelText;
+      if (confirmEl) {
+        confirmEl.innerHTML =
+          '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
+          confirmText;
+      }
+      return modal;
+    }
+
+    modal = document.createElement("div");
+    modal.id = "pos-logout-modal";
+    modal.className = "fixed inset-0 z-[999999] hidden items-center justify-center p-4 sm:p-6";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.zIndex = "999999";
+    modal.style.display = "none";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.background = "rgba(10, 16, 35, 0.68)";
+    modal.style.backdropFilter = "blur(8px)";
+    modal.style.webkitBackdropFilter = "blur(8px)";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    modal.innerHTML =
+      '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
+        '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+          '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">' +
+            '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
+          '</div>' +
+          '<div class="min-w-0">' +
+            '<h3 id="pos-logout-title" class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + title + '</h3>' +
+            '<p id="pos-logout-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + subtitle + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mt-5 mb-6">' +
+          '<p id="pos-logout-message" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">' + message + '</p>' +
+        '</div>' +
+        '<div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
+          '<button id="pos-logout-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+            cancelText +
+          '</button>' +
+          '<button id="pos-logout-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
+            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
+            confirmText +
+          '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    function closeModal() {
+      modal.style.display = "none";
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      activeLogoutForm = null;
+    }
+
+    document.getElementById("pos-logout-cancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && modal.style.display !== "none" && !modal.classList.contains("hidden")) {
+        closeModal();
+      }
+    });
+
+    document.getElementById("pos-logout-confirm").addEventListener("click", function () {
+      if (activeLogoutForm) {
+        var formToSubmit = activeLogoutForm;
+        activeLogoutForm = null;
+        formToSubmit.dataset.posLogoutConfirmed = "true";
+        closeModal();
+        if (typeof HTMLFormElement.prototype.submit === "function") {
+          HTMLFormElement.prototype.submit.call(formToSubmit);
+        } else {
+          formToSubmit.submit();
+        }
+      }
+    });
+
+    return modal;
+  }
+
+  function handleLogoutIntercept(e, form) {
+    if (!form) return;
+    var action = form.getAttribute("action") || "";
+    if (action.indexOf("/logout") === -1) return;
+    if (form.dataset.posLogoutConfirmed === "true") return;
+
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") {
+        e.stopImmediatePropagation();
+      }
+    }
+    activeLogoutForm = form;
+    var modal = createLogoutModal();
+    modal.style.display = "flex";
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  }
+
+  function initLogoutInterception() {
+    // 1. Intercept clicks on any element inside a logout form (Capture phase)
+    document.addEventListener("click", function (e) {
+      var target = e.target;
+      if (!target) return;
+      var btn = target.closest ? target.closest("button, a, input[type='submit']") : null;
+      if (!btn) return;
+      // Do not intercept if clicking buttons inside the confirmation modal itself
+      if (btn.id === "pos-logout-confirm" || btn.id === "pos-logout-cancel") return;
+
+      var form = btn.closest ? btn.closest("form") : null;
+      if (form) {
+        var action = form.getAttribute("action") || "";
+        if (action.indexOf("/logout") !== -1) {
+          handleLogoutIntercept(e, form);
+        }
+      }
+    }, true);
+
+    // 2. Intercept form submit event (Capture phase)
+    document.addEventListener("submit", function (e) {
+      var form = e.target;
+      if (form) {
+        var action = form.getAttribute("action") || "";
+        if (action.indexOf("/logout") !== -1) {
+          handleLogoutIntercept(e, form);
+        }
+      }
+    }, true);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initLogoutInterception);
+  } else {
+    initLogoutInterception();
+  }
+})();
