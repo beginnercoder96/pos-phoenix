@@ -127,34 +127,25 @@ func (s *Server) backofficeProfitSharing(w http.ResponseWriter, r *http.Request)
 	var unallocPct float64
 
 	rule, empRules, err := s.backoffice.GetProfitSharingConfig(r.Context(), branch.ID, periodMonth)
+	ruleMap := make(map[int64]float64)
 	if err == nil && rule != nil {
 		ownerPct = rule.OwnerPercentage
 		unallocPct = rule.UnallocatedPercentage
 		for _, er := range empRules {
-			name := ""
-			for _, emp := range employees {
-				if emp.ID == er.UserID {
-					name = emp.DisplayName
-					break
-				}
-			}
-			empRuleViews = append(empRuleViews, employeeRuleView{
-				UserID:      er.UserID,
-				DisplayName: name,
-				Percentage:  er.Percentage,
-				ShareAmount: int64(float64(netServiceRevenue) * er.Percentage / 100.0),
-			})
+			ruleMap[er.UserID] = er.Percentage
 		}
 	} else {
-		// Default: show all employees with 0%
-		for _, emp := range employees {
-			empRuleViews = append(empRuleViews, employeeRuleView{
-				UserID:      emp.ID,
-				DisplayName: emp.DisplayName,
-				Percentage:  0,
-			})
-		}
 		unallocPct = 100
+	}
+
+	for _, emp := range employees {
+		pct := ruleMap[emp.ID]
+		empRuleViews = append(empRuleViews, employeeRuleView{
+			UserID:      emp.ID,
+			DisplayName: emp.DisplayName,
+			Percentage:  pct,
+			ShareAmount: int64(float64(netServiceRevenue) * pct / 100.0),
+		})
 	}
 
 	data := backofficeData{
@@ -209,11 +200,13 @@ func (s *Server) backofficeSaveProfitSharing(w http.ResponseWriter, r *http.Requ
 	empIDs := r.PostForm["employee_id"]
 	empPcts := r.PostForm["employee_percentage"]
 	var empRules []backoffice.EmployeeProfitRule
+	seen := make(map[int64]bool)
 	for i, idStr := range empIDs {
 		id, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil || id <= 0 {
+		if err != nil || id <= 0 || seen[id] {
 			continue
 		}
+		seen[id] = true
 		pct := 0.0
 		if i < len(empPcts) {
 			pct, _ = strconv.ParseFloat(empPcts[i], 64)

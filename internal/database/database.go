@@ -132,6 +132,12 @@ func ensureBackofficeColumns(db *sql.DB) error {
 	// Seed distinct dummy bank credentials for sample employees
 	seedSampleEmployeeBankCredentials(db)
 
+	// Clean up any duplicate employee_profit_sharing_rules and enforce unique index
+	_, _ = db.Exec(`DELETE FROM employee_profit_sharing_rules 
+		WHERE id NOT IN (
+			SELECT MIN(id) FROM employee_profit_sharing_rules GROUP BY rule_id, user_id
+		)`)
+	_, _ = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_profit_sharing_rule_user ON employee_profit_sharing_rules(rule_id, user_id)`)
 
 	// Add new columns to transaction_items if missing
 	for _, col := range []struct {
@@ -290,18 +296,22 @@ func seedProfitSharingForPeriod(db *sql.DB, klasemanID, ledokID int64, period st
 	_, _ = db.Exec(`INSERT OR IGNORE INTO branch_profit_sharing_rules(branch_id, period_month, owner_percentage, unallocated_percentage) VALUES(?, ?, 20.0, 10.0)`, klasemanID, period)
 	var kRuleID int64
 	if err := db.QueryRow(`SELECT id FROM branch_profit_sharing_rules WHERE branch_id=? AND period_month=?`, klasemanID, period).Scan(&kRuleID); err == nil {
-		rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, klasemanID)
-		var kEmps []int64
-		if rows != nil {
-			for rows.Next() {
-				var id int64
-				_ = rows.Scan(&id)
-				kEmps = append(kEmps, id)
+		var count int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM employee_profit_sharing_rules WHERE rule_id=?`, kRuleID).Scan(&count)
+		if count == 0 {
+			rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, klasemanID)
+			var kEmps []int64
+			if rows != nil {
+				for rows.Next() {
+					var id int64
+					_ = rows.Scan(&id)
+					kEmps = append(kEmps, id)
+				}
+				rows.Close()
 			}
-			rows.Close()
-		}
-		for _, eid := range kEmps {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 35.0)`, kRuleID, eid)
+			for _, eid := range kEmps {
+				_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 35.0)`, kRuleID, eid)
+			}
 		}
 	}
 
@@ -309,21 +319,25 @@ func seedProfitSharingForPeriod(db *sql.DB, klasemanID, ledokID int64, period st
 	_, _ = db.Exec(`INSERT OR IGNORE INTO branch_profit_sharing_rules(branch_id, period_month, owner_percentage, unallocated_percentage) VALUES(?, ?, 20.0, 10.0)`, ledokID, period)
 	var lRuleID int64
 	if err := db.QueryRow(`SELECT id FROM branch_profit_sharing_rules WHERE branch_id=? AND period_month=?`, ledokID, period).Scan(&lRuleID); err == nil {
-		rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, ledokID)
-		var lEmps []int64
-		if rows != nil {
-			for rows.Next() {
-				var id int64
-				_ = rows.Scan(&id)
-				lEmps = append(lEmps, id)
+		var count int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM employee_profit_sharing_rules WHERE rule_id=?`, lRuleID).Scan(&count)
+		if count == 0 {
+			rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, ledokID)
+			var lEmps []int64
+			if rows != nil {
+				for rows.Next() {
+					var id int64
+					_ = rows.Scan(&id)
+					lEmps = append(lEmps, id)
+				}
+				rows.Close()
 			}
-			rows.Close()
-		}
-		if len(lEmps) >= 1 {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 40.0)`, lRuleID, lEmps[0])
-		}
-		if len(lEmps) >= 2 {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 30.0)`, lRuleID, lEmps[1])
+			if len(lEmps) >= 1 {
+				_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 40.0)`, lRuleID, lEmps[0])
+			}
+			if len(lEmps) >= 2 {
+				_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 30.0)`, lRuleID, lEmps[1])
+			}
 		}
 	}
 }

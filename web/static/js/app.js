@@ -319,6 +319,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
     var foundCat = findCategory(catVal);
 
     if (foundCat && foundCat.items && foundCat.items.length > 0) {
+      itemSelect.required = true;
       foundCat.items.forEach(function (item) {
         var opt = document.createElement("option");
         opt.value = item.name;
@@ -345,12 +346,15 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
         }
       }
     } else if (catVal) {
+      itemSelect.required = (catVal !== "Other");
       var customOpt = document.createElement("option");
       customOpt.value = "Custom";
       customOpt.textContent = isId ? "Item Lainnya..." : "Custom Item...";
       customOpt.dataset.amount = "0";
       customOpt.selected = true;
       itemSelect.appendChild(customOpt);
+    } else {
+      itemSelect.required = false;
     }
   }
 
@@ -391,17 +395,29 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
       var row = e.target.closest(".category-row");
       if (row) {
         populateItems(row);
+        var amountInput = row.querySelector(".amount-input");
+        if (!e.target.value && amountInput) {
+          amountInput.value = "";
+        }
         updateTotal();
       }
     }
     if (e.target && e.target.classList.contains("item-select")) {
       var row = e.target.closest(".category-row");
       if (row) {
+        e.target.setCustomValidity("");
         var opt = e.target.options[e.target.selectedIndex];
         var amountInput = row.querySelector(".amount-input");
-        if (opt && opt.dataset && opt.dataset.amount && parseFloat(opt.dataset.amount) > 0) {
+        if (opt && opt.value) {
+          if (opt.dataset && opt.dataset.amount && parseFloat(opt.dataset.amount) > 0) {
+            if (amountInput) {
+              amountInput.value = opt.dataset.amount;
+            }
+          }
+        } else {
+          // User chose "-- Pilih layanan / item --", clear the amount!
           if (amountInput) {
-            amountInput.value = opt.dataset.amount;
+            amountInput.value = "";
           }
         }
         updateTotal();
@@ -1400,14 +1416,19 @@ window.handleChartPeriodChange = function (select) {
         '</div>' +
         itemsHtml +
         noteHtml +
-        '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
-          '<button id="pos-tx-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
-            (isId ? "Batal" : "Cancel") +
+        '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">' +
+          '<button id="pos-tx-save-print" class="w-full inline-flex min-h-12 items-center justify-center text-center rounded-xl px-5 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-sm cursor-pointer" type="button">' +
+            '<svg class="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+            '<span>' + (isId ? "Simpan & Cetak Struk" : "Save & Print Receipt") + '</span>' +
           '</button>' +
-          '<button id="pos-tx-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
-            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' +
-            (isId ? "Ya, Simpan Transaksi" : "Yes, Save Transaction") +
-          '</button>' +
+          '<div class="grid grid-cols-2 gap-2.5">' +
+            '<button id="pos-tx-cancel" class="btn-secondary !min-h-11 w-full px-4 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+              (isId ? "Batal" : "Cancel") +
+            '</button>' +
+            '<button id="pos-tx-save-only" class="btn-secondary !min-h-11 w-full px-4 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+              (isId ? "💾 Simpan Saja" : "💾 Save Only") +
+            '</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
 
@@ -1428,28 +1449,57 @@ window.handleChartPeriodChange = function (select) {
       }
     });
 
-    document.getElementById("pos-tx-confirm").addEventListener("click", function () {
-      if (activeSaveTxForm) {
-        var formToSubmit = activeSaveTxForm;
-        activeSaveTxForm = null;
-        formToSubmit.dataset.posTxConfirmed = "true";
+    function submitTransaction(shouldPrint) {
+      if (!activeSaveTxForm) return;
+      var formToSubmit = activeSaveTxForm;
+      activeSaveTxForm = null;
+      formToSubmit.dataset.posTxConfirmed = "true";
 
-        if (window.showGlobalToast) {
-          window.showGlobalToast(
-            isId ? "Transaksi Berhasil Disimpan" : "Transaction Saved",
-            isId ? "Transaksi sebesar " + totalFormatted + " telah berhasil dicatat." : "Transaction of " + totalFormatted + " has been successfully recorded.",
-            3000,
-            "success"
-          );
+      // Store transaction details in sessionStorage for thermal receipt
+      try {
+        var opEl = document.querySelector(".topbar-inner p.muted") || document.querySelector("aside p.text-slate-300");
+        var opName = opEl ? opEl.textContent.split("·")[0].trim() : "Kasir";
+        var txDetails = {
+          id: "",
+          amount: totalFormatted,
+          kind: isIncome ? "income" : "expense",
+          items: itemsList.map(function (it) {
+            return { name: it.title, amount: it.amountStr };
+          }),
+          note: noteVal,
+          operator: opName,
+          date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) + " " +
+                new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+        };
+        sessionStorage.setItem("pendingTxPrintPrompt", JSON.stringify(txDetails));
+        if (shouldPrint) {
+          sessionStorage.setItem("autoOpenThermalPrint", "true");
         }
+      } catch (e) {}
 
-        closeModal();
-        if (typeof HTMLFormElement.prototype.submit === "function") {
-          HTMLFormElement.prototype.submit.call(formToSubmit);
-        } else {
-          formToSubmit.submit();
-        }
+      if (window.showGlobalToast) {
+        window.showGlobalToast(
+          isId ? "Transaksi Berhasil Disimpan" : "Transaction Saved",
+          isId ? "Transaksi sebesar " + totalFormatted + " telah berhasil dicatat." : "Transaction of " + totalFormatted + " has been successfully recorded.",
+          3000,
+          "success"
+        );
       }
+
+      closeModal();
+      if (typeof HTMLFormElement.prototype.submit === "function") {
+        HTMLFormElement.prototype.submit.call(formToSubmit);
+      } else {
+        formToSubmit.submit();
+      }
+    }
+
+    document.getElementById("pos-tx-save-only").addEventListener("click", function () {
+      submitTransaction(false);
+    });
+
+    document.getElementById("pos-tx-save-print").addEventListener("click", function () {
+      submitTransaction(true);
     });
   }
 
@@ -1568,6 +1618,65 @@ window.handleChartPeriodChange = function (select) {
         return;
       }
 
+      // Check each category row to ensure items are selected
+      var isId = (document.documentElement.lang || "id") === "id";
+      var rows = form.querySelectorAll(".category-row");
+      var hasValidRow = false;
+      var totalAmount = 0;
+
+      for (var r = 0; r < rows.length; r++) {
+        var row = rows[r];
+        var catSel = row.querySelector(".category-select");
+        var itemSel = row.querySelector(".item-select");
+        var amtInput = row.querySelector(".amount-input");
+
+        var catVal = catSel ? catSel.value.trim() : "";
+        var itemVal = itemSel ? itemSel.value.trim() : "";
+        var rawAmt = amtInput ? amtInput.value.replace(/[^0-9.]/g, "") : "";
+        var amt = parseFloat(rawAmt) || 0;
+
+        // If category is selected but item is omitted (and not 'Other')
+        if (catVal && catVal !== "Other" && !itemVal) {
+          if (itemSel) {
+            itemSel.focus();
+            if (itemSel.reportValidity) {
+              itemSel.setCustomValidity(isId ? "Silakan pilih layanan/item terlebih dahulu." : "Please select a service/item.");
+              itemSel.reportValidity();
+            }
+          }
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? "Layanan Belum Dipilih" : "Item Not Selected",
+              isId ? "Silakan pilih layanan/item untuk kategori " + catVal + " sebelum menyimpan." : "Please select a service/item for category " + catVal + ".",
+              3000,
+              "warning"
+            );
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
+        if (catVal && amt > 0) {
+          hasValidRow = true;
+          totalAmount += amt;
+        }
+      }
+
+      if (!hasValidRow || totalAmount <= 0) {
+        if (window.showGlobalToast) {
+          window.showGlobalToast(
+            isId ? "Rincian Transaksi Kosong" : "Empty Transaction Details",
+            isId ? "Pastikan layanan telah dipilih dan nominal pembayaran lebih dari Rp 0." : "Please make sure an item is selected and amount is greater than Rp 0.",
+            3000,
+            "warning"
+          );
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
       if (typeof e.stopImmediatePropagation === "function") {
@@ -1613,4 +1722,899 @@ window.handleChartPeriodChange = function (select) {
       return;
     }
   }, true);
+
+  // =========================================================================
+  // --- 3. MODUL THERMAL PRINTER 58mm (OKAY 58D & BROWSER PRINT FALLBACK) ---
+  // =========================================================================
+  var bluetoothDevice = null;
+  var bluetoothCharacteristic = null;
+
+  var ThermalPrinter = {
+    isSupported: function () {
+      return typeof navigator !== "undefined" && !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+    },
+
+    getStoreName: function () {
+      return localStorage.getItem("pos_thermal_store_name") || "PARDIS BARBER SHOP";
+    },
+
+    getFooterNote: function () {
+      return localStorage.getItem("pos_thermal_footer_note") || "Terima Kasih Atas Kunjungan Anda!";
+    },
+
+    formatLine32: function (left, right, width) {
+      width = width || 32;
+      left = (left || "").toString();
+      right = (right || "").toString();
+      if (left.length + right.length + 1 > width) {
+        var availableForLeft = width - right.length - 1;
+        if (availableForLeft > 0) {
+          left = left.substring(0, availableForLeft);
+        }
+      }
+      var spaces = width - left.length - right.length;
+      if (spaces < 1) spaces = 1;
+      return left + " ".repeat(spaces) + right;
+    },
+
+    centerText32: function (text, width) {
+      width = width || 32;
+      text = (text || "").toString().trim();
+      if (text.length >= width) return text.substring(0, width);
+      var totalSpaces = width - text.length;
+      var leftSpaces = Math.floor(totalSpaces / 2);
+      var rightSpaces = totalSpaces - leftSpaces;
+      return " ".repeat(leftSpaces) + text + " ".repeat(rightSpaces);
+    },
+
+    generateReceiptLines: function (txData) {
+      var lines = [];
+      var isId = (document.documentElement.lang || "id") === "id";
+      var storeName = this.getStoreName();
+      var footerNote = this.getFooterNote();
+
+      lines.push("================================");
+      lines.push(this.centerText32(storeName));
+      lines.push(this.centerText32("Pardis Barbershop"));
+      lines.push("================================");
+
+      var txNum = txData.id ? ("#" + txData.id) : (isId ? "BARU" : "NEW");
+      lines.push(this.formatLine32(isId ? "No. Trx" : "Trx ID", txNum));
+      lines.push(this.formatLine32(isId ? "Waktu" : "Date", txData.date || "-"));
+      lines.push(this.formatLine32(isId ? "Kasir" : "Cashier", txData.operator || "-"));
+      if (txData.kind) {
+        var kindLabel = txData.kind === "income" ? (isId ? "Pemasukan" : "Income") : (isId ? "Pengeluaran" : "Expense");
+        lines.push(this.formatLine32(isId ? "Tipe" : "Type", kindLabel));
+      }
+      lines.push("--------------------------------");
+      lines.push(this.formatLine32(isId ? "ITEM / LAYANAN" : "ITEM / SERVICE", isId ? "HARGA" : "PRICE"));
+      lines.push("--------------------------------");
+
+      var items = txData.items || [];
+      if (items.length === 0) {
+        lines.push(this.formatLine32(txData.category || (isId ? "Transaksi" : "Transaction"), txData.amount || "-"));
+      } else {
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          var name = it.name || it.category || "Item";
+          var amt = it.amount || "-";
+          if (name.length > 19) {
+            lines.push(name);
+            lines.push(ThermalPrinter.formatLine32("", amt));
+          } else {
+            lines.push(ThermalPrinter.formatLine32(name, amt));
+          }
+        }
+      }
+
+      lines.push("--------------------------------");
+      lines.push(this.formatLine32("TOTAL", txData.amount || "-"));
+      if (txData.note) {
+        lines.push(this.formatLine32(isId ? "Catatan" : "Note", txData.note));
+      }
+      lines.push("================================");
+      lines.push(this.centerText32(footerNote));
+      lines.push("================================");
+      return lines;
+    },
+
+    renderReceiptHtml: function (txData) {
+      var isId = (document.documentElement.lang || "id") === "id";
+      var storeName = this.escapeHtml(this.getStoreName());
+      var footerNote = this.escapeHtml(this.getFooterNote());
+      var txNum = txData.id ? ("#" + this.escapeHtml(txData.id)) : (isId ? "BARU" : "NEW");
+      var txDate = this.escapeHtml(txData.date || "-");
+      var txOperator = this.escapeHtml(txData.operator || "-");
+      var kindLabel = txData.kind === "income" ? (isId ? "Pemasukan" : "Income") : (isId ? "Pengeluaran" : "Expense");
+      var totalAmt = this.escapeHtml(txData.amount || "-");
+
+      var items = txData.items || [];
+      var itemsHtml = "";
+      if (items.length === 0) {
+        var cat = this.escapeHtml(txData.category || (isId ? "Transaksi" : "Transaction"));
+        itemsHtml = '<div class="flex justify-between items-start text-[11px] leading-snug w-full py-0.5">' +
+          '<span class="text-left">' + cat + '</span>' +
+          '<span class="font-bold text-right shrink-0 ml-2">' + totalAmt + '</span>' +
+        '</div>';
+      } else {
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          var itName = this.escapeHtml(it.name || it.category || "Item");
+          var itAmt = this.escapeHtml(it.amount || "-");
+          itemsHtml += '<div class="flex justify-between items-start text-[11px] leading-snug w-full py-0.5">' +
+            '<span class="text-left pr-2">' + itName + '</span>' +
+            '<span class="font-bold text-right shrink-0">' + itAmt + '</span>' +
+          '</div>';
+        }
+      }
+
+      var noteHtml = "";
+      if (txData.note) {
+        noteHtml = '<div class="text-[11px] text-slate-700 italic py-1 text-left break-words">' +
+          (isId ? "Catatan: " : "Note: ") + this.escapeHtml(txData.note) +
+        '</div>';
+      }
+
+      var html =
+        '<div class="font-mono text-[11px] leading-tight w-full select-none" style="color: #111827 !important; background-color: #ffffff !important;">' +
+          '<!-- Centered Header -->' +
+          '<div class="text-center pb-2">' +
+            '<h4 class="font-black text-xs sm:text-sm tracking-wider uppercase" style="color: #000000 !important;">' + storeName + '</h4>' +
+            '<p class="text-[10px] mt-0.5" style="color: #4b5563 !important;">Pardis Barbershop</p>' +
+          '</div>' +
+
+          '<!-- Edge-to-edge dashed Divider -->' +
+          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
+
+          '<!-- Meta info (Left Label, Right Value) -->' +
+          '<div class="space-y-0.5 w-full py-1 text-[11px]">' +
+            '<div class="flex justify-between items-center w-full">' +
+              '<span style="color: #4b5563 !important;">' + (isId ? "No. Trx" : "Trx ID") + '</span>' +
+              '<span class="font-semibold text-right" style="color: #111827 !important;">' + txNum + '</span>' +
+            '</div>' +
+            '<div class="flex justify-between items-center w-full">' +
+              '<span style="color: #4b5563 !important;">' + (isId ? "Waktu" : "Date") + '</span>' +
+              '<span class="text-right" style="color: #111827 !important;">' + txDate + '</span>' +
+            '</div>' +
+            '<div class="flex justify-between items-center w-full">' +
+              '<span style="color: #4b5563 !important;">' + (isId ? "Kasir" : "Cashier") + '</span>' +
+              '<span class="font-medium text-right" style="color: #111827 !important;">' + txOperator + '</span>' +
+            '</div>' +
+            (txData.kind ? (
+              '<div class="flex justify-between items-center w-full">' +
+                '<span style="color: #4b5563 !important;">' + (isId ? "Tipe" : "Type") + '</span>' +
+                '<span class="font-medium text-right" style="color: #111827 !important;">' + kindLabel + '</span>' +
+              '</div>'
+            ) : '') +
+          '</div>' +
+
+          '<!-- Items Header Divider -->' +
+          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
+          '<div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider w-full py-0.5" style="color: #4b5563 !important;">' +
+            '<span>' + (isId ? "Item / Layanan" : "Item / Service") + '</span>' +
+            '<span>' + (isId ? "Harga" : "Price") + '</span>' +
+          '</div>' +
+          '<div style="border-bottom: 1px dashed #9ca3af !important; width: 100%; margin: 4px 0;"></div>' +
+
+          '<!-- Items List -->' +
+          '<div class="py-1 space-y-1 w-full">' +
+            itemsHtml +
+          '</div>' +
+
+          '<!-- Total Divider -->' +
+          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
+
+          '<!-- Total (Flush Left & Right) -->' +
+          '<div class="flex justify-between items-center text-xs font-black w-full py-1" style="color: #000000 !important;">' +
+            '<span>TOTAL</span>' +
+            '<span class="text-right">' + totalAmt + '</span>' +
+          '</div>' +
+          noteHtml +
+
+          '<!-- Footer Divider -->' +
+          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 8px 0 6px 0;"></div>' +
+
+          '<!-- Centered Footer -->' +
+          '<div class="text-center pt-1 pb-1 text-[10px] leading-snug" style="color: #374151 !important;">' +
+            '<p class="font-medium">' + footerNote + '</p>' +
+          '</div>' +
+        '</div>';
+
+      return html;
+    },
+
+    generateEscPosBytes: function (lines) {
+      var bytes = [];
+      // Init printer (ESC @)
+      bytes.push(0x1B, 0x40);
+      // Code page 0 (PC437)
+      bytes.push(0x1B, 0x74, 0x00);
+
+      var textContent = lines.join("\n") + "\n\n\n\n";
+      var encoder = new TextEncoder();
+      var encoded = encoder.encode(textContent);
+      for (var i = 0; i < encoded.length; i++) {
+        bytes.push(encoded[i]);
+      }
+      // Partial cut paper (GS V A 3)
+      bytes.push(0x1D, 0x56, 0x41, 0x03);
+
+      return new Uint8Array(bytes);
+    },
+
+    connectBluetooth: function (onSuccess, onError) {
+      var isId = (document.documentElement.lang || "id") === "id";
+      if (!this.isSupported()) {
+        var notSupportedMsg = isId
+          ? "Web Bluetooth tidak didukung pada browser ini. Silakan gunakan Google Chrome atau Microsoft Edge, atau gunakan fitur Cetak via Browser (PDF)."
+          : "Web Bluetooth is not supported in this browser. Please use Chrome or Edge, or use Print via Browser (PDF).";
+        if (window.showGlobalToast) window.showGlobalToast(isId ? "Bluetooth Tidak Didukung" : "Bluetooth Not Supported", notSupportedMsg, 4000, "warning");
+        if (onError) onError(new Error(notSupportedMsg));
+        return;
+      }
+
+      var serviceUUIDs = [
+        "000018f0-0000-1000-8000-00805f9b34fb",
+        "0000ffe0-0000-1000-8000-00805f9b34fb",
+        "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+        "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
+      ];
+
+      navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: serviceUUIDs
+      })
+      .then(function (device) {
+        bluetoothDevice = device;
+        device.addEventListener("gattserverdisconnected", function () {
+          bluetoothCharacteristic = null;
+          ThermalPrinter.updateStatusUI(false);
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? "Printer Terputus" : "Printer Disconnected",
+              isId ? "Koneksi printer Bluetooth terputus." : "Bluetooth printer disconnected.",
+              3000,
+              "warning"
+            );
+          }
+        });
+        return device.gatt.connect();
+      })
+      .then(function (server) {
+        return server.getPrimaryServices();
+      })
+      .then(function (services) {
+        if (!services || services.length === 0) {
+          throw new Error("Layanan printer BLE tidak ditemukan.");
+        }
+        var searchChar = function (idx) {
+          if (idx >= services.length) {
+            throw new Error("Karakteristik penulisan ESC/POS tidak ditemukan.");
+          }
+          return services[idx].getCharacteristics().then(function (chars) {
+            for (var c = 0; c < chars.length; c++) {
+              var props = chars[c].properties;
+              if (props.write || props.writeWithoutResponse) {
+                return chars[c];
+              }
+            }
+            return searchChar(idx + 1);
+          });
+        };
+        return searchChar(0);
+      })
+      .then(function (characteristic) {
+        bluetoothCharacteristic = characteristic;
+        var devName = (bluetoothDevice && bluetoothDevice.name) ? bluetoothDevice.name : "Okay 58D Thermal";
+        localStorage.setItem("pos_thermal_device_name", devName);
+        ThermalPrinter.updateStatusUI(true, devName);
+
+        if (window.showGlobalToast) {
+          window.showGlobalToast(
+            isId ? "Printer Terhubung" : "Printer Connected",
+            isId ? "Berhasil terhubung ke " + devName : "Connected to " + devName,
+            3500,
+            "success"
+          );
+        }
+        if (onSuccess) onSuccess(devName);
+      })
+      .catch(function (err) {
+        if (err.name === "NotFoundError") return; // User closed Bluetooth picker
+        if (onError) onError(err);
+        if (window.showGlobalToast) {
+          window.showGlobalToast(
+            isId ? "Gagal Menghubungkan" : "Connection Failed",
+            err.message || (isId ? "Gagal pairing ke printer Bluetooth." : "Failed to connect to Bluetooth printer."),
+            4000,
+            "warning"
+          );
+        }
+      });
+    },
+
+    disconnectBluetooth: function () {
+      if (bluetoothDevice && bluetoothDevice.gatt && bluetoothDevice.gatt.connected) {
+        bluetoothDevice.gatt.disconnect();
+      }
+      bluetoothDevice = null;
+      bluetoothCharacteristic = null;
+      localStorage.removeItem("pos_thermal_device_name");
+      this.updateStatusUI(false);
+    },
+
+    printBluetooth: function (txData, onComplete, onError) {
+      var isId = (document.documentElement.lang || "id") === "id";
+      if (!bluetoothCharacteristic) {
+        if (onError) onError(new Error("Printer belum terhubung via Bluetooth."));
+        return;
+      }
+
+      var lines = this.generateReceiptLines(txData);
+      var bytes = this.generateEscPosBytes(lines);
+
+      // Send chunks of 100 bytes to prevent buffer overflow
+      var chunkSize = 100;
+      var offset = 0;
+
+      function sendNextChunk() {
+        if (offset >= bytes.length) {
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? "Struk Berhasil Dicetak" : "Receipt Printed",
+              isId ? "Data struk telah dikirim ke printer thermal." : "Receipt data sent to thermal printer.",
+              3000,
+              "success"
+            );
+          }
+          if (onComplete) onComplete();
+          return;
+        }
+        var chunk = bytes.slice(offset, offset + chunkSize);
+        offset += chunkSize;
+
+        var promise = bluetoothCharacteristic.writeValueWithoutResponse
+          ? bluetoothCharacteristic.writeValueWithoutResponse(chunk)
+          : bluetoothCharacteristic.writeValue(chunk);
+
+        promise
+          .then(function () {
+            setTimeout(sendNextChunk, 30);
+          })
+          .catch(function (err) {
+            if (onError) onError(err);
+          });
+      }
+
+      sendNextChunk();
+    },
+
+    printBrowser: function (txData) {
+      var container = document.getElementById("thermal-print-container");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "thermal-print-container";
+        container.style.display = "none";
+        document.body.appendChild(container);
+      }
+
+      container.innerHTML = '<div class="thermal-receipt-paper" style="font-family: \'Courier New\', Courier, monospace; font-size: 11px; line-height: 1.25; color: #000000; background: #ffffff; width: 58mm; max-width: 58mm; margin: 0 auto; padding: 2mm 0;">' +
+        ThermalPrinter.renderReceiptHtml(txData) +
+      '</div>';
+
+      document.body.classList.add("printing-thermal");
+
+      var cleanup = function () {
+        document.body.classList.remove("printing-thermal");
+        window.removeEventListener("afterprint", cleanup);
+      };
+      window.addEventListener("afterprint", cleanup);
+
+      setTimeout(function () {
+        window.print();
+        setTimeout(cleanup, 2000);
+      }, 50);
+    },
+
+    escapeHtml: function (str) {
+      return (str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    },
+
+    updateStatusUI: function (isConnected, devName) {
+      var pingEl = document.getElementById("printer-status-ping");
+      var dotEl = document.getElementById("printer-status-dot");
+      var labelEl = document.getElementById("printer-btn-label");
+      var isId = (document.documentElement.lang || "id") === "id";
+
+      if (isConnected) {
+        if (pingEl) pingEl.classList.remove("hidden");
+        if (dotEl) dotEl.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+        if (labelEl) labelEl.textContent = devName ? ("🖨️ " + devName) : (isId ? "Printer Terhubung" : "Printer Connected");
+      } else {
+        if (pingEl) pingEl.classList.add("hidden");
+        if (dotEl) dotEl.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-400";
+        if (labelEl) labelEl.textContent = isId ? "Printer Thermal" : "Thermal Printer";
+      }
+    }
+  };
+
+  // --- Virtual Receipt Preview Modal ---
+  function showReceiptPreviewModal(txData) {
+    var isId = (document.documentElement.lang || "id") === "id";
+    var existing = document.getElementById("pos-receipt-preview-modal");
+    if (existing) existing.remove();
+
+    var lines = ThermalPrinter.generateReceiptLines(txData);
+    var isBtConnected = !!(bluetoothCharacteristic);
+    var isBtSupported = ThermalPrinter.isSupported();
+
+    var modal = document.createElement("div");
+    modal.id = "pos-receipt-preview-modal";
+    modal.className = "fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.zIndex = "999999";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.background = "rgba(10, 16, 35, 0.72)";
+    modal.style.backdropFilter = "blur(8px)";
+    modal.style.webkitBackdropFilter = "blur(8px)";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    var receiptTextHtml = lines.map(function (l) {
+      return ThermalPrinter.escapeHtml(l);
+    }).join("\n");
+
+    modal.innerHTML =
+      '<div class="relative w-full max-w-sm rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-5 sm:p-6 text-slate-800 dark:text-slate-100 transition-all max-h-[90vh] flex flex-col" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
+        '<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">' +
+          '<div class="flex items-center gap-2.5">' +
+            '<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400">' +
+              '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+            '</div>' +
+            '<div>' +
+              '<h3 class="font-black text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">' + (isId ? "Pratinjau Struk (58mm)" : "Receipt Preview (58mm)") + '</h3>' +
+              '<p class="text-[11px] text-slate-500 dark:text-slate-400">' + (isId ? "Standar Thermal 32 Karakter" : "32 Columns Thermal Standard") + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<button id="receipt-close-x" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">' +
+            '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+          '</button>' +
+        '</div>' +
+
+        '<!-- Receipt Paper Visual (Accurate 58mm Layout) -->' +
+        '<div class="my-3 overflow-y-auto max-h-[56vh] p-3 sm:p-4 flex justify-center bg-slate-200/90 dark:bg-slate-950/80 rounded-2xl border border-slate-300 dark:border-slate-800/80 shadow-inner [scrollbar-width:thin]">' +
+          '<div class="thermal-receipt-paper rounded-t-lg pt-4 px-4 pb-2 w-full max-w-[270px] mx-auto shadow-2xl font-mono" style="background-color: #ffffff !important; color: #111827 !important; border: 1px solid #cbd5e1;">' +
+            ThermalPrinter.renderReceiptHtml(txData) +
+            '<div class="thermal-receipt-paper-cut mt-3"></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<!-- Action Buttons -->' +
+        '<div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2 shrink-0">' +
+          '<button id="btn-print-bt" type="button" class="w-full min-h-12 inline-flex items-center justify-center text-center rounded-xl px-5 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-sm cursor-pointer">' +
+            '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+            '<span>' + (isBtConnected ? (isId ? "Cetak ke Printer Thermal" : "Print to Thermal Printer") : (isId ? "Hubungkan & Cetak Thermal" : "Connect & Print Thermal")) + '</span>' +
+          '</button>' +
+          '<div class="flex items-center justify-between gap-3 pt-1">' +
+            '<button id="btn-print-browser" type="button" class="text-xs text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 font-semibold underline cursor-pointer">' +
+              '📄 ' + (isId ? "Cetak via Dialog Browser / PDF" : "Browser / PDF Print") +
+            '</button>' +
+            '<button id="btn-receipt-cancel" type="button" class="btn-secondary !min-h-9 px-4 text-xs font-semibold cursor-pointer">' +
+              (isId ? "Tutup" : "Close") +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    function closeModal() {
+      modal.remove();
+    }
+
+    document.getElementById("receipt-close-x").addEventListener("click", closeModal);
+    document.getElementById("btn-receipt-cancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+
+    document.getElementById("btn-print-browser").addEventListener("click", function () {
+      ThermalPrinter.printBrowser(txData);
+    });
+
+    document.getElementById("btn-print-bt").addEventListener("click", function () {
+      if (bluetoothCharacteristic) {
+        ThermalPrinter.printBluetooth(txData, function () {
+          closeModal();
+        }, function (err) {
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? "Gagal Cetak Bluetooth" : "Bluetooth Print Failed",
+              err.message || (isId ? "Terjadi kesalahan saat mencetak." : "Error sending data to printer."),
+              4000,
+              "warning"
+            );
+          }
+        });
+      } else {
+        // Connect first, then print
+        ThermalPrinter.connectBluetooth(function () {
+          ThermalPrinter.printBluetooth(txData, function () {
+            closeModal();
+          });
+        });
+      }
+    });
+  }
+
+  // --- Thermal Printer Settings Modal ---
+  function showPrinterSettingsModal() {
+    var isId = (document.documentElement.lang || "id") === "id";
+    var existing = document.getElementById("pos-printer-settings-modal");
+    if (existing) existing.remove();
+
+    var isBtConnected = !!(bluetoothCharacteristic);
+    var devName = localStorage.getItem("pos_thermal_device_name") || "Okay 58D";
+    var isBtSupported = ThermalPrinter.isSupported();
+    var currentStoreName = ThermalPrinter.getStoreName();
+    var currentFooterNote = ThermalPrinter.getFooterNote();
+    var autoPrompt = localStorage.getItem("pos_thermal_auto_prompt") !== "false";
+
+    var modal = document.createElement("div");
+    modal.id = "pos-printer-settings-modal";
+    modal.className = "fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.zIndex = "999999";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.background = "rgba(10, 16, 35, 0.72)";
+    modal.style.backdropFilter = "blur(8px)";
+    modal.style.webkitBackdropFilter = "blur(8px)";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    modal.innerHTML =
+      '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all max-h-[90vh] overflow-y-auto" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
+        '<div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+          '<div class="flex items-center gap-3">' +
+            '<div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 shadow-sm">' +
+              '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+            '</div>' +
+            '<div>' +
+              '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Pengaturan Printer Thermal" : "Thermal Printer Settings") + '</h3>' +
+              '<p class="text-xs text-slate-500 dark:text-slate-400">Okay 58D / Standard 58mm</p>' +
+            '</div>' +
+          '</div>' +
+          '<button id="settings-close-x" type="button" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">' +
+            '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+          '</button>' +
+        '</div>' +
+
+        '<!-- Connection Status Card -->' +
+        '<div class="mt-4 p-4 rounded-2xl border ' + (isBtConnected ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800') + '">' +
+          '<div class="flex items-center justify-between">' +
+            '<div class="flex items-center gap-2.5">' +
+              '<span class="flex h-3 w-3 relative">' +
+                (isBtConnected ? '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>' : '') +
+                '<span class="relative inline-flex rounded-full h-3 w-3 ' + (isBtConnected ? 'bg-emerald-500' : 'bg-slate-400') + '"></span>' +
+              '</span>' +
+              '<div>' +
+                '<p class="text-xs font-bold text-slate-900 dark:text-white">' +
+                  (isBtConnected ? ((isId ? "Terhubung ke: " : "Connected to: ") + devName) : (isId ? "Printer Belum Terhubung" : "Printer Not Connected")) +
+                '</p>' +
+                '<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">' +
+                  (isBtConnected ? (isId ? "Siap mencetak langsung via Web Bluetooth." : "Ready to print via Web Bluetooth.") : (isId ? "Gunakan tombol di bawah untuk menghubungkan Bluetooth." : "Click below to connect via Bluetooth.")) +
+                '</p>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="mt-3.5 flex flex-wrap gap-2">' +
+            (isBtConnected ?
+              '<button id="btn-bt-disconnect" type="button" class="btn-secondary !min-h-10 px-4 text-xs font-semibold !text-rose-600 !border-rose-300 dark:!border-rose-900/60 hover:!bg-rose-50 dark:hover:!bg-rose-950/40 transition cursor-pointer">' +
+                (isId ? "Putuskan Koneksi" : "Disconnect") +
+              '</button>' :
+              '<button id="btn-bt-connect" type="button" class="inline-flex min-h-10 items-center justify-center rounded-xl px-4 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm text-xs transition active:scale-95 cursor-pointer">' +
+                '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' +
+                (isId ? "Hubungkan Bluetooth (Okay 58D)" : "Connect Bluetooth (Okay 58D)") +
+              '</button>'
+            ) +
+            '<button id="btn-test-print" type="button" class="btn-secondary !min-h-10 px-4 text-xs font-semibold transition cursor-pointer">' +
+              '🖨️ ' + (isId ? "Cetak Uji Coba (Test Print)" : "Test Print") +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+
+        (!isBtSupported ?
+          '<div class="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">' +
+            'ℹ️ ' + (isId ? "Browser ini belum mendukung Web Bluetooth secara langsung. Namun Anda tetap dapat mencetak struk dengan rapi menggunakan tombol <strong>Cetak Browser / PDF</strong>." : "This browser does not support Web Bluetooth natively. You can still print seamlessly using <strong>Browser / PDF Print</strong>.") +
+          '</div>' : ''
+        ) +
+
+        '<!-- Receipt Text Customization -->' +
+        '<div class="mt-5 space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">' +
+          '<h4 class="text-xs font-black uppercase tracking-wider text-slate-400">' + (isId ? "Pengaturan Format Struk" : "Receipt Format Settings") + '</h4>' +
+          '<div>' +
+            '<label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" for="input-store-name">' + (isId ? "Nama Toko / Barbershop (Header):" : "Store Name (Header):") + '</label>' +
+            '<input id="input-store-name" class="field h-10 min-h-10 w-full text-xs" value="' + ThermalPrinter.escapeHtml(currentStoreName) + '">' +
+          '</div>' +
+          '<div>' +
+            '<label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" for="input-footer-note">' + (isId ? "Catatan Kaki (Footer):" : "Footer Note:") + '</label>' +
+            '<input id="input-footer-note" class="field h-10 min-h-10 w-full text-xs" value="' + ThermalPrinter.escapeHtml(currentFooterNote) + '">' +
+          '</div>' +
+          '<div class="pt-1">' +
+            '<label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">' +
+              '<input id="check-auto-prompt" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4" ' + (autoPrompt ? 'checked' : '') + '>' +
+              '<span>' + (isId ? "Tampilkan tawaran cetak otomatis setelah simpan transaksi" : "Offer print automatically after saving transaction") + '</span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">' +
+          '<div id="settings-dirty-status" class="text-xs text-slate-600 dark:text-slate-400 font-medium italic">' +
+            (isId ? "Tidak ada perubahan" : "No changes") +
+          '</div>' +
+          '<div class="flex items-center gap-2">' +
+            '<button id="btn-settings-cancel" type="button" class="btn-secondary !min-h-10 px-4 text-xs sm:text-sm font-semibold cursor-pointer">' +
+              (isId ? "Tutup" : "Close") +
+            '</button>' +
+            '<button id="btn-save-settings" type="button" disabled class="!min-h-10 px-5 text-xs sm:text-sm font-bold rounded-xl transition duration-150 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none">' +
+              '💾 ' + (isId ? "Simpan Pengaturan" : "Save Settings") +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    function closeModal() {
+      modal.remove();
+    }
+
+    document.getElementById("settings-close-x").addEventListener("click", closeModal);
+    var cancelBtn = document.getElementById("btn-settings-cancel");
+    if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+
+    var connectBtn = document.getElementById("btn-bt-connect");
+    if (connectBtn) {
+      connectBtn.addEventListener("click", function () {
+        ThermalPrinter.connectBluetooth(function () {
+          closeModal();
+          showPrinterSettingsModal();
+        });
+      });
+    }
+
+    var disconnectBtn = document.getElementById("btn-bt-disconnect");
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener("click", function () {
+        ThermalPrinter.disconnectBluetooth();
+        closeModal();
+        showPrinterSettingsModal();
+      });
+    }
+
+    document.getElementById("btn-test-print").addEventListener("click", function () {
+      var sampleTx = {
+        id: "TEST",
+        amount: "Rp 45.000,00",
+        kind: "income",
+        operator: "Yoga (Dev)",
+        date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) + " 12:00",
+        note: "Uji coba printer thermal 58mm",
+        items: [
+          { name: "Haircut Gent", amount: "Rp 35.000,00" },
+          { name: "Pomade Waterbased", amount: "Rp 10.000,00" }
+        ]
+      };
+      showReceiptPreviewModal(sampleTx);
+    });
+
+    var storeNameInput = document.getElementById("input-store-name");
+    var footerNoteInput = document.getElementById("input-footer-note");
+    var autoPromptCheck = document.getElementById("check-auto-prompt");
+    var saveBtn = document.getElementById("btn-save-settings");
+    var dirtyStatusEl = document.getElementById("settings-dirty-status");
+
+    function checkDirty() {
+      var sVal = storeNameInput ? storeNameInput.value.trim() : "";
+      var fVal = footerNoteInput ? footerNoteInput.value.trim() : "";
+      var aVal = autoPromptCheck ? autoPromptCheck.checked : true;
+
+      var isDirty = (sVal !== currentStoreName.trim()) ||
+                    (fVal !== currentFooterNote.trim()) ||
+                    (aVal !== autoPrompt);
+
+      if (saveBtn) {
+        if (isDirty) {
+          saveBtn.disabled = false;
+          saveBtn.className = "btn-primary !min-h-10 px-5 text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 cursor-pointer transition active:scale-95";
+          if (dirtyStatusEl) {
+            dirtyStatusEl.innerHTML = '<span class="inline-flex items-center text-amber-600 dark:text-amber-400 font-semibold">● ' + (isId ? "Ada perubahan belum disimpan" : "Unsaved changes") + '</span>';
+          }
+        } else {
+          saveBtn.disabled = true;
+          saveBtn.className = "!min-h-10 px-5 text-xs sm:text-sm font-bold rounded-xl transition duration-150 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none";
+          if (dirtyStatusEl) {
+            dirtyStatusEl.textContent = isId ? "Tidak ada perubahan" : "No changes";
+            dirtyStatusEl.className = "text-xs text-slate-600 dark:text-slate-400 font-medium italic";
+          }
+        }
+      }
+      return isDirty;
+    }
+
+    if (storeNameInput) storeNameInput.addEventListener("input", checkDirty);
+    if (footerNoteInput) footerNoteInput.addEventListener("input", checkDirty);
+    if (autoPromptCheck) autoPromptCheck.addEventListener("change", checkDirty);
+
+    saveBtn.addEventListener("click", function () {
+      if (!checkDirty()) return;
+
+      var sName = storeNameInput ? storeNameInput.value.trim() : "";
+      var fNote = footerNoteInput ? footerNoteInput.value.trim() : "";
+      var autoP = autoPromptCheck ? autoPromptCheck.checked : true;
+
+      if (!sName) sName = "PARDIS BARBER SHOP";
+      if (!fNote) fNote = "Terima Kasih Atas Kunjungan Anda!";
+
+      localStorage.setItem("pos_thermal_store_name", sName);
+      localStorage.setItem("pos_thermal_footer_note", fNote);
+      localStorage.setItem("pos_thermal_auto_prompt", autoP ? "true" : "false");
+
+      if (window.showGlobalToast) {
+        window.showGlobalToast(
+          isId ? "Pengaturan Disimpan" : "Settings Saved",
+          isId ? "Pengaturan printer thermal berhasil diperbarui." : "Thermal printer settings updated.",
+          2500,
+          "success"
+        );
+      }
+      closeModal();
+    });
+  }
+
+  // --- Post-Save Prompt Modal ---
+  function showPostSavePromptModal(txData) {
+    var isId = (document.documentElement.lang || "id") === "id";
+    var existing = document.getElementById("pos-post-save-prompt-modal");
+    if (existing) existing.remove();
+
+    var modal = document.createElement("div");
+    modal.id = "pos-post-save-prompt-modal";
+    modal.className = "fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.zIndex = "999999";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.background = "rgba(10, 16, 35, 0.68)";
+    modal.style.backdropFilter = "blur(8px)";
+    modal.style.webkitBackdropFilter = "blur(8px)";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    modal.innerHTML =
+      '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all text-center" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
+        '<div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-100 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 shadow-sm mb-4">' +
+          '<svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' +
+        '</div>' +
+        '<h3 class="font-black text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">' + (isId ? "Transaksi Berhasil Disimpan!" : "Transaction Saved Successfully!") + '</h3>' +
+        '<p class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">' + (txData.amount || "") + '</p>' +
+        '<p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">' +
+          (isId ? "Apakah Anda ingin mencetak struk transaksi ini ke printer thermal?" : "Would you like to print the receipt to the thermal printer now?") +
+        '</p>' +
+        '<div class="mt-6 flex items-center justify-center gap-3">' +
+          '<button id="post-save-skip" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+            (isId ? "Selesai" : "Done") +
+          '</button>' +
+          '<button id="post-save-print" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
+            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+            (isId ? "🖨️ Cetak Struk Thermal" : "🖨️ Print Thermal Receipt") +
+          '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    function closeModal() {
+      modal.remove();
+    }
+
+    document.getElementById("post-save-skip").addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+
+    document.getElementById("post-save-print").addEventListener("click", function () {
+      closeModal();
+      showReceiptPreviewModal(txData);
+    });
+  }
+
+  // Check for auto-open or post-save prompt on page reload
+  try {
+    var shouldAutoOpen = sessionStorage.getItem("autoOpenThermalPrint");
+    var pendingPrompt = sessionStorage.getItem("pendingTxPrintPrompt");
+    if (shouldAutoOpen === "true" && pendingPrompt) {
+      sessionStorage.removeItem("autoOpenThermalPrint");
+      sessionStorage.removeItem("pendingTxPrintPrompt");
+      var autoTxData = JSON.parse(pendingPrompt);
+      setTimeout(function () {
+        showReceiptPreviewModal(autoTxData);
+      }, 350);
+    } else if (pendingPrompt) {
+      sessionStorage.removeItem("pendingTxPrintPrompt");
+      var promptData = JSON.parse(pendingPrompt);
+      setTimeout(function () {
+        showPostSavePromptModal(promptData);
+      }, 350);
+    }
+  } catch (e) {}
+
+  // Check saved Bluetooth device name in localStorage to update topbar UI on load
+  var savedDeviceName = localStorage.getItem("pos_thermal_device_name");
+  if (savedDeviceName) {
+    ThermalPrinter.updateStatusUI(false); // Default disconnected until user connects, or shows label
+  }
+
+  // Attach Topbar Printer Settings Button
+  var btnSettings = document.getElementById("btn-thermal-printer-settings");
+  if (btnSettings) {
+    btnSettings.addEventListener("click", function (e) {
+      e.preventDefault();
+      showPrinterSettingsModal();
+    });
+  }
+
+  // Delegate click for Reprint Receipt buttons on transaction history table
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest(".btn-print-receipt");
+    if (!btn) return;
+    e.preventDefault();
+
+    var items = [];
+    try {
+      var rawItems = btn.getAttribute("data-tx-items");
+      if (rawItems) items = JSON.parse(rawItems);
+    } catch (err) {
+      items = [];
+    }
+
+    var txData = {
+      id: btn.getAttribute("data-tx-id") || "",
+      kind: btn.getAttribute("data-tx-kind") || "income",
+      amount: btn.getAttribute("data-tx-amount") || "",
+      operator: btn.getAttribute("data-tx-operator") || "",
+      date: btn.getAttribute("data-tx-date") || "",
+      note: btn.getAttribute("data-tx-note") || "",
+      items: items
+    };
+
+    showReceiptPreviewModal(txData);
+  });
 })();
+

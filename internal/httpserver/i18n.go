@@ -60,7 +60,7 @@ func formatRupiah(cents int64) string {
 func translate(language, key string) string {
 	en := map[string]string{
 		"language": "Language", "theme": "Theme", "english": "English", "indonesian": "Indonesian", "light": "Light", "dark": "Dark", "save": "Save", "currency": "Indonesian Rupiah", "appName": "POS Phoenix", "welcome": "Welcome back", "secureCashflow": "A place where the nice haircut trim come from us!", "email": "Email", "password": "Password", "signIn": "Sign in", "cashflowReport": "Cash-flow report", "today": "Today", "thisMonth": "This month", "from": "From", "to": "To", "apply": "Apply", "downloadCSV": "Download CSV", "income": "Income", "expense": "Expense", "balance": "Balance", "newTransaction": "New transaction", "type": "Type", "amount": "Amount", "category": "Category", "note": "Note", "saveTransaction": "Save transaction", "transactions": "Transactions", "records": "records", "page": "page", "previous": "Previous", "next": "Next", "noTransactions": "No transactions in this period.", "reverseReason": "Reversal reason", "reverse": "Reverse", "reversedBy": "Cancelled by reversal transaction", "operatorAdministration": "Operator administration", "dashboard": "Dashboard", "createOperator": "Create operator", "displayName": "Display name", "temporaryPassword": "Temporary password", "passwordHint": "12–128 characters. Share it securely.", "operators": "Operators", "active": "Active", "inactive": "Inactive", "deactivate": "Deactivate", "activate": "Activate", "noOperators": "No operators created yet.", "signOut": "Sign out", "reversal": "Reversal", "customerRefund": "Customer refund",
-		"username": "Username", "usernamePlaceholder": "Enter username", "usernameHint": "3–50 characters, letters, numbers, dot, dash, underscore.",
+		"username": "Username", "usernamePlaceholder": "Enter username", "usernameExample": "e.g. yogi", "usernameHint": "3–50 characters, letters, numbers, dot, dash, underscore.",
 		"forgotPassword": "Forgot password?", "resetPassword": "Reset Password", "sendResetLink": "Send Reset Link",
 		"newPassword": "New Password", "confirmNewPassword": "Confirm New Password",
 		"passwordResetSuccess": "Password has been successfully updated. You can now sign in.",
@@ -119,7 +119,7 @@ func translate(language, key string) string {
 		"boDiscountsTitle": "Discount & Bundling Management", "boAddDiscount": "Add New Discount / Bundling",
 		"boProductsTitle": "Product Catalog & Commission Settings", "boAddProduct": "Add / Edit Catalog Item",
 		// Discounts form
-		"boDiscCode": "Code", "boDiscName": "Name", "boDiscType": "Type", "boDiscValue": "Value", "boDiscStatus": "Status",
+		"boDiscCode": "Code", "boDiscName": "Name", "boDiscNamePlaceholder": "e.g. New Year Discount", "boDiscType": "Type", "boDiscValue": "Value", "boDiscStatus": "Status",
 		"boDiscTypePct": "Percentage (%)", "boDiscTypeFixed": "Fixed Amount (Rp)", "boDiscTypeBundle": "Bundle Package",
 		"boDiscActive": "Active", "boDiscInactive": "Inactive",
 		"boDiscServiceRatio": "Service Allocation Ratio", "boDiscProductRatio": "Product Allocation Ratio",
@@ -136,12 +136,34 @@ func translate(language, key string) string {
 		"boProdColName": "Name", "boProdColCategory": "Category", "boProdColType": "Type",
 		"boProdColPrice": "Price", "boProdColComm": "Commission / Item", "boProdColStatus": "Status",
 		"boProdLabelProduct": "PRODUCT", "boProdLabelService": "SERVICE",
-		"boProdEmpty": "No items in catalog yet.",
+		// Thermal Printer keys (EN)
+		"printReceipt": "Print Receipt", "thermalPrinter": "Thermal Printer", "printerConnected": "Printer Connected",
+		"printerDisconnected": "Printer Disconnected", "connectPrinter": "Connect Bluetooth Printer",
+		"disconnectPrinter": "Disconnect Printer", "testPrint": "Test Print", "printViaBluetooth": "Print via Bluetooth",
+		"printViaBrowser": "Print via Browser (PDF)", "receiptPreview": "Receipt Preview",
+		"printReceiptQuestion": "Would you like to print the receipt for this transaction?",
+		"printReceiptSuccess": "Receipt printed successfully.", "skip": "Skip",
+		"printerModalTitle": "Thermal Printer Settings (Okay 58D)",
+		"printerModalHint": "Connect via Web Bluetooth to standard 58mm thermal printers (Okay 58D) or use browser print dialog as fallback.",
+		"storeName": "Pardis Barber Shop", "receiptFooter": "Thank you for your visit!",
+		// Operator Credential keys (EN)
+		"phoneNumber": "Phone / WhatsApp Number", "phonePlaceholder": "e.g. 08123456789",
+		"branch": "Branch", "selectBranchOptional": "-- Select Branch (Optional) --", "selectBranch": "-- Select Branch --",
+		"staffType": "Staff Type", "barberman": "Barberman", "cashier": "Cashier", "manager": "Manager",
+		"bankName": "Bank Name / Code", "bankNamePlaceholder": "e.g. BCA, Mandiri, BRI, BNI",
+		"bankAccount": "Bank Account Number", "bankAccountPlaceholder": "e.g. 001 1234567",
+		"editEmployeeCredentials": "⚙️ Edit Employee Data & Bank Credentials",
+		"fullName": "Full Name", "accountNumber": "Account Number", "accountNumberPlaceholder": "Account number",
+		"cancel": "Cancel", "saveCredentialChanges": "Save Credential Changes",
+		"confirmChangesTitle": "Confirm Changes", "confirmChangesDesc": "Please ensure employee data is correct before saving.",
+		"credentialChangeDetails": "Credential Change Details", "credentialChangeNotice": "Changes will be saved and apply immediately to operations and profit sharing.",
+		"yesSaveChanges": "Yes, Save Changes", "saving": "Saving...", "accountShort": "Acc",
+		"dataSavedSuccess": "Data Saved Successfully", "dataSavedSuccessMsg": "Employee data changes have been successfully saved.",
 	}
 	if language == "id" {
 		id := map[string]string{
 			"language": "Bahasa", "theme": "Tema", "english": "Inggris", "indonesian": "Indonesia", "light": "Terang", "dark": "Gelap", "save": "Simpan", "currency": "Rupiah Indonesia", "appName": "POS Phoenix", "welcome": "Selamat datang kembali", "secureCashflow": "Tempat untuk mendapatkan potongan rambut terbaik Anda!", "email": "Email", "password": "Kata sandi", "signIn": "Masuk", "cashflowReport": "Laporan arus kas", "today": "Hari ini", "thisMonth": "Bulan ini", "from": "Dari", "to": "Sampai", "apply": "Terapkan", "downloadCSV": "Unduh CSV", "income": "Pemasukan", "expense": "Pengeluaran", "balance": "Saldo", "newTransaction": "Transaksi baru", "type": "Jenis", "amount": "Jumlah", "category": "Kategori", "note": "Catatan", "saveTransaction": "Simpan transaksi", "transactions": "Transaksi", "records": "catatan", "page": "halaman", "previous": "Sebelumnya", "next": "Berikutnya", "noTransactions": "Tidak ada transaksi pada periode ini.", "reverseReason": "Alasan pembatalan", "reverse": "Batalkan", "reversedBy": "Dibatalkan oleh transaksi pembalik", "operatorAdministration": "Administrasi operator", "dashboard": "Dasbor", "createOperator": "Buat operator", "displayName": "Nama tampilan", "temporaryPassword": "Kata sandi sementara", "passwordHint": "12–128 karakter. Bagikan dengan aman.", "operators": "Operator", "active": "Aktif", "inactive": "Tidak aktif", "deactivate": "Nonaktifkan", "activate": "Aktifkan", "noOperators": "Belum ada operator.", "signOut": "Keluar", "reversal": "Pembatalan", "customerRefund": "Pengembalian dana pelanggan",
-			"username": "Username", "usernamePlaceholder": "Masukkan username", "usernameHint": "3–50 karakter, huruf, angka, titik, strip, garis bawah.",
+			"username": "Username", "usernamePlaceholder": "Masukkan username", "usernameExample": "Contoh: yogi", "usernameHint": "3–50 karakter, huruf, angka, titik, strip, garis bawah.",
 			"forgotPassword": "Lupa kata sandi?", "resetPassword": "Atur Ulang Kata Sandi", "sendResetLink": "Kirim Link Atur Ulang",
 			"newPassword": "Kata Sandi Baru", "confirmNewPassword": "Konfirmasi Kata Sandi Baru",
 			"passwordResetSuccess": "Kata sandi berhasil diperbarui. Anda sekarang dapat masuk kembali.",
@@ -200,7 +222,7 @@ func translate(language, key string) string {
 			"boDiscountsTitle": "Manajemen Diskon & Bundling", "boAddDiscount": "Tambah Diskon / Bundling Baru",
 			"boProductsTitle": "Katalog Produk & Pengaturan Komisi", "boAddProduct": "Tambah / Edit Item Katalog",
 			// Discounts form (ID)
-			"boDiscCode": "Kode", "boDiscName": "Nama", "boDiscType": "Tipe", "boDiscValue": "Nilai", "boDiscStatus": "Status",
+			"boDiscCode": "Kode", "boDiscName": "Nama", "boDiscNamePlaceholder": "Contoh: Diskon Tahun Baru", "boDiscType": "Tipe", "boDiscValue": "Nilai", "boDiscStatus": "Status",
 			"boDiscTypePct": "Persentase (%)", "boDiscTypeFixed": "Nominal Tetap (Rp)", "boDiscTypeBundle": "Paket Bundling",
 			"boDiscActive": "Aktif", "boDiscInactive": "Tidak Aktif",
 			"boDiscServiceRatio": "Rasio Alokasi Jasa", "boDiscProductRatio": "Rasio Alokasi Produk",
@@ -218,6 +240,29 @@ func translate(language, key string) string {
 			"boProdColPrice": "Harga", "boProdColComm": "Komisi / Item", "boProdColStatus": "Status",
 			"boProdLabelProduct": "PRODUK", "boProdLabelService": "JASA",
 			"boProdEmpty": "Belum ada item dalam katalog.",
+			// Thermal Printer keys (ID)
+			"printReceipt": "Cetak Struk", "thermalPrinter": "Printer Thermal", "printerConnected": "Printer Terhubung",
+			"printerDisconnected": "Printer Belum Terhubung", "connectPrinter": "Hubungkan Printer Bluetooth",
+			"disconnectPrinter": "Putuskan Printer", "testPrint": "Cetak Uji Coba", "printViaBluetooth": "Cetak via Bluetooth",
+			"printViaBrowser": "Cetak via Browser (PDF)", "receiptPreview": "Pratinjau Struk",
+			"printReceiptQuestion": "Apakah Anda ingin langsung mencetak struk transaksi ini?",
+			"printReceiptSuccess": "Struk berhasil dicetak.", "skip": "Lewati",
+			"printerModalTitle": "Pengaturan Printer Thermal (Okay 58D)",
+			"printerModalHint": "Hubungkan ke printer thermal 58mm via Web Bluetooth (Okay 58D) atau gunakan dialog cetak browser jika printer belum terhubung.",
+			"storeName": "Pardis Barber Shop", "receiptFooter": "Terima Kasih Atas Kunjungan Anda!",
+			// Operator Credential keys (ID)
+			"phoneNumber": "Nomor HP / WhatsApp", "phonePlaceholder": "Contoh: 08123456789",
+			"branch": "Cabang", "selectBranchOptional": "-- Pilih Cabang (Opsional) --", "selectBranch": "-- Pilih Cabang --",
+			"staffType": "Tipe Staf", "barberman": "Barberman", "cashier": "Kasir", "manager": "Manager",
+			"bankName": "Nama / Kode Bank", "bankNamePlaceholder": "Contoh: BCA, Mandiri, BRI, BNI",
+			"bankAccount": "Nomor Rekening Bank", "bankAccountPlaceholder": "Contoh: 001 1234567",
+			"editEmployeeCredentials": "⚙️ Edit Data Karyawan & Kredensial Bank",
+			"fullName": "Nama Lengkap", "accountNumber": "Nomor Rekening", "accountNumberPlaceholder": "Nomor rekening",
+			"cancel": "Batal", "saveCredentialChanges": "Simpan Perubahan Kredensial",
+			"confirmChangesTitle": "Konfirmasi Perubahan", "confirmChangesDesc": "Pastikan data karyawan sudah benar sebelum disimpan.",
+			"credentialChangeDetails": "Detail Perubahan Kredensial", "credentialChangeNotice": "Perubahan akan disimpan dan langsung berlaku untuk operasional serta bagi hasil.",
+			"yesSaveChanges": "Ya, Simpan Perubahan", "saving": "Menyimpan...", "accountShort": "Rek",
+			"dataSavedSuccess": "Data Berhasil Disimpan", "dataSavedSuccessMsg": "Perubahan data karyawan telah berhasil disimpan.",
 		}
 		if value, ok := id[key]; ok {
 			return value

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Operators · POS Phoenix</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260918-txmodals">
-  <script defer src="/static/js/app.js?v=20260918-txmodals"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260918-thermal2">
+  <script defer src="/static/js/app.js?v=20260918-thermal2"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -79,7 +79,7 @@
             </label>
             <label>
               <span class="field-label">{{label .Language "username"}}</span>
-              <input class="field" name="username" placeholder="Contoh: yogi" maxlength="50" autocomplete="username">
+              <input class="field" name="username" placeholder="{{label .Language "usernameExample"}}" maxlength="50" autocomplete="username">
               <span class="muted mt-1 block text-xs">{{label .Language "usernameHint"}}</span>
             </label>
             <label>
@@ -87,33 +87,33 @@
               <input class="field" type="email" name="email" maxlength="254" autocomplete="email" required>
             </label>
             <label>
-              <span class="field-label">Nomor HP / WhatsApp</span>
-              <input class="field" type="tel" name="phone_number" placeholder="Contoh: 08123456789">
+              <span class="field-label">{{label .Language "phoneNumber"}}</span>
+              <input class="field" type="tel" name="phone_number" placeholder="{{label .Language "phonePlaceholder"}}">
             </label>
             <label>
-              <span class="field-label">Cabang</span>
+              <span class="field-label">{{label .Language "branch"}}</span>
               <select class="field" name="branch_id">
-                <option value="0">-- Pilih Cabang (Opsional) --</option>
+                <option value="0">{{label .Language "selectBranchOptional"}}</option>
                 {{range .Branches}}
                 <option value="{{.ID}}">{{.Name}}</option>
                 {{end}}
               </select>
             </label>
             <label>
-              <span class="field-label">Tipe Staf</span>
+              <span class="field-label">{{label .Language "staffType"}}</span>
               <select class="field" name="staff_type">
-                <option value="barberman">Barberman</option>
-                <option value="cashier">Kasir</option>
-                <option value="manager">Manager</option>
+                <option value="barberman">{{label .Language "barberman"}}</option>
+                <option value="cashier">{{label .Language "cashier"}}</option>
+                <option value="manager">{{label .Language "manager"}}</option>
               </select>
             </label>
             <label>
-              <span class="field-label">Nama / Kode Bank</span>
-              <input class="field" name="bank_name" placeholder="Contoh: BCA, Mandiri, BRI, BNI">
+              <span class="field-label">{{label .Language "bankName"}}</span>
+              <input class="field" name="bank_name" placeholder="{{label .Language "bankNamePlaceholder"}}">
             </label>
             <label class="sm:col-span-2">
-              <span class="field-label">Nomor Rekening Bank</span>
-              <input class="field" name="bank_account_number" placeholder="Contoh: 001 1234567">
+              <span class="field-label">{{label .Language "bankAccount"}}</span>
+              <input class="field" name="bank_account_number" placeholder="{{label .Language "bankAccountPlaceholder"}}">
             </label>
             <label class="sm:col-span-2">
               <span class="field-label">{{label .Language "temporaryPassword"}}</span>
@@ -142,7 +142,7 @@
                     {{if and $op.BankName $op.BankAccountNumber}}
                     <span class="font-medium">🏦 {{$op.BankName}}: {{$op.BankAccountNumber}}</span>
                     {{else if $op.BankAccountNumber}}
-                    <span class="font-medium">🏦 Rek: {{$op.BankAccountNumber}}</span>
+                    <span class="font-medium">🏦 {{label $.Language "accountShort"}}: {{$op.BankAccountNumber}}</span>
                     {{end}}
                     {{if $op.PhoneNumber}}
                     <span>📱 {{$op.PhoneNumber}}</span>
@@ -167,49 +167,49 @@
               <!-- Collapsible Form Edit Kredensial Bank & Kontak -->
               <details class="mt-3 border-t border-slate-200 dark:border-slate-800 pt-2 text-xs">
                 <summary class="cursor-pointer font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 select-none py-1">
-                  ⚙️ Edit Data Karyawan &amp; Kredensial Bank
+                  {{label $.Language "editEmployeeCredentials"}}
                 </summary>
                 <form method="post" action="/operators/{{$op.ID}}/credentials" class="mt-2 grid gap-2 sm:grid-cols-2 p-3 bg-slate-50 dark:bg-[#070e28] rounded-xl border border-slate-200 dark:border-[#142055]">
                   <input type="hidden" name="csrf" value="{{$.CSRF}}">
                   <label>
-                    <span class="field-label text-xs">Nama Lengkap</span>
+                    <span class="field-label text-xs">{{label $.Language "fullName"}}</span>
                     <input class="field text-xs py-1.5 h-9 min-h-9" name="display_name" value="{{$op.DisplayName}}" required>
                   </label>
                   <label>
-                    <span class="field-label text-xs">Nomor HP / WA</span>
-                    <input class="field text-xs py-1.5 h-9 min-h-9" name="phone_number" value="{{$op.PhoneNumber}}" placeholder="08123456789">
+                    <span class="field-label text-xs">{{label $.Language "phoneNumber"}}</span>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="phone_number" value="{{$op.PhoneNumber}}" placeholder="{{label $.Language "phonePlaceholder"}}">
                   </label>
                   <label>
-                    <span class="field-label text-xs">Nama / Kode Bank</span>
-                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_name" value="{{$op.BankName}}" placeholder="Contoh: BCA, Mandiri, BRI, BNI">
+                    <span class="field-label text-xs">{{label $.Language "bankName"}}</span>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_name" value="{{$op.BankName}}" placeholder="{{label $.Language "bankNamePlaceholder"}}">
                   </label>
                   <label>
-                    <span class="field-label text-xs">Nomor Rekening</span>
-                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_account_number" value="{{$op.BankAccountNumber}}" placeholder="Nomor rekening">
+                    <span class="field-label text-xs">{{label $.Language "accountNumber"}}</span>
+                    <input class="field text-xs py-1.5 h-9 min-h-9" name="bank_account_number" value="{{$op.BankAccountNumber}}" placeholder="{{label $.Language "accountNumberPlaceholder"}}">
                   </label>
                   <label>
-                    <span class="field-label text-xs">Cabang</span>
+                    <span class="field-label text-xs">{{label $.Language "branch"}}</span>
                     <select class="field text-xs py-1.5 h-9 min-h-9" name="branch_id">
-                      <option value="0">-- Pilih Cabang --</option>
+                      <option value="0">{{label $.Language "selectBranch"}}</option>
                       {{range $.Branches}}
                       <option value="{{.ID}}" {{if eq .ID $op.BranchID}}selected{{end}}>{{.Name}}</option>
                       {{end}}
                     </select>
                   </label>
                   <label>
-                    <span class="field-label text-xs">Tipe Staf</span>
+                    <span class="field-label text-xs">{{label $.Language "staffType"}}</span>
                     <select class="field text-xs py-1.5 h-9 min-h-9" name="staff_type">
-                      <option value="barberman" {{if eq $op.StaffType "barberman"}}selected{{end}}>Barberman</option>
-                      <option value="cashier" {{if eq $op.StaffType "cashier"}}selected{{end}}>Kasir</option>
-                      <option value="manager" {{if eq $op.StaffType "manager"}}selected{{end}}>Manager</option>
+                      <option value="barberman" {{if eq $op.StaffType "barberman"}}selected{{end}}>{{label $.Language "barberman"}}</option>
+                      <option value="cashier" {{if eq $op.StaffType "cashier"}}selected{{end}}>{{label $.Language "cashier"}}</option>
+                      <option value="manager" {{if eq $op.StaffType "manager"}}selected{{end}}>{{label $.Language "manager"}}</option>
                     </select>
                   </label>
                   <div class="sm:col-span-2 flex items-center justify-end gap-2 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                    <button type="button" class="btn-cancel-edit hidden btn-secondary text-xs py-2 px-4 transition-all duration-200">
-                      Batal
+                    <button type="button" class="btn-cancel-edit hidden btn-secondary !min-h-11 text-xs px-4 transition-all duration-200">
+                      {{label $.Language "cancel"}}
                     </button>
-                    <button class="btn-primary text-xs py-2 px-5 shadow-md shadow-blue-500/20" type="submit">
-                      Simpan Perubahan Kredensial
+                    <button class="btn-submit-credentials !min-h-11 inline-flex items-center justify-center border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none rounded-xl text-xs sm:text-sm px-5 font-bold transition duration-150" type="submit" disabled>
+                      {{label $.Language "saveCredentialChanges"}}
                     </button>
                   </div>
                 </form>
@@ -236,8 +236,8 @@
           </svg>
         </div>
         <div>
-          <h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">Konfirmasi Perubahan</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pastikan data karyawan sudah benar sebelum disimpan.</p>
+          <h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">{{label .Language "confirmChangesTitle"}}</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{label .Language "confirmChangesDesc"}}</p>
         </div>
       </div>
 
@@ -248,7 +248,7 @@
             👤
           </div>
           <div class="min-w-0 flex-1">
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Nama Karyawan</span>
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{{label .Language "displayName"}}</span>
             <span id="confirm-modal-emp-name" class="block font-black text-base text-slate-900 dark:text-white truncate">-</span>
           </div>
         </div>
@@ -259,17 +259,17 @@
 
       <!-- Question prompt with ample bottom spacing -->
       <p class="mt-5 mb-6 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-        Apakah Anda yakin ingin menyimpan perubahan data dan kredensial untuk karyawan ini?
+        {{if eq .Language "id"}}Apakah Anda yakin ingin menyimpan perubahan data dan kredensial untuk karyawan ini?{{else}}Are you sure you want to save the credential and data changes for this employee?{{end}}
       </p>
 
       <!-- Action Buttons (Well-spaced footer, hover matches Create Operator) -->
       <div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">
-        <button id="confirm-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition" type="button">
-          Batal
+        <button id="confirm-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">
+          {{label .Language "cancel"}}
         </button>
-        <button id="confirm-ok" class="btn-primary !min-h-11 px-6 text-xs sm:text-sm font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 active:scale-95 transition-all" type="button">
+        <button id="confirm-ok" class="btn-primary !min-h-11 px-6 text-xs sm:text-sm font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 active:scale-95 transition-all cursor-pointer" type="button">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-          <span id="confirm-ok-text">Ya, Simpan Perubahan</span>
+          <span id="confirm-ok-text">{{label .Language "yesSaveChanges"}}</span>
         </button>
       </div>
     </div>
@@ -297,7 +297,8 @@
         modal.classList.remove('flex');
         pendingForm = null;
         confirmOkBtn.disabled = false;
-        confirmOkText.textContent = 'Ya, Simpan Perubahan';
+        var isId = (document.documentElement.lang || 'id') === 'id';
+        confirmOkText.textContent = isId ? 'Ya, Simpan Perubahan' : 'Yes, Save Changes';
       }
 
       function recordInitialValues(form) {
@@ -339,11 +340,23 @@
                          (currentBranch !== (form.dataset.initialBranch || '')) ||
                          (currentStaff !== (form.dataset.initialStaff || ''));
 
+        var submitBtn = form.querySelector('.btn-submit-credentials') || form.querySelector('button[type="submit"]');
+
         if (cancelBtn) {
           if (hasChanges) {
             cancelBtn.classList.remove('hidden');
           } else {
             cancelBtn.classList.add('hidden');
+          }
+        }
+
+        if (submitBtn) {
+          if (hasChanges) {
+            submitBtn.disabled = false;
+            submitBtn.className = "btn-submit-credentials btn-primary !min-h-11 inline-flex items-center justify-center rounded-xl text-xs sm:text-sm px-5 font-bold shadow-md shadow-blue-500/20 cursor-pointer transition-all duration-150 active:scale-95";
+          } else {
+            submitBtn.disabled = true;
+            submitBtn.className = "btn-submit-credentials !min-h-11 inline-flex items-center justify-center border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none rounded-xl text-xs sm:text-sm px-5 font-bold transition duration-150";
           }
         }
         return hasChanges;
@@ -357,6 +370,7 @@
         var branchSelect = form.querySelector('[name="branch_id"]');
         var staffSelect = form.querySelector('[name="staff_type"]');
         var cancelBtn = form.querySelector('.btn-cancel-edit');
+        var submitBtn = form.querySelector('.btn-submit-credentials') || form.querySelector('button[type="submit"]');
 
         if (nameInput) nameInput.value = form.dataset.initialName || '';
         if (phoneInput) phoneInput.value = form.dataset.initialPhone || '';
@@ -366,6 +380,10 @@
         if (staffSelect) staffSelect.value = form.dataset.initialStaff || '';
 
         if (cancelBtn) cancelBtn.classList.add('hidden');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.className = "btn-submit-credentials !min-h-11 inline-flex items-center justify-center border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none rounded-xl text-xs sm:text-sm px-5 font-bold transition duration-150";
+        }
       }
 
       // Intercept all credentials edit forms
@@ -392,20 +410,14 @@
           e.preventDefault();
 
           var hasChanges = checkFormChanges(form);
-          var nameInput = form.querySelector('[name="display_name"]');
-          var empName = (nameInput && nameInput.value.trim()) || form.dataset.initialName || 'Karyawan';
-
           if (!hasChanges) {
-            if (window.showGlobalToast) {
-              window.showGlobalToast(
-                "Tidak Ada Perubahan",
-                'Data karyawan "' + empName + '" tidak ada yang diubah.',
-                2000,
-                'warning'
-              );
-            }
             return;
           }
+
+          var isId = (document.documentElement.lang || 'id') === 'id';
+          var defaultEmpName = isId ? 'Karyawan' : 'Employee';
+          var nameInput = form.querySelector('[name="display_name"]');
+          var empName = (nameInput && nameInput.value.trim()) || form.dataset.initialName || defaultEmpName;
 
           pendingForm = form;
           modalEmpName.textContent = empName;
@@ -419,21 +431,27 @@
           var currentBank = bankInput ? bankInput.value.trim() : '';
           var currentAccount = accInput ? accInput.value.trim() : '';
 
+          var labelPhone = isId ? 'No. HP / WA' : 'Phone / WA';
+          var labelBank = isId ? 'Bank' : 'Bank';
+          var labelAcc = isId ? 'No. Rekening' : 'Account Number';
+          var labelBranch = isId ? 'Cabang' : 'Branch';
+          var labelNoExtra = isId ? 'Tidak ada kredensial tambahan yang diisi.' : 'No additional credentials filled.';
+
           var detailsHTML = '';
           if (currentPhone) {
-            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">No. HP / WA</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentPhone + '</span></div>';
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">' + labelPhone + '</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentPhone + '</span></div>';
           }
           if (currentBank) {
-            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">Bank</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentBank + '</span></div>';
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">' + labelBank + '</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentBank + '</span></div>';
           }
           if (currentAccount) {
-            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">No. Rekening</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentAccount + '</span></div>';
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">' + labelAcc + '</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + currentAccount + '</span></div>';
           }
           if (branchSelect && branchSelect.selectedIndex > 0) {
-            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">Cabang</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + branchSelect.options[branchSelect.selectedIndex].text + '</span></div>';
+            detailsHTML += '<div><span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-bold">' + labelBranch + '</span><span class="font-semibold text-slate-700 dark:text-slate-200">' + branchSelect.options[branchSelect.selectedIndex].text + '</span></div>';
           }
           if (!detailsHTML) {
-            detailsHTML = '<div class="col-span-2 text-slate-400 italic">Tidak ada kredensial tambahan yang diisi.</div>';
+            detailsHTML = '<div class="col-span-2 text-slate-400 italic">' + labelNoExtra + '</div>';
           }
           modalDetails.innerHTML = detailsHTML;
 
@@ -446,12 +464,14 @@
       confirmOkBtn.addEventListener('click', function () {
         if (!pendingForm) return;
         var form = pendingForm;
+        var isId = (document.documentElement.lang || 'id') === 'id';
+        var defaultEmpName = isId ? 'Karyawan' : 'Employee';
         var nameInput = form.querySelector('[name="display_name"]');
-        var savedDisplayName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Karyawan';
+        var savedDisplayName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : defaultEmpName;
 
         // Show loading state on button
         confirmOkBtn.disabled = true;
-        confirmOkText.textContent = 'Menyimpan...';
+        confirmOkText.textContent = isId ? 'Menyimpan...' : 'Saving...';
 
         var formData = new FormData(form);
 
@@ -471,8 +491,7 @@
         .then(function (data) {
           // Update recorded initial values so subsequent clicks check against new state
           recordInitialValues(form);
-          var cancelBtn = form.querySelector('.btn-cancel-edit');
-          if (cancelBtn) cancelBtn.classList.add('hidden');
+          checkFormChanges(form); // Immediately re-evaluates dirty state and disables submit button!
 
           closeModal();
 
@@ -489,12 +508,11 @@
 
           // Trigger cross-page persistent toast!
           if (window.showGlobalToast) {
-            window.showGlobalToast(
-              "Data Berhasil Disimpan",
-              'Perubahan data karyawan "' + savedDisplayName + '" telah berhasil disimpan.',
-              3000,
-              'success'
-            );
+            var toastTitle = isId ? 'Data Berhasil Disimpan' : 'Data Saved Successfully';
+            var toastMsg = isId ?
+              ('Perubahan data karyawan "' + savedDisplayName + '" telah berhasil disimpan.') :
+              ('Employee data changes for "' + savedDisplayName + '" have been saved successfully.');
+            window.showGlobalToast(toastTitle, toastMsg, 3000, 'success');
           }
         })
         .catch(function (err) {

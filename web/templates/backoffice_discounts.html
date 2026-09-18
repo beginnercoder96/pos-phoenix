@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Discount and bundling management.">
   <title>{{label .Language "boDiscounts"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260918-txmodals">
-  <script defer src="/static/js/app.js?v=20260918-txmodals"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260918-thermal2">
+  <script defer src="/static/js/app.js?v=20260918-thermal2"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -80,7 +80,7 @@
               </label>
               <label>
                 <span class="field-label">{{label .Language "boDiscName"}}</span>
-                <input type="text" name="name" class="field h-11 min-h-11" placeholder="Diskon Tahun Baru" required id="discount-name">
+                <input type="text" name="name" class="field h-11 min-h-11" placeholder="{{label .Language "boDiscNamePlaceholder"}}" required id="discount-name">
               </label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">

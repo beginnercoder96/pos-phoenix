@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Dashboard · POS Phoenix</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260918-txmodals">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260918-thermal2">
   <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script id="catalog-data" type="application/json">{{.CatalogJSON}}</script>
   <script>
@@ -15,7 +15,7 @@
       window.POS_CATALOG = [];
     }
   </script>
-  <script defer src="/static/js/app.js?v=20260918-txmodals"></script>
+  <script defer src="/static/js/app.js?v=20260918-thermal2"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -57,6 +57,14 @@
             <p class="text-sm font-bold text-slate-300">{{label .Language "dashboard"}} | {{.Greeting}}, {{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Email}}{{end}}</p>
           </div>
           <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <button type="button" id="btn-thermal-printer-settings" class="preference-select flex items-center gap-2 !min-h-11 !bg-white !text-slate-900 !border-slate-300 px-3 font-bold text-xs shadow-sm cursor-pointer active:scale-95" title="{{label .Language "thermalPrinter"}}">
+              <span class="relative flex h-2.5 w-2.5 shrink-0">
+                <span id="printer-status-ping" class="hidden animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span id="printer-status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-400"></span>
+              </span>
+              <svg class="w-4 h-4 text-slate-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              <span id="printer-btn-label" class="hidden sm:inline font-bold text-slate-900">{{label .Language "thermalPrinter"}}</span>
+            </button>
             <form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit>
               <input type="hidden" name="csrf" value="{{.CSRF}}">
               <input type="hidden" name="return_to" value="{{.CurrentURL}}">
@@ -468,9 +476,30 @@
                     {{.OperatorName}} · {{date .OccurredAt}}{{if .Note}} · {{.Note}}{{end}}
                   </p>
                 </div>
-                <p class="max-w-[42vw] break-words text-right font-black sm:max-w-none {{if eq .Kind "income"}}text-emerald-700{{else}}text-rose-700{{end}}">
-                  {{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountCents}}
-                </p>
+                <div class="text-right">
+                  <p class="max-w-[42vw] break-words text-right font-black sm:max-w-none {{if eq .Kind "income"}}text-emerald-700{{else}}text-rose-700{{end}}">
+                    {{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountCents}}
+                  </p>
+                  {{if not .ReversalOfID.Valid}}
+                    {{if not .ReversedByID.Valid}}
+                      <div class="mt-1.5 flex justify-end">
+                        <button type="button" class="btn-print-receipt btn-secondary !min-h-9 !px-3 !py-1 text-xs font-bold gap-1.5 shadow-sm transition active:scale-95 flex items-center cursor-pointer"
+                          data-tx-id="{{.ID}}"
+                          data-tx-kind="{{.Kind}}"
+                          data-tx-amount="{{money .AmountCents}}"
+                          data-tx-operator="{{.OperatorName}}"
+                          data-tx-date="{{date .OccurredAt}}"
+                          data-tx-note="{{.Note}}"
+                          data-tx-items='{{if .Items}}[{{range $i, $it := .Items}}{{if $i}},{{end}}{"name":"{{if $it.ItemName}}{{$it.ItemName}}{{else}}{{$it.Category}}{{end}}","category":"{{$it.Category}}","amount":"{{money $it.AmountCents}}"}{{end}}]{{else}}[{"name":"{{.Category}}","category":"{{.Category}}","amount":"{{money .AmountCents}}" }]{{end}}'
+                          title="{{label $.Language "printReceipt"}}"
+                        >
+                          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                          <span>{{label $.Language "printReceipt"}}</span>
+                        </button>
+                      </div>
+                    {{end}}
+                  {{end}}
+                </div>
               </div>
               {{if not .ReversalOfID.Valid}}
                 {{if .ReversedByID.Valid}}
@@ -505,6 +534,8 @@
       </main>
     </div>
   </div>
+  <!-- Hidden thermal receipt container for browser window.print() -->
+  <div id="thermal-print-container" aria-hidden="true" style="display:none;"></div>
 </body>
 </html>
 {{end}}
