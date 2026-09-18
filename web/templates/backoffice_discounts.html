@@ -104,15 +104,25 @@
                 </select>
               </label>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label>
-                <span class="field-label">{{label .Language "boDiscServiceRatio"}}</span>
-                <input type="number" name="service_ratio" class="field h-11 min-h-11" value="1.0" min="0" max="1" step="0.1" id="discount-service-ratio">
-              </label>
-              <label>
-                <span class="field-label">{{label .Language "boDiscProductRatio"}}</span>
-                <input type="number" name="product_ratio" class="field h-11 min-h-11" value="0.0" min="0" max="1" step="0.1" id="discount-product-ratio">
-              </label>
+            <div id="ratio-fields-wrap" class="hidden space-y-3 p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 transition-all">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                  <span>📦</span> {{label .Language "boDiscBundleAllocation"}}
+                </span>
+                <span id="ratio-summary-badge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                  60% {{label .Language "boDiscServiceShort"}} + 40% {{label .Language "boDiscProductShort"}} = 100%
+                </span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label>
+                  <span class="field-label">{{label .Language "boDiscServiceRatio"}} (0 - 1.0)</span>
+                  <input type="number" name="service_ratio" class="field h-11 min-h-11" value="0.6" min="0" max="1" step="0.05" id="discount-service-ratio">
+                </label>
+                <label>
+                  <span class="field-label">{{label .Language "boDiscProductRatio"}} (0 - 1.0)</span>
+                  <input type="number" name="product_ratio" class="field h-11 min-h-11" value="0.4" min="0" max="1" step="0.05" id="discount-product-ratio">
+                </label>
+              </div>
             </div>
             <button type="submit" class="btn-primary h-11 px-6" id="discount-save-btn">{{label .Language "boDiscSave"}}</button>
           </form>
@@ -135,26 +145,45 @@
               </thead>
               <tbody>
                 {{range .Discounts}}
-                <tr class="border-b hover:bg-white/5">
-                  <td class="py-2 px-3 font-mono text-xs">{{.Code}}</td>
-                  <td class="py-2 px-3 font-medium">{{.Name}}</td>
-                  <td class="py-2 px-3">
+                <tr id="discount-row-{{.ID}}" class="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                  <td class="py-3 px-3 font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">{{.Code}}</td>
+                  <td class="py-3 px-3 font-medium text-slate-900 dark:text-slate-100">
+                    <div class="font-bold">{{.Name}}</div>
+                    {{if eq .Type "BUNDLE"}}
+                    <div class="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60">
+                      <span>📦</span>
+                      <span>{{pct .ServiceAllocationRatio}} {{label $.Language "boDiscServiceShort"}}</span>
+                      <span class="text-indigo-300 dark:text-indigo-600">·</span>
+                      <span>{{pct .ProductAllocationRatio}} {{label $.Language "boDiscProductShort"}}</span>
+                    </div>
+                    {{end}}
+                  </td>
+                  <td class="py-3 px-3">
                     {{if eq .Type "PERCENTAGE"}}{{label $.Language "boDiscTypePctLabel"}}
                     {{else if eq .Type "FIXED_AMOUNT"}}{{label $.Language "boDiscTypeFixedLabel"}}
                     {{else}}{{label $.Language "boDiscTypeBundleLabel"}}{{end}}
                   </td>
-                  <td class="py-2 px-3 text-right">
+                  <td class="py-3 px-3 text-right font-semibold">
                     {{if eq .Type "PERCENTAGE"}}{{.Value}}%
                     {{else}}{{money .Value}}{{end}}
                   </td>
-                  <td class="py-2 px-3 text-center">
-                    {{if .IsActive}}<span class="text-emerald-500 font-bold">{{label $.Language "boDiscActive"}}</span>
-                    {{else}}<span class="text-red-400">{{label $.Language "boDiscInactive"}}</span>{{end}}
-                  </td>
-                  <td class="py-2 px-3 text-center">
-                    <form method="post" action="/backoffice/discounts/{{.ID}}/delete" class="inline">
+                  <td class="py-3 px-3 text-center">
+                    <form method="post" action="/backoffice/discounts/{{.ID}}/toggle" class="inline discount-toggle-form" data-id="{{.ID}}" data-name="{{.Name}}">
                       <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                      <button type="submit" class="text-red-400 hover:text-red-300 text-xs" onclick="return confirm('{{label $.Language `boDiscConfirmDelete`}}')">{{label $.Language "boDiscActionDelete"}}</button>
+                      <button type="submit" class="btn-toggle-status group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition duration-150 active:scale-95 cursor-pointer border {{if .IsActive}}bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-800/70{{else}}bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:border-slate-700{{end}}" title="{{label $.Language "boDiscToggleStatus"}}" data-active="{{if .IsActive}}true{{else}}false{{end}}">
+                        <span class="w-1.5 h-1.5 rounded-full status-dot {{if .IsActive}}bg-emerald-500 ring-2 ring-emerald-300/50 dark:ring-emerald-500/30{{else}}bg-slate-400{{end}}"></span>
+                        <span class="status-label">{{if .IsActive}}{{label $.Language "boDiscActive"}}{{else}}{{label $.Language "boDiscInactive"}}{{end}}</span>
+                        <svg class="w-3 h-3 opacity-40 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                      </button>
+                    </form>
+                  </td>
+                  <td class="py-3 px-3 text-center">
+                    <form method="post" action="/backoffice/discounts/{{.ID}}/delete" class="inline discount-delete-form" data-id="{{.ID}}" data-name="{{.Name}}" data-code="{{.Code}}">
+                      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                      <button type="submit" class="btn-delete-discount inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 transition duration-150 active:scale-95 shadow-sm cursor-pointer" title="{{label $.Language "boDiscActionDelete"}}">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        <span>{{label $.Language "boDiscActionDelete"}}</span>
+                      </button>
                     </form>
                   </td>
                 </tr>
@@ -168,9 +197,326 @@
       </main>
     </div>
   </div>
+
+  <!-- Delete Discount Confirmation Modal -->
+  <div id="delete-discount-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 sm:p-6" style="background: rgba(10, 16, 35, 0.65); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);">
+    <div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">
+      <!-- Modal Header -->
+      <div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">{{label .Language "confirmDeleteDisc"}}</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{label .Language "confirmDeleteDiscDesc"}}</p>
+        </div>
+      </div>
+
+      <!-- Discount Details Card -->
+      <div class="mt-5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-900/40 p-4">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">{{label .Language "boDiscName"}}</span>
+            <span id="del-modal-disc-name" class="block font-black text-base text-slate-900 dark:text-white truncate">-</span>
+          </div>
+          <div id="del-modal-disc-code-wrap" class="shrink-0 hidden">
+            <span id="del-modal-disc-code" class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 text-slate-700 dark:text-slate-200"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">
+        <button id="del-modal-cancel-btn" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">
+          {{label .Language "cancel"}}
+        </button>
+        <button id="del-modal-confirm-btn" class="inline-flex items-center justify-center !min-h-11 px-6 text-xs sm:text-sm font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 active:scale-95 transition-all cursor-pointer" type="button">
+          <span id="del-modal-confirm-text">{{label .Language "yesDeleteDiscount"}}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes modalPopIn {
+      from { opacity: 0; transform: scale(.93) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+  </style>
+
   <script>
     document.querySelectorAll('[data-auto-submit] select').forEach(function(sel) {
       sel.addEventListener('change', function() { this.closest('form').submit(); });
+    });
+
+    // Toggle Bundle Ratio Fields & Synchronize Ratios
+    var typeSelect = document.getElementById('discount-type');
+    var ratioWrap = document.getElementById('ratio-fields-wrap');
+    var serviceRatioInput = document.getElementById('discount-service-ratio');
+    var productRatioInput = document.getElementById('discount-product-ratio');
+    var ratioBadge = document.getElementById('ratio-summary-badge');
+
+    function updateRatioSummary() {
+      if (!serviceRatioInput || !productRatioInput || !ratioBadge) return;
+      var isId = (document.documentElement.lang || 'id') === 'id';
+      var srv = Math.round((parseFloat(serviceRatioInput.value) || 0) * 100);
+      var prd = Math.round((parseFloat(productRatioInput.value) || 0) * 100);
+      var srvLabel = isId ? 'Jasa' : 'Service';
+      var prdLabel = isId ? 'Produk' : 'Product';
+      ratioBadge.textContent = srv + '% ' + srvLabel + ' + ' + prd + '% ' + prdLabel + ' = 100%';
+    }
+
+    var valueInput = document.getElementById('discount-value');
+    if (typeSelect && ratioWrap) {
+      function checkType() {
+        if (typeSelect.value === 'BUNDLE') {
+          ratioWrap.classList.remove('hidden');
+          if (valueInput) valueInput.placeholder = '50000';
+          if (parseFloat(serviceRatioInput.value) === 1.0 && parseFloat(productRatioInput.value) === 0.0) {
+            serviceRatioInput.value = '0.6';
+            productRatioInput.value = '0.4';
+          }
+          updateRatioSummary();
+        } else if (typeSelect.value === 'FIXED_AMOUNT') {
+          ratioWrap.classList.add('hidden');
+          if (valueInput) valueInput.placeholder = '10000';
+          serviceRatioInput.value = '1.0';
+          productRatioInput.value = '0.0';
+        } else {
+          ratioWrap.classList.add('hidden');
+          if (valueInput) valueInput.placeholder = '10';
+          serviceRatioInput.value = '1.0';
+          productRatioInput.value = '0.0';
+        }
+      }
+      typeSelect.addEventListener('change', checkType);
+      checkType();
+
+      if (serviceRatioInput && productRatioInput) {
+        serviceRatioInput.addEventListener('input', function() {
+          var val = parseFloat(serviceRatioInput.value);
+          if (isNaN(val)) val = 0;
+          if (val < 0) val = 0;
+          if (val > 1) val = 1;
+          var comp = Math.round((1 - val) * 100) / 100;
+          productRatioInput.value = comp.toFixed(2);
+          updateRatioSummary();
+        });
+
+        productRatioInput.addEventListener('input', function() {
+          var val = parseFloat(productRatioInput.value);
+          if (isNaN(val)) val = 0;
+          if (val < 0) val = 0;
+          if (val > 1) val = 1;
+          var comp = Math.round((1 - val) * 100) / 100;
+          serviceRatioInput.value = comp.toFixed(2);
+          updateRatioSummary();
+        });
+      }
+    }
+
+    // Save Discount via AJAX + Toast
+    var discountForm = document.getElementById('discount-form');
+    var saveBtn = document.getElementById('discount-save-btn');
+    if (discountForm && saveBtn) {
+      discountForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var isId = (document.documentElement.lang || 'id') === 'id';
+        var origText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = isId ? 'Menyimpan...' : 'Saving...';
+
+        var formData = new FormData(discountForm);
+        fetch(discountForm.action, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Save failed');
+          return res.json().catch(function() { return { ok: true }; });
+        })
+        .then(function(data) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = origText;
+          var discName = (data && data.name) || formData.get('name') || '';
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? 'Diskon Berhasil Disimpan' : 'Discount Saved Successfully',
+              isId ? ('Diskon "' + discName + '" telah berhasil ditambahkan ke katalog.') : ('Discount "' + discName + '" has been added to the catalog.'),
+              3000,
+              'success'
+            );
+          }
+          // Reload page to reflect new discount in table
+          setTimeout(function() {
+            window.location.reload();
+          }, 350);
+        })
+        .catch(function(err) {
+          console.warn('AJAX submit failed, falling back to standard submit:', err);
+          discountForm.submit();
+        });
+      });
+    }
+
+    // Modern Delete Confirmation Modal & AJAX Delete
+    var delModal = document.getElementById('delete-discount-modal');
+    var delNameEl = document.getElementById('del-modal-disc-name');
+    var delCodeWrap = document.getElementById('del-modal-disc-code-wrap');
+    var delCodeEl = document.getElementById('del-modal-disc-code');
+    var delCancelBtn = document.getElementById('del-modal-cancel-btn');
+    var delConfirmBtn = document.getElementById('del-modal-confirm-btn');
+    var delConfirmText = document.getElementById('del-modal-confirm-text');
+    var pendingDeleteForm = null;
+
+    function closeDeleteModal() {
+      if (!delModal) return;
+      delModal.classList.add('hidden');
+      delModal.classList.remove('flex');
+      pendingDeleteForm = null;
+      if (delConfirmBtn) {
+        delConfirmBtn.disabled = false;
+        var isId = (document.documentElement.lang || 'id') === 'id';
+        delConfirmText.textContent = isId ? 'Ya, Hapus Diskon' : 'Yes, Delete Discount';
+      }
+    }
+
+    if (delCancelBtn) delCancelBtn.addEventListener('click', closeDeleteModal);
+    if (delModal) {
+      delModal.addEventListener('click', function(e) {
+        if (e.target === delModal) closeDeleteModal();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !delModal.classList.contains('hidden')) {
+          closeDeleteModal();
+        }
+      });
+    }
+
+    document.querySelectorAll('.discount-delete-form').forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        pendingDeleteForm = form;
+        var name = form.dataset.name || '';
+        var code = form.dataset.code || '';
+        delNameEl.textContent = name;
+        if (code) {
+          delCodeEl.textContent = code;
+          delCodeWrap.classList.remove('hidden');
+        } else {
+          delCodeWrap.classList.add('hidden');
+        }
+        delModal.classList.remove('hidden');
+        delModal.classList.add('flex');
+      });
+    });
+
+    if (delConfirmBtn) {
+      delConfirmBtn.addEventListener('click', function() {
+        if (!pendingDeleteForm) return;
+        var form = pendingDeleteForm;
+        var isId = (document.documentElement.lang || 'id') === 'id';
+        var name = form.dataset.name || '';
+        var rowId = 'discount-row-' + form.dataset.id;
+        var targetRow = document.getElementById(rowId);
+
+        delConfirmBtn.disabled = true;
+        delConfirmText.textContent = isId ? 'Menghapus...' : 'Deleting...';
+
+        var formData = new FormData(form);
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Delete failed');
+          return res.json().catch(function() { return { ok: true }; });
+        })
+        .then(function() {
+          closeDeleteModal();
+          if (targetRow) {
+            targetRow.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+            targetRow.style.opacity = '0';
+            targetRow.style.transform = 'scale(0.95)';
+            setTimeout(function() {
+              targetRow.remove();
+              var remainingRows = document.querySelectorAll('#discounts-table tbody tr');
+              if (remainingRows.length === 0) {
+                var emptyMsg = isId ? 'Belum ada diskon atau bundling.' : 'No discounts or bundles yet.';
+                var tbody = document.querySelector('#discounts-table tbody');
+                if (tbody) {
+                  tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center muted">' + emptyMsg + '</td></tr>';
+                }
+              }
+            }, 250);
+          }
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? 'Diskon Berhasil Dihapus' : 'Discount Deleted Successfully',
+              isId ? ('Diskon "' + name + '" telah berhasil dihapus dari sistem.') : ('Discount "' + name + '" has been successfully removed.'),
+              3000,
+              'success'
+            );
+          }
+        })
+        .catch(function(err) {
+          console.warn('AJAX delete failed, falling back to form submit:', err);
+          form.submit();
+        });
+      });
+    }
+
+    // Toggle Discount Status via AJAX + Toast
+    document.querySelectorAll('.discount-toggle-form').forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = form.querySelector('.btn-toggle-status');
+        if (!btn || btn.disabled) return;
+        var isId = (document.documentElement.lang || 'id') === 'id';
+        var name = form.dataset.name || '';
+        var dot = btn.querySelector('.status-dot');
+        var labelEl = btn.querySelector('.status-label');
+
+        btn.disabled = true;
+        btn.classList.add('opacity-60');
+
+        var formData = new FormData(form);
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Toggle status failed');
+          return res.json();
+        })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-60');
+          var isActive = !!data.is_active;
+          btn.setAttribute('data-active', isActive ? 'true' : 'false');
+
+          if (isActive) {
+            btn.className = 'btn-toggle-status group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition duration-150 active:scale-95 cursor-pointer border bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-800/70';
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full status-dot bg-emerald-500 ring-2 ring-emerald-300/50 dark:ring-emerald-500/30';
+            if (labelEl) labelEl.textContent = isId ? 'Aktif' : 'Active';
+          } else {
+            btn.className = 'btn-toggle-status group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition duration-150 active:scale-95 cursor-pointer border bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:border-slate-700';
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full status-dot bg-slate-400';
+            if (labelEl) labelEl.textContent = isId ? 'Tidak Aktif' : 'Inactive';
+          }
+        })
+        .catch(function(err) {
+          console.warn('AJAX toggle failed, falling back to form submit:', err);
+          btn.disabled = false;
+          btn.classList.remove('opacity-60');
+          form.submit();
+        });
+      });
     });
   </script>
 </body>

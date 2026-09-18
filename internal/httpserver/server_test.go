@@ -1228,6 +1228,87 @@ func TestUsernameLoginAndForgotPasswordHTTP(t *testing.T) {
 	}
 }
 
+func TestCreateTransactionWithBundlingAndDiscount(t *testing.T) {
+	db, handler, service := testServer(t)
+	adminID := addUser(t, db, "bnd-admin@example.com", "superadmin")
+
+	// 1. Insert an active BUNDLE into discounts_and_bundles
+	res, err := db.Exec(`INSERT INTO discounts_and_bundles(code, name, type, value, service_allocation_ratio, product_allocation_ratio, is_active)
+		VALUES ('BND-01', 'Paket Ganteng', 'BUNDLE', 7500000, 0.6, 0.4, 1)`)
+	if err != nil {
+		t.Fatalf("failed to insert bundle: %v", err)
+	}
+	bundleID, _ := res.LastInsertId()
+
+	csrf := "01234567890123456789012345678901"
+	jakarta, _ := time.LoadLocation("Asia/Jakarta")
+	today := time.Now().In(jakarta).Format("2006-01-02")
+
+	// 2. Submit transaction with bundling item
+	form := url.Values{
+		"csrf":        {csrf},
+		"date":        {today},
+		"kind":        {"income"},
+		"category[]":  {"Bundling"},
+		"item_name[]": {"Paket Ganteng"},
+		"amount[]":    {"75000"},
+		"bundle_id[]": {strconv.FormatInt(bundleID, 10)},
+		"note":        {"Test bundling tx"},
+	}
+
+	rec := requestAs(t, handler, service, adminID, http.MethodPost, "/transactions", form)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on bundling transaction, got %d, body: %s", rec.Code, rec.Body.String())
+	}
+
+	// 3. Verify transaction_items record
+	var savedItemType string
+	var savedBundleID int64
+	var savedAmountCents int64
+	err = db.QueryRow(`SELECT item_type, bundle_id, amount_cents FROM transaction_items WHERE category='Bundling' ORDER BY id DESC LIMIT 1`).
+		Scan(&savedItemType, &savedBundleID, &savedAmountCents)
+	if err != nil {
+		t.Fatalf("failed to query saved transaction item: %v", err)
+	}
+	if savedBundleID != bundleID {
+		t.Fatalf("expected bundle_id=%d, got %d", bundleID, savedBundleID)
+	}
+	if savedItemType != "SERVICE" {
+		t.Fatalf("expected item_type='SERVICE', got %s", savedItemType)
+	}
+	if savedAmountCents != 7500000 {
+		t.Fatalf("expected amount_cents=7500000, got %d", savedAmountCents)
+	}
+
+	// 4. Test order-level discount
+	discForm := url.Values{
+		"csrf":                  {csrf},
+		"date":                  {today},
+		"kind":                  {"income"},
+		"category[]":            {"Haircut"},
+		"item_name[]":           {"Haircut Regular"},
+		"amount[]":              {"50000"},
+		"order_discount_amount": {"10000"},
+		"note":                  {"Test order discount tx"},
+	}
+
+	recDisc := requestAs(t, handler, service, adminID, http.MethodPost, "/transactions", discForm)
+	if recDisc.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on discount transaction, got %d, body: %s", recDisc.Code, recDisc.Body.String())
+	}
+
+	var txAmountCents int64
+	err = db.QueryRow(`SELECT amount_cents FROM transactions WHERE note='Test order discount tx' ORDER BY id DESC LIMIT 1`).
+		Scan(&txAmountCents)
+	if err != nil {
+		t.Fatalf("failed to query discount transaction: %v", err)
+	}
+	if txAmountCents != 4000000 { // 50.000 - 10.000 = 40.000 (in cents = 4000000)
+		t.Fatalf("expected net amount_cents=4000000, got %d", txAmountCents)
+	}
+}
+
+
 
 
 

@@ -19,6 +19,7 @@ type Item struct {
 	BarberID         int64
 	DiscountAmount   int64
 	CommissionEarned int64
+	BundleID         int64
 }
 
 type Entry struct {
@@ -98,8 +99,12 @@ func (r Repository) Create(ctx context.Context, e Entry) error {
 			if item.BarberID > 0 {
 				barberID = item.BarberID
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO transaction_items(transaction_id,category,item_name,amount_cents,item_type,barber_id,discount_amount,commission_earned) VALUES(?,?,?,?,?,?,?,?)`,
-				transactionID, cat, itemName, item.AmountCents, itemType, barberID, item.DiscountAmount, item.CommissionEarned); err != nil {
+			var bundleID any = nil
+			if item.BundleID > 0 {
+				bundleID = item.BundleID
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO transaction_items(transaction_id,category,item_name,amount_cents,item_type,barber_id,discount_amount,commission_earned,bundle_id) VALUES(?,?,?,?,?,?,?,?,?)`,
+				transactionID, cat, itemName, item.AmountCents, itemType, barberID, item.DiscountAmount, item.CommissionEarned, bundleID); err != nil {
 				return err
 			}
 		}

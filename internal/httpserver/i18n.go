@@ -10,6 +10,7 @@ func templateFuncs(location *time.Location) map[string]any {
 	return map[string]any{
 		"money": func(cents int64) string { return formatRupiah(cents) },
 		"date":  func(t time.Time) string { return t.In(location).Format("02 Jan 2006 15:04") },
+		"pct":   func(ratio float64) string { return fmt.Sprintf("%.0f%%", ratio*100) },
 		"sub":   func(a, b int64) int64 { return a - b },
 		"add": func(a, b any) int64 {
 			var aInt, bInt int64
@@ -123,9 +124,11 @@ func translate(language, key string) string {
 		"boDiscTypePct": "Percentage (%)", "boDiscTypeFixed": "Fixed Amount (Rp)", "boDiscTypeBundle": "Bundle Package",
 		"boDiscActive": "Active", "boDiscInactive": "Inactive",
 		"boDiscServiceRatio": "Service Allocation Ratio", "boDiscProductRatio": "Product Allocation Ratio",
+		"boDiscServiceShort": "Service", "boDiscProductShort": "Product", "boDiscBundleAllocation": "Bundle Allocation",
 		"boDiscSave": "💾 Save Discount", "boDiscList": "Discount & Bundling List",
 		"boDiscTypePctLabel": "Percentage", "boDiscTypeFixedLabel": "Fixed", "boDiscTypeBundleLabel": "Bundle",
-		"boDiscActionDelete": "🗑️ Delete", "boDiscConfirmDelete": "Delete this discount?",
+		"boDiscActionDelete": "Delete", "boDiscConfirmDelete": "Delete this discount?",
+		"boDiscToggleStatus": "Click to toggle active status",
 		"boDiscEmpty": "No discounts or bundles yet.",
 		// Products form
 		"boProdName": "Item Name", "boProdCategory": "Category", "boProdType": "Item Type",
@@ -159,6 +162,12 @@ func translate(language, key string) string {
 		"credentialChangeDetails": "Credential Change Details", "credentialChangeNotice": "Changes will be saved and apply immediately to operations and profit sharing.",
 		"yesSaveChanges": "Yes, Save Changes", "saving": "Saving...", "accountShort": "Acc",
 		"dataSavedSuccess": "Data Saved Successfully", "dataSavedSuccessMsg": "Employee data changes have been successfully saved.",
+		"configSavedSuccess": "Configuration Saved Successfully", "configSavedSuccessMsg": "Profit sharing configuration has been saved successfully.",
+		"discSavedSuccess": "Discount Saved Successfully", "discSavedSuccessMsg": "Discount has been added to the catalog.",
+		"discDeletedSuccess": "Discount Deleted Successfully", "discDeletedSuccessMsg": "Discount has been successfully removed.",
+		"confirmDeleteDisc": "Delete Discount", "confirmDeleteDiscDesc": "Are you sure you want to delete this discount or bundling package?",
+		"yesDeleteDiscount": "Yes, Delete Discount", "deleting": "Deleting...",
+		"noDiscount": "No Discount (Normal Price)", "subtotal": "Subtotal", "discount": "Discount",
 	}
 	if language == "id" {
 		id := map[string]string{
@@ -226,9 +235,11 @@ func translate(language, key string) string {
 			"boDiscTypePct": "Persentase (%)", "boDiscTypeFixed": "Nominal Tetap (Rp)", "boDiscTypeBundle": "Paket Bundling",
 			"boDiscActive": "Aktif", "boDiscInactive": "Tidak Aktif",
 			"boDiscServiceRatio": "Rasio Alokasi Jasa", "boDiscProductRatio": "Rasio Alokasi Produk",
+			"boDiscServiceShort": "Jasa", "boDiscProductShort": "Produk", "boDiscBundleAllocation": "Alokasi Bundling",
 			"boDiscSave": "💾 Simpan Diskon", "boDiscList": "Daftar Diskon & Bundling",
 			"boDiscTypePctLabel": "Persentase", "boDiscTypeFixedLabel": "Nominal", "boDiscTypeBundleLabel": "Bundling",
-			"boDiscActionDelete": "🗑️ Hapus", "boDiscConfirmDelete": "Hapus diskon ini?",
+			"boDiscActionDelete": "Hapus", "boDiscConfirmDelete": "Hapus diskon ini?",
+			"boDiscToggleStatus": "Klik untuk ubah status aktif/tidak aktif",
 			"boDiscEmpty": "Belum ada diskon atau bundling.",
 			// Products form (ID)
 			"boProdName": "Nama Item", "boProdCategory": "Kategori", "boProdType": "Tipe Item",
@@ -263,6 +274,12 @@ func translate(language, key string) string {
 			"credentialChangeDetails": "Detail Perubahan Kredensial", "credentialChangeNotice": "Perubahan akan disimpan dan langsung berlaku untuk operasional serta bagi hasil.",
 			"yesSaveChanges": "Ya, Simpan Perubahan", "saving": "Menyimpan...", "accountShort": "Rek",
 			"dataSavedSuccess": "Data Berhasil Disimpan", "dataSavedSuccessMsg": "Perubahan data karyawan telah berhasil disimpan.",
+			"configSavedSuccess": "Konfigurasi Berhasil Disimpan", "configSavedSuccessMsg": "Pengaturan persentase bagi hasil berhasil diperbarui.",
+			"discSavedSuccess": "Diskon Berhasil Disimpan", "discSavedSuccessMsg": "Diskon telah berhasil ditambahkan ke katalog.",
+			"discDeletedSuccess": "Diskon Berhasil Dihapus", "discDeletedSuccessMsg": "Diskon telah berhasil dihapus dari sistem.",
+			"confirmDeleteDisc": "Hapus Diskon", "confirmDeleteDiscDesc": "Apakah Anda yakin ingin menghapus diskon atau paket bundling ini?",
+			"yesDeleteDiscount": "Ya, Hapus Diskon", "deleting": "Menghapus...",
+			"noDiscount": "Tanpa Diskon (Harga Normal)", "subtotal": "Subtotal", "discount": "Diskon",
 		}
 		if value, ok := id[key]; ok {
 			return value

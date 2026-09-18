@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -231,11 +233,21 @@ func (s *Server) backofficeSaveProfitSharing(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := s.backoffice.SaveProfitSharingConfig(r.Context(), branch.ID, periodMonth, ownerPct, empRules, u.ID); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to save: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "failed to save: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/backoffice/profit-sharing?branch=%s&period=%s", branchCode, periodMonth), http.StatusSeeOther)
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/backoffice/profit-sharing?branch=%s&period=%s&saved=config", branchCode, periodMonth), http.StatusSeeOther)
 }
 
 func (s *Server) backofficeDiscounts(w http.ResponseWriter, r *http.Request) {
@@ -277,9 +289,23 @@ func (s *Server) backofficeSaveDiscount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	val, _ := strconv.ParseInt(r.FormValue("value"), 10, 64)
+	if (d.Type == "FIXED_AMOUNT" || d.Type == "BUNDLE") && val < 1000000 {
+		val = val * 100
+	}
 	d.Value = val
-	d.ServiceAllocationRatio, _ = strconv.ParseFloat(r.FormValue("service_ratio"), 64)
-	d.ProductAllocationRatio, _ = strconv.ParseFloat(r.FormValue("product_ratio"), 64)
+	if d.Type != "BUNDLE" {
+		d.ServiceAllocationRatio = 1.0
+		d.ProductAllocationRatio = 0.0
+	} else {
+		srvRatio, _ := strconv.ParseFloat(r.FormValue("service_ratio"), 64)
+		if srvRatio < 0 {
+			srvRatio = 0
+		} else if srvRatio > 1.0 {
+			srvRatio = 1.0
+		}
+		d.ServiceAllocationRatio = srvRatio
+		d.ProductAllocationRatio = math.Round((1.0-srvRatio)*100) / 100
+	}
 	d.IsActive = r.FormValue("is_active") == "1" || r.FormValue("is_active") == "on"
 
 	if idStr := r.FormValue("id"); idStr != "" {
@@ -287,10 +313,21 @@ func (s *Server) backofficeSaveDiscount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.backoffice.SaveDiscount(r.Context(), d); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to save discount: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "failed to save discount: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/backoffice/discounts", http.StatusSeeOther)
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true, "name": d.Name, "code": d.Code})
+		return
+	}
+
+	http.Redirect(w, r, "/backoffice/discounts?saved_disc="+url.QueryEscape(d.Name), http.StatusSeeOther)
 }
 
 func (s *Server) backofficeDeleteDiscount(w http.ResponseWriter, r *http.Request) {
@@ -304,9 +341,49 @@ func (s *Server) backofficeDeleteDiscount(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := s.backoffice.DeleteDiscount(r.Context(), id); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to delete discount", http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "failed to delete discount", http.StatusInternalServerError)
 		return
 	}
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+
+	http.Redirect(w, r, "/backoffice/discounts?deleted_disc=true", http.StatusSeeOther)
+}
+
+func (s *Server) backofficeToggleDiscount(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid discount ID", http.StatusBadRequest)
+		return
+	}
+	newStatus, err := s.backoffice.ToggleDiscountStatus(r.Context(), id)
+	if err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to toggle discount status", http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "failed to toggle discount status", http.StatusInternalServerError)
+		return
+	}
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true, "is_active": newStatus})
+		return
+	}
+
 	http.Redirect(w, r, "/backoffice/discounts", http.StatusSeeOther)
 }
 

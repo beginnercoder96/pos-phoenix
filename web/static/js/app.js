@@ -107,7 +107,52 @@
         params.delete("saved");
         var newSearch = params.toString() ? "?" + params.toString() : "";
         window.history.replaceState({}, document.title, window.location.pathname + newSearch);
-        window.showGlobalToast("Data Berhasil Disimpan", 'Perubahan data karyawan "' + decodeURIComponent(savedParam) + '" telah berhasil disimpan.', 3000, 'success');
+        var isId = (document.documentElement.lang || "id") === "id";
+        if (savedParam === "config") {
+          window.showGlobalToast(
+            isId ? "Konfigurasi Berhasil Disimpan" : "Configuration Saved Successfully",
+            isId ? "Pengaturan persentase bagi hasil berhasil diperbarui." : "Profit sharing configuration has been saved successfully.",
+            3000,
+            "success"
+          );
+        } else {
+          window.showGlobalToast(
+            isId ? "Data Berhasil Disimpan" : "Data Saved Successfully",
+            isId ? ('Perubahan data karyawan "' + decodeURIComponent(savedParam) + '" telah berhasil disimpan.') : ('Employee data changes for "' + decodeURIComponent(savedParam) + '" have been saved successfully.'),
+            3000,
+            "success"
+          );
+        }
+        return;
+      }
+
+      var savedDisc = params.get("saved_disc");
+      if (savedDisc) {
+        params.delete("saved_disc");
+        var newSearch = params.toString() ? "?" + params.toString() : "";
+        window.history.replaceState({}, document.title, window.location.pathname + newSearch);
+        var isId = (document.documentElement.lang || "id") === "id";
+        window.showGlobalToast(
+          isId ? "Diskon Berhasil Disimpan" : "Discount Saved Successfully",
+          isId ? ('Diskon "' + decodeURIComponent(savedDisc) + '" telah berhasil ditambahkan ke katalog.') : ('Discount "' + decodeURIComponent(savedDisc) + '" has been added to the catalog.'),
+          3000,
+          "success"
+        );
+        return;
+      }
+
+      var deletedDisc = params.get("deleted_disc");
+      if (deletedDisc) {
+        params.delete("deleted_disc");
+        var newSearch = params.toString() ? "?" + params.toString() : "";
+        window.history.replaceState({}, document.title, window.location.pathname + newSearch);
+        var isId = (document.documentElement.lang || "id") === "id";
+        window.showGlobalToast(
+          isId ? "Diskon Berhasil Dihapus" : "Discount Deleted Successfully",
+          isId ? "Diskon telah berhasil dihapus dari sistem." : "Discount has been successfully removed.",
+          3000,
+          "success"
+        );
         return;
       }
 
@@ -233,6 +278,15 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
   var container = document.getElementById("category-rows-container");
   var totalDisplay = document.getElementById("transaction-total-display");
   var kindSelect = form.querySelector('select[name="kind"]');
+  var discountSection = document.getElementById("transaction-discount-section");
+  var discountSelect = document.getElementById("transaction-discount-select");
+  var discountOrderAmountInput = document.getElementById("order-discount-amount-input");
+  var discountBadge = document.getElementById("discount-applied-badge");
+  var summarySubtotalRow = document.getElementById("summary-subtotal-row");
+  var summaryDiscountRow = document.getElementById("summary-discount-row");
+  var summaryDiscountLabel = document.getElementById("summary-discount-label");
+  var subtotalDisplay = document.getElementById("transaction-subtotal-display");
+  var discountDisplay = document.getElementById("transaction-discount-display");
 
   function formatIDR(amount) {
     var negative = amount < 0;
@@ -252,17 +306,79 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
 
   function updateTotal() {
     if (!totalDisplay) return;
-    var total = 0;
+    var subtotal = 0;
     if (container) {
       container.querySelectorAll(".amount-input").forEach(function (input) {
         var rawVal = input.value.replace(/[^0-9.]/g, "");
         var val = parseFloat(rawVal);
         if (!isNaN(val) && val > 0) {
-          total += val;
+          subtotal += val;
         }
       });
     }
-    totalDisplay.textContent = formatIDR(total);
+
+    var kind = kindSelect ? kindSelect.value : "income";
+    var discountAmt = 0;
+    var promoName = "";
+
+    if (kind === "income") {
+      if (discountSection) discountSection.classList.remove("hidden");
+      if (discountSelect && discountSelect.value) {
+        var opt = discountSelect.options[discountSelect.selectedIndex];
+        if (opt) {
+          var dType = opt.dataset.type;
+          var dVal = parseFloat(opt.dataset.value) || 0;
+          promoName = opt.dataset.name || "";
+          if (dType === "PERCENTAGE") {
+            discountAmt = Math.round(subtotal * dVal / 100);
+          } else if (dType === "FIXED_AMOUNT") {
+            var fixedUnits = (dVal >= 100000) ? Math.round(dVal / 100) : dVal;
+            discountAmt = Math.min(subtotal, fixedUnits);
+          }
+        }
+      }
+    } else {
+      if (discountSection) discountSection.classList.add("hidden");
+      if (discountSelect) discountSelect.value = "";
+    }
+
+    if (discountOrderAmountInput) {
+      discountOrderAmountInput.value = discountAmt;
+    }
+
+    var netTotal = Math.max(0, subtotal - discountAmt);
+
+    if (subtotalDisplay) {
+      subtotalDisplay.textContent = formatIDR(subtotal);
+    }
+    if (discountDisplay) {
+      discountDisplay.textContent = "-" + formatIDR(discountAmt);
+    }
+    if (discountBadge) {
+      if (discountAmt > 0) {
+        discountBadge.textContent = "-" + formatIDR(discountAmt);
+        discountBadge.classList.remove("hidden");
+      } else {
+        discountBadge.classList.add("hidden");
+      }
+    }
+
+    var isId = (document.documentElement.lang === "id");
+    if (summaryDiscountLabel) {
+      summaryDiscountLabel.textContent = (isId ? "Diskon" : "Discount") + (promoName ? " (" + promoName + "):" : ":");
+    }
+
+    if (summarySubtotalRow && summaryDiscountRow) {
+      if (discountAmt > 0) {
+        summarySubtotalRow.classList.remove("hidden");
+        summaryDiscountRow.classList.remove("hidden");
+      } else {
+        summarySubtotalRow.classList.add("hidden");
+        summaryDiscountRow.classList.add("hidden");
+      }
+    }
+
+    totalDisplay.textContent = formatIDR(netTotal);
   }
 
   function findCategory(catName) {
@@ -272,6 +388,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
       var cName = catalog[i].name.toLowerCase();
       if (cName === lower) return catalog[i];
       // Flexible matching (e.g. "haircut" matches "haircut services")
+      if (lower.indexOf("bundle") !== -1 && cName.indexOf("bundle") !== -1) return catalog[i];
       if (lower.indexOf("haircut") !== -1 && cName.indexOf("haircut") !== -1) return catalog[i];
       if (lower.indexOf("add on") !== -1 && cName.indexOf("add on") !== -1) return catalog[i];
       if (lower.indexOf("chemical") !== -1 && cName.indexOf("chemical") !== -1) return catalog[i];
@@ -325,6 +442,9 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
         opt.value = item.name;
         opt.textContent = item.name + (item.amount_label ? " (" + item.amount_label + ")" : "");
         opt.dataset.amount = item.amount;
+        if (item.bundle_id) {
+          opt.dataset.bundleId = item.bundle_id;
+        }
         if (selectedItemName && item.name.toLowerCase() === selectedItemName.toLowerCase()) {
           opt.selected = true;
         }
@@ -343,6 +463,10 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
         var it = foundCat.items[0];
         if (it.amount > 0 && amountInput) {
           amountInput.value = it.amount;
+        }
+        var bundleInput = row.querySelector(".bundle-id-input");
+        if (bundleInput) {
+          bundleInput.value = it.bundle_id || "0";
         }
       }
     } else if (catVal) {
@@ -374,6 +498,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
         '<select name="item_name[]" class="field h-11 min-h-11 item-select">' +
           '<option value="">-- ' + (isId ? 'Pilih layanan / item' : 'Select service / item') + ' --</option>' +
         '</select>' +
+        '<input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">' +
       '</div>' +
       '<div>' +
         '<label class="sr-only">' + (isId ? 'Jumlah' : 'Amount') + '</label>' +
@@ -396,8 +521,10 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
       if (row) {
         populateItems(row);
         var amountInput = row.querySelector(".amount-input");
-        if (!e.target.value && amountInput) {
-          amountInput.value = "";
+        var bundleInput = row.querySelector(".bundle-id-input");
+        if (!e.target.value) {
+          if (amountInput) amountInput.value = "";
+          if (bundleInput) bundleInput.value = "0";
         }
         updateTotal();
       }
@@ -408,16 +535,23 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
         e.target.setCustomValidity("");
         var opt = e.target.options[e.target.selectedIndex];
         var amountInput = row.querySelector(".amount-input");
+        var bundleInput = row.querySelector(".bundle-id-input");
         if (opt && opt.value) {
           if (opt.dataset && opt.dataset.amount && parseFloat(opt.dataset.amount) > 0) {
             if (amountInput) {
               amountInput.value = opt.dataset.amount;
             }
           }
+          if (bundleInput) {
+            bundleInput.value = (opt.dataset && opt.dataset.bundleId) ? opt.dataset.bundleId : "0";
+          }
         } else {
           // User chose "-- Pilih layanan / item --", clear the amount!
           if (amountInput) {
             amountInput.value = "";
+          }
+          if (bundleInput) {
+            bundleInput.value = "0";
           }
         }
         updateTotal();
@@ -435,6 +569,13 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
       updateTotal();
     }
   });
+
+  // Listener for Discount Dropdown
+  if (discountSelect) {
+    discountSelect.addEventListener("change", function () {
+      updateTotal();
+    });
+  }
 
   // Delegated input event for amount changes
   document.addEventListener("input", function (e) {
@@ -458,9 +599,11 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
           var catSel = row.querySelector(".category-select");
           var itemSel = row.querySelector(".item-select");
           var amtInput = row.querySelector(".amount-input");
+          var bundleInput = row.querySelector(".bundle-id-input");
           if (catSel) catSel.value = "";
           if (itemSel) itemSel.innerHTML = '<option value="">-- Pilih layanan / item --</option>';
           if (amtInput) amtInput.value = "";
+          if (bundleInput) bundleInput.value = "0";
         }
         updateTotal();
       }
@@ -1356,6 +1499,12 @@ window.handleChartPeriodChange = function (select) {
     var totalDisplay = document.getElementById("transaction-total-display");
     var totalFormatted = (totalDisplay && totalDisplay.textContent.trim()) || getFormatIDR(calculatedTotal);
 
+    var discountOrderInput = document.getElementById("order-discount-amount-input");
+    var discountVal = discountOrderInput ? (parseFloat(discountOrderInput.value) || 0) : 0;
+    var discountSelectEl = document.getElementById("transaction-discount-select");
+    var selectedDiscountOpt = discountSelectEl && discountSelectEl.selectedIndex > 0 ? discountSelectEl.options[discountSelectEl.selectedIndex] : null;
+    var discountNameStr = selectedDiscountOpt ? (selectedDiscountOpt.dataset.name || selectedDiscountOpt.textContent.trim()) : "";
+
     var existing = document.getElementById("pos-save-tx-modal");
     if (existing) existing.remove();
 
@@ -1410,6 +1559,12 @@ window.handleChartPeriodChange = function (select) {
         '<div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-center">' +
           '<span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">' + (isId ? "Total Pembayaran" : "Total Amount") + '</span>' +
           '<p class="text-2xl sm:text-3xl font-black ' + (isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') + ' mt-1 tracking-tight">' + totalFormatted + '</p>' +
+          (discountVal > 0 ? (
+            '<div class="mt-2.5 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs px-1">' +
+              '<span class="text-slate-500 dark:text-slate-400">' + (isId ? "Subtotal: " : "Subtotal: ") + '<b class="text-slate-700 dark:text-slate-300">' + getFormatIDR(calculatedTotal) + '</b></span>' +
+              '<span class="font-bold text-emerald-600 dark:text-emerald-400">-' + getFormatIDR(discountVal) + '</span>' +
+            '</div>'
+          ) : '') +
           '<div class="mt-2 flex justify-center">' +
             '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ' + kindBadgeClass + '">' + kindLabel + '</span>' +
           '</div>' +
@@ -1462,6 +1617,9 @@ window.handleChartPeriodChange = function (select) {
         var txDetails = {
           id: "",
           amount: totalFormatted,
+          subtotal: discountVal > 0 ? getFormatIDR(calculatedTotal) : "",
+          discount: discountVal > 0 ? getFormatIDR(discountVal) : "",
+          discountName: discountNameStr,
           kind: isIncome ? "income" : "expense",
           items: itemsList.map(function (it) {
             return { name: it.title, amount: it.amountStr };
@@ -1471,20 +1629,21 @@ window.handleChartPeriodChange = function (select) {
           date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) + " " +
                 new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
         };
-        sessionStorage.setItem("pendingTxPrintPrompt", JSON.stringify(txDetails));
         if (shouldPrint) {
+          sessionStorage.setItem("pendingTxPrintPrompt", JSON.stringify(txDetails));
           sessionStorage.setItem("autoOpenThermalPrint", "true");
+        } else {
+          sessionStorage.removeItem("pendingTxPrintPrompt");
+          sessionStorage.removeItem("autoOpenThermalPrint");
+          sessionStorage.setItem("pos_active_toast", JSON.stringify({
+            title: isId ? "Transaksi Berhasil Disimpan" : "Transaction Saved",
+            message: isId ? "Transaksi sebesar " + totalFormatted + " telah berhasil dicatat." : "Transaction of " + totalFormatted + " has been successfully recorded.",
+            startedAt: Date.now(),
+            duration: 3500,
+            type: "success"
+          }));
         }
       } catch (e) {}
-
-      if (window.showGlobalToast) {
-        window.showGlobalToast(
-          isId ? "Transaksi Berhasil Disimpan" : "Transaction Saved",
-          isId ? "Transaksi sebesar " + totalFormatted + " telah berhasil dicatat." : "Transaction of " + totalFormatted + " has been successfully recorded.",
-          3000,
-          "success"
-        );
-      }
 
       closeModal();
       if (typeof HTMLFormElement.prototype.submit === "function") {
@@ -1590,7 +1749,7 @@ window.handleChartPeriodChange = function (select) {
             isId ? "Transaksi Dibatalkan" : "Transaction Reversed",
             isId ? "Transaksi #" + (txId ? txId : "") + " telah berhasil dibatalkan." : "Transaction #" + (txId ? txId : "") + " has been successfully reversed.",
             3000,
-            "warning"
+            "success"
           );
         }
 
@@ -1808,6 +1967,11 @@ window.handleChartPeriodChange = function (select) {
       }
 
       lines.push("--------------------------------");
+      if (txData.discount && txData.subtotal) {
+        lines.push(this.formatLine32(isId ? "Subtotal" : "Subtotal", txData.subtotal));
+        var discLabel = (isId ? "Diskon" : "Discount") + (txData.discountName ? " (" + txData.discountName + ")" : "");
+        lines.push(this.formatLine32(discLabel, "-" + txData.discount));
+      }
       lines.push(this.formatLine32("TOTAL", txData.amount || "-"));
       if (txData.note) {
         lines.push(this.formatLine32(isId ? "Catatan" : "Note", txData.note));
@@ -1853,6 +2017,19 @@ window.handleChartPeriodChange = function (select) {
         noteHtml = '<div class="text-[11px] text-slate-700 italic py-1 text-left break-words">' +
           (isId ? "Catatan: " : "Note: ") + this.escapeHtml(txData.note) +
         '</div>';
+      }
+
+      var discountBreakdownHtml = "";
+      if (txData.discount && txData.subtotal) {
+        discountBreakdownHtml =
+          '<div class="flex justify-between items-center text-[11px] w-full py-0.5" style="color: #4b5563 !important;">' +
+            '<span>' + (isId ? "Subtotal" : "Subtotal") + '</span>' +
+            '<span class="text-right">' + this.escapeHtml(txData.subtotal) + '</span>' +
+          '</div>' +
+          '<div class="flex justify-between items-center text-[11px] w-full py-0.5 font-bold" style="color: #059669 !important;">' +
+            '<span>' + (isId ? "Diskon" : "Discount") + (txData.discountName ? " (" + this.escapeHtml(txData.discountName) + ")" : "") + '</span>' +
+            '<span class="text-right">-' + this.escapeHtml(txData.discount) + '</span>' +
+          '</div>';
       }
 
       var html =
@@ -1903,6 +2080,7 @@ window.handleChartPeriodChange = function (select) {
 
           '<!-- Total Divider -->' +
           '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
+          discountBreakdownHtml +
 
           '<!-- Total (Flush Left & Right) -->' +
           '<div class="flex justify-between items-center text-xs font-black w-full py-1" style="color: #000000 !important;">' +

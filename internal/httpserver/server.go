@@ -79,6 +79,8 @@ type pageData struct {
 	Catalog                     []CatalogCategory
 	CatalogJSON                 template.HTML
 	CatalogJS                   template.JS
+	ActiveDiscounts             []backoffice.DiscountBundle
+	ActiveDiscountsJSON         template.HTML
 	Greeting                    string
 	RedirectURL                 string
 	Branches                    []backoffice.Branch
@@ -137,6 +139,7 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	mux.HandleFunc("GET /backoffice/discounts", s.withUser(s.adminOnly(s.backofficeDiscounts)))
 	mux.HandleFunc("POST /backoffice/discounts", s.withUser(s.adminOnly(s.backofficeSaveDiscount)))
 	mux.HandleFunc("POST /backoffice/discounts/{id}/delete", s.withUser(s.adminOnly(s.backofficeDeleteDiscount)))
+	mux.HandleFunc("POST /backoffice/discounts/{id}/toggle", s.withUser(s.adminOnly(s.backofficeToggleDiscount)))
 	mux.HandleFunc("GET /backoffice/products", s.withUser(s.adminOnly(s.backofficeProducts)))
 	mux.HandleFunc("POST /backoffice/products", s.withUser(s.adminOnly(s.backofficeSaveProduct)))
 	mux.HandleFunc("GET /backoffice/payroll", s.withUser(s.adminOnly(s.backofficePayroll)))
@@ -424,6 +427,21 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 
 	currentDateTime := formatCurrentDateTime(now, s.location, pref.Language)
 
+	allDiscounts, _ := s.backoffice.ListDiscounts(r.Context())
+	var activeDiscounts []backoffice.DiscountBundle
+	var activeBundles []backoffice.DiscountBundle
+	for _, d := range allDiscounts {
+		if d.IsActive {
+			if d.Type == "BUNDLE" {
+				activeBundles = append(activeBundles, d)
+			} else {
+				activeDiscounts = append(activeDiscounts, d)
+			}
+		}
+	}
+	dynamicCatalog := BuildCatalog(activeBundles)
+	activeDiscJSON, _ := json.Marshal(activeDiscounts)
+
 	data := localizedData(r, pageData{
 		User: u, Entries: result.Entries, Summary: result.Summary, Trend: trend, CSRF: s.csrf(w, r),
 		Today: now.Format("2006-01-02"), From: from.In(s.location).Format("2006-01-02"),
@@ -436,7 +454,11 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		CalendarMonthLimit: calDaysInMonth,
 		CalendarBlanks:     calBlanks,
 		CalendarDays:       calDays,
-		Catalog: DefaultCatalog, CatalogJSON: CatalogJSON(), CatalogJS: CatalogJS(),
+		Catalog:             dynamicCatalog,
+		CatalogJSON:         DynamicCatalogJSON(dynamicCatalog),
+		CatalogJS:           DynamicCatalogJS(dynamicCatalog),
+		ActiveDiscounts:     activeDiscounts,
+		ActiveDiscountsJSON: template.HTML(activeDiscJSON),
 		Greeting: greeting,
 	})
 	if result.Page > 1 {
@@ -578,6 +600,10 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 	if len(barberIDs) == 0 {
 		barberIDs = r.PostForm["barber_id[]"]
 	}
+	bundleIDs := r.PostForm["bundle_id"]
+	if len(bundleIDs) == 0 {
+		bundleIDs = r.PostForm["bundle_id[]"]
+	}
 	discounts := r.PostForm["discount_amount"]
 	if len(discounts) == 0 {
 		discounts = r.PostForm["discount_amount[]"]
@@ -623,6 +649,13 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 			if i < len(barberIDs) {
 				bID, _ = strconv.ParseInt(barberIDs[i], 10, 64)
 			}
+			var bndID int64
+			if i < len(bundleIDs) {
+				bndID, _ = strconv.ParseInt(bundleIDs[i], 10, 64)
+			}
+			if itType == "" {
+				itType = "SERVICE"
+			}
 			var discAmt int64
 			if i < len(discounts) {
 				discAmt, _ = transactionstore.ParseCents(discounts[i])
@@ -639,6 +672,7 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 				BarberID:         bID,
 				DiscountAmount:   discAmt,
 				CommissionEarned: commEarned,
+				BundleID:         bndID,
 			})
 			totalCents += cents
 			if !seenCat[cat] {
@@ -680,11 +714,43 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 		branchID = u.BranchID
 	}
 
+	var totalDiscountCents int64
+	for _, it := range items {
+		totalDiscountCents += it.DiscountAmount
+	}
+	if orderDiscStr := r.FormValue("order_discount_amount"); orderDiscStr != "" && totalDiscountCents == 0 {
+		if orderDiscAmt, err := transactionstore.ParseCents(orderDiscStr); err == nil && orderDiscAmt > 0 {
+			if len(items) > 0 && totalCents > 0 {
+				rem := orderDiscAmt
+				for idx := range items {
+					share := (items[idx].AmountCents * orderDiscAmt) / totalCents
+					if share > rem {
+						share = rem
+					}
+					items[idx].DiscountAmount = share
+					rem -= share
+				}
+				if rem > 0 {
+					items[0].DiscountAmount += rem
+				}
+				totalDiscountCents = orderDiscAmt
+			}
+		}
+	}
+
+	finalAmountCents := totalCents
+	if kind == "income" && totalDiscountCents > 0 {
+		finalAmountCents = totalCents - totalDiscountCents
+		if finalAmountCents <= 0 {
+			finalAmountCents = 1
+		}
+	}
+
 	err = s.transactions.Create(r.Context(), transactionstore.Entry{
 		OperatorID:  u.ID,
 		BranchID:    branchID,
 		Kind:        kind,
-		AmountCents: totalCents,
+		AmountCents: finalAmountCents,
 		Category:    joinedCategory,
 		Note:        strings.TrimSpace(r.FormValue("note")),
 		OccurredAt:  s.now().UTC(),

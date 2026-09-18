@@ -2,13 +2,18 @@ package httpserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
+	"strconv"
+
+	"github.com/mekari/pos-phoenix/internal/backoffice"
 )
 
 type CatalogItem struct {
 	Name        string `json:"name"`
 	Amount      int64  `json:"amount"` // in whole units (e.g. 40000)
 	AmountLabel string `json:"amount_label"`
+	BundleID    int64  `json:"bundle_id,omitempty"`
 }
 
 type CatalogCategory struct {
@@ -85,5 +90,67 @@ func CatalogJSON() template.HTML {
 
 func CatalogJS() template.JS {
 	data, _ := json.Marshal(DefaultCatalog)
+	return template.JS(data)
+}
+
+func formatAmountLabel(amount int64) string {
+	if amount >= 1000 {
+		if amount%1000 == 0 {
+			return fmt.Sprintf("%dK", amount/1000)
+		}
+		return fmt.Sprintf("%.1fK", float64(amount)/1000)
+	}
+	return strconv.FormatInt(amount, 10)
+}
+
+func BuildCatalog(bundles []backoffice.DiscountBundle) []CatalogCategory {
+	cats := make([]CatalogCategory, 0, len(DefaultCatalog)+1)
+	hasBundles := false
+	var bundleCat CatalogCategory
+	if len(bundles) > 0 {
+		bundleCat = CatalogCategory{
+			Name: "Bundling",
+			Kind: "income",
+		}
+		for _, b := range bundles {
+			if !b.IsActive || b.Type != "BUNDLE" {
+				continue
+			}
+			amt := b.Value / 100
+			if amt <= 0 {
+				amt = b.Value
+			}
+			bundleCat.Items = append(bundleCat.Items, CatalogItem{
+				Name:        b.Name,
+				Amount:      amt,
+				AmountLabel: formatAmountLabel(amt),
+				BundleID:    b.ID,
+			})
+		}
+		if len(bundleCat.Items) > 0 {
+			hasBundles = true
+		}
+	}
+
+	for _, c := range DefaultCatalog {
+		if c.Kind == "expense" && hasBundles {
+			cats = append(cats, bundleCat)
+			hasBundles = false
+		}
+		cats = append(cats, c)
+	}
+	if hasBundles {
+		cats = append(cats, bundleCat)
+	}
+	return cats
+}
+
+func DynamicCatalogJSON(cats []CatalogCategory) template.HTML {
+	data, _ := json.Marshal(cats)
+	return template.HTML(data)
+}
+
+func DynamicCatalogJS(cats []CatalogCategory) template.JS {
+	data, _ := json.Marshal(cats)
 	return template.JS(data)
 }

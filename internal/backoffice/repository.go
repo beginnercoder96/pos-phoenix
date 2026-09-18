@@ -491,6 +491,18 @@ func (r *Repository) DeleteDiscount(ctx context.Context, id int64) error {
 	return err
 }
 
+// ToggleDiscountStatus toggles the is_active status of a discount/bundle and returns the new status.
+func (r *Repository) ToggleDiscountStatus(ctx context.Context, id int64) (bool, error) {
+	var current bool
+	err := r.DB.QueryRowContext(ctx, `SELECT is_active FROM discounts_and_bundles WHERE id=?`, id).Scan(&current)
+	if err != nil {
+		return false, err
+	}
+	next := !current
+	_, err = r.DB.ExecContext(ctx, `UPDATE discounts_and_bundles SET is_active=? WHERE id=?`, next, id)
+	return next, err
+}
+
 // GetEmployeeProductCommissions returns product commissions for employees in a branch for a month.
 func (r *Repository) GetEmployeeProductCommissions(ctx context.Context, branchID int64, periodMonth string) (map[int64]int64, error) {
 	startDate := periodMonth + "-01"
