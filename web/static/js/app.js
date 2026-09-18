@@ -248,6 +248,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
     }
     return (negative ? "-" : "") + "Rp " + (res || "0") + ",00";
   }
+  window.formatIDR = formatIDR;
 
   function updateTotal() {
     if (!totalDisplay) return;
@@ -1284,4 +1285,332 @@ window.handleChartPeriodChange = function (select) {
   } else {
     initLogoutInterception();
   }
+})();
+
+// Global Transaction Confirmation Modals (Save & Reverse)
+(function () {
+  var activeSaveTxForm = null;
+  var activeReverseTxForm = null;
+
+  function getFormatIDR(amt) {
+    if (typeof window.formatIDR === "function") return window.formatIDR(amt);
+    return "Rp " + amt.toLocaleString("id-ID") + ",00";
+  }
+
+  // --- 1. MODAL SIMPAN TRANSAKSI ---
+  function showSaveTxModal(form) {
+    var isId = (document.documentElement.lang || "id") === "id";
+    activeSaveTxForm = form;
+
+    var kindSelect = form.querySelector('select[name="kind"]');
+    var isIncome = !kindSelect || kindSelect.value === "income";
+    var kindLabel = isIncome ? (isId ? "Pemasukan" : "Income") : (isId ? "Pengeluaran" : "Expense");
+    var kindBadgeClass = isIncome 
+      ? "bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-400"
+      : "bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400";
+
+    var noteInput = form.querySelector('[name="note"]');
+    var noteVal = (noteInput && noteInput.value.trim()) || "";
+
+    // Calculate total & list of items
+    var container = document.getElementById("category-rows-container");
+    var itemsList = [];
+    var calculatedTotal = 0;
+
+    if (container) {
+      container.querySelectorAll(".category-row").forEach(function (row) {
+        var catSel = row.querySelector(".category-select");
+        var itemSel = row.querySelector(".item-select");
+        var amtInput = row.querySelector(".amount-input");
+
+        var catVal = catSel ? catSel.value.trim() : "";
+        var itemVal = itemSel && itemSel.value ? itemSel.value.trim() : "";
+        var rawVal = amtInput ? amtInput.value.replace(/[^0-9.]/g, "") : "";
+        var amt = parseFloat(rawVal) || 0;
+
+        if (catVal || itemVal || amt > 0) {
+          calculatedTotal += amt;
+          var title = catVal + (itemVal ? ": " + itemVal : "");
+          if (!title) title = isId ? "Item Layanan" : "Service Item";
+          itemsList.push({ title: title, amountStr: getFormatIDR(amt) });
+        }
+      });
+    }
+
+    var totalDisplay = document.getElementById("transaction-total-display");
+    var totalFormatted = (totalDisplay && totalDisplay.textContent.trim()) || getFormatIDR(calculatedTotal);
+
+    var existing = document.getElementById("pos-save-tx-modal");
+    if (existing) existing.remove();
+
+    var modal = document.createElement("div");
+    modal.id = "pos-save-tx-modal";
+    modal.className = "fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.zIndex = "999999";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.background = "rgba(10, 16, 35, 0.68)";
+    modal.style.backdropFilter = "blur(8px)";
+    modal.style.webkitBackdropFilter = "blur(8px)";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    var itemsHtml = "";
+    if (itemsList.length > 0) {
+      itemsHtml = '<div class="mt-4 max-h-40 overflow-y-auto space-y-1.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-3 text-xs">';
+      itemsList.forEach(function (it) {
+        itemsHtml += '<div class="flex items-center justify-between gap-2">' +
+          '<span class="truncate font-medium text-slate-700 dark:text-slate-300">• ' + it.title + '</span>' +
+          '<span class="shrink-0 font-bold text-slate-900 dark:text-white">' + it.amountStr + '</span>' +
+        '</div>';
+      });
+      itemsHtml += '</div>';
+    }
+
+    var noteHtml = "";
+    if (noteVal) {
+      noteHtml = '<div class="mt-2.5 text-xs text-slate-500 dark:text-slate-400 italic break-words">' +
+        (isId ? 'Catatan: "' : 'Note: "') + noteVal + '"' +
+      '</div>';
+    }
+
+    modal.innerHTML =
+      '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
+        '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+          '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 shadow-sm">' +
+            '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
+          '</div>' +
+          '<div class="min-w-0">' +
+            '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Konfirmasi Simpan Transaksi" : "Confirm Save Transaction") + '</h3>' +
+            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + (isId ? "Pastikan rincian transaksi sudah benar." : "Please review the transaction details.") + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-center">' +
+          '<span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">' + (isId ? "Total Pembayaran" : "Total Amount") + '</span>' +
+          '<p class="text-2xl sm:text-3xl font-black ' + (isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') + ' mt-1 tracking-tight">' + totalFormatted + '</p>' +
+          '<div class="mt-2 flex justify-center">' +
+            '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ' + kindBadgeClass + '">' + kindLabel + '</span>' +
+          '</div>' +
+        '</div>' +
+        itemsHtml +
+        noteHtml +
+        '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
+          '<button id="pos-tx-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+            (isId ? "Batal" : "Cancel") +
+          '</button>' +
+          '<button id="pos-tx-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
+            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' +
+            (isId ? "Ya, Simpan Transaksi" : "Yes, Save Transaction") +
+          '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    function closeModal() {
+      modal.remove();
+      activeSaveTxForm = null;
+    }
+
+    document.getElementById("pos-tx-cancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && document.getElementById("pos-save-tx-modal")) {
+        closeModal();
+      }
+    });
+
+    document.getElementById("pos-tx-confirm").addEventListener("click", function () {
+      if (activeSaveTxForm) {
+        var formToSubmit = activeSaveTxForm;
+        activeSaveTxForm = null;
+        formToSubmit.dataset.posTxConfirmed = "true";
+
+        if (window.showGlobalToast) {
+          window.showGlobalToast(
+            isId ? "Transaksi Berhasil Disimpan" : "Transaction Saved",
+            isId ? "Transaksi sebesar " + totalFormatted + " telah berhasil dicatat." : "Transaction of " + totalFormatted + " has been successfully recorded.",
+            3000,
+            "success"
+          );
+        }
+
+        closeModal();
+        if (typeof HTMLFormElement.prototype.submit === "function") {
+          HTMLFormElement.prototype.submit.call(formToSubmit);
+        } else {
+          formToSubmit.submit();
+        }
+      }
+    });
+  }
+
+  // --- 2. MODAL BATALKAN TRANSAKSI ---
+  function showReverseTxModal(form) {
+    var isId = (document.documentElement.lang || "id") === "id";
+    activeReverseTxForm = form;
+
+    var reasonInput = form.querySelector('[name="reason"]');
+    var reason = reasonInput ? reasonInput.value.trim() : "";
+    var txId = form.dataset.txId || (form.getAttribute("action") || "").replace(/[^0-9]/g, "") || "";
+
+    var existing = document.getElementById("pos-reverse-tx-modal");
+    if (existing) existing.remove();
+
+    var modal = document.createElement("div");
+    modal.id = "pos-reverse-tx-modal";
+    modal.className = "fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.zIndex = "999999";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.background = "rgba(10, 16, 35, 0.68)";
+    modal.style.backdropFilter = "blur(8px)";
+    modal.style.webkitBackdropFilter = "blur(8px)";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    modal.innerHTML =
+      '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
+        '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+          '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">' +
+            '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
+          '</div>' +
+          '<div class="min-w-0">' +
+            '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Konfirmasi Batalkan Transaksi" : "Confirm Transaction Reversal") + '</h3>' +
+            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + (isId ? ("Transaksi #" + (txId ? txId : "") + " akan dibatalkan.") : ("Transaction #" + (txId ? txId : "") + " will be reversed.")) + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">' +
+          '<span class="text-xs font-bold text-slate-500 dark:text-slate-400">' + (isId ? "Alasan Pembatalan:" : "Reversal Reason:") + '</span>' +
+          '<p class="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-1 italic break-words">"' + reason + '"</p>' +
+        '</div>' +
+        '<p class="mt-3 text-xs text-rose-600 dark:text-rose-400 leading-relaxed font-medium">' +
+          (isId ? "Tindakan ini akan membuat transaksi pembalik dan tercatat secara permanen di riwayat audit." : "This action will create a reversal transaction and be permanently recorded in the audit log.") +
+        '</p>' +
+        '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
+          '<button id="pos-reverse-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+            (isId ? "Batal" : "Cancel") +
+          '</button>' +
+          '<button id="pos-reverse-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
+            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
+            (isId ? "Ya, Batalkan" : "Yes, Reverse") +
+          '</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    function closeModal() {
+      modal.remove();
+      activeReverseTxForm = null;
+    }
+
+    document.getElementById("pos-reverse-cancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && document.getElementById("pos-reverse-tx-modal")) {
+        closeModal();
+      }
+    });
+
+    document.getElementById("pos-reverse-confirm").addEventListener("click", function () {
+      if (activeReverseTxForm) {
+        var formToSubmit = activeReverseTxForm;
+        activeReverseTxForm = null;
+        formToSubmit.dataset.posReverseConfirmed = "true";
+
+        if (window.showGlobalToast) {
+          window.showGlobalToast(
+            isId ? "Transaksi Dibatalkan" : "Transaction Reversed",
+            isId ? "Transaksi #" + (txId ? txId : "") + " telah berhasil dibatalkan." : "Transaction #" + (txId ? txId : "") + " has been successfully reversed.",
+            3000,
+            "warning"
+          );
+        }
+
+        closeModal();
+        if (typeof HTMLFormElement.prototype.submit === "function") {
+          HTMLFormElement.prototype.submit.call(formToSubmit);
+        } else {
+          formToSubmit.submit();
+        }
+      }
+    });
+  }
+
+  // Intercept form submit event in capture phase
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form) return;
+
+    // A. Intercept new transaction creation form
+    if (form.id === "transaction-form" || form.getAttribute("action") === "/transactions") {
+      if (form.dataset.posTxConfirmed === "true") return;
+
+      // Check native validation first
+      if (form.reportValidity && !form.reportValidity()) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") {
+        e.stopImmediatePropagation();
+      }
+      showSaveTxModal(form);
+      return;
+    }
+
+    // B. Intercept transaction reversal form
+    var action = form.getAttribute("action") || "";
+    if (action.indexOf("/transactions/") !== -1 && action.indexOf("/reverse") !== -1) {
+      if (form.dataset.posReverseConfirmed === "true") return;
+
+      var reasonInput = form.querySelector('[name="reason"]');
+      var reason = reasonInput ? reasonInput.value.trim() : "";
+      var isId = (document.documentElement.lang || "id") === "id";
+
+      if (reason.length < 5) {
+        if (reasonInput) {
+          reasonInput.focus();
+          if (reasonInput.reportValidity) reasonInput.reportValidity();
+        }
+        if (window.showGlobalToast) {
+          window.showGlobalToast(
+            isId ? "Alasan Kurang Lengkap" : "Reason Too Short",
+            isId ? "Alasan pembatalan minimal harus 5 karakter." : "Reversal reason must be at least 5 characters.",
+            2500,
+            "warning"
+          );
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") {
+        e.stopImmediatePropagation();
+      }
+      showReverseTxModal(form);
+      return;
+    }
+  }, true);
 })();
