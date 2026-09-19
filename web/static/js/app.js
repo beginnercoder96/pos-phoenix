@@ -468,6 +468,10 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
         if (bundleInput) {
           bundleInput.value = it.bundle_id || "0";
         }
+      } else if (!selectedItemName) {
+        if (amountInput) amountInput.value = "";
+        var bundleInput = row.querySelector(".bundle-id-input");
+        if (bundleInput) bundleInput.value = "0";
       }
     } else if (catVal) {
       itemSelect.required = (catVal !== "Other");
@@ -477,8 +481,18 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
       customOpt.dataset.amount = "0";
       customOpt.selected = true;
       itemSelect.appendChild(customOpt);
+      if (!selectedItemName) {
+        if (amountInput) amountInput.value = "";
+        var bundleInput = row.querySelector(".bundle-id-input");
+        if (bundleInput) bundleInput.value = "0";
+      }
     } else {
       itemSelect.required = false;
+      if (!selectedItemName) {
+        if (amountInput) amountInput.value = "";
+        var bundleInput = row.querySelector(".bundle-id-input");
+        if (bundleInput) bundleInput.value = "0";
+      }
     }
   }
 
@@ -1969,7 +1983,7 @@ window.handleChartPeriodChange = function (select) {
       lines.push("--------------------------------");
       if (txData.discount && txData.subtotal) {
         lines.push(this.formatLine32(isId ? "Subtotal" : "Subtotal", txData.subtotal));
-        var discLabel = (isId ? "Diskon" : "Discount") + (txData.discountName ? " (" + txData.discountName + ")" : "");
+        var discLabel = isId ? "Diskon" : "Discount";
         lines.push(this.formatLine32(discLabel, "-" + txData.discount));
       }
       lines.push(this.formatLine32("TOTAL", txData.amount || "-"));
@@ -2027,7 +2041,7 @@ window.handleChartPeriodChange = function (select) {
             '<span class="text-right">' + this.escapeHtml(txData.subtotal) + '</span>' +
           '</div>' +
           '<div class="flex justify-between items-center text-[11px] w-full py-0.5 font-bold" style="color: #059669 !important;">' +
-            '<span>' + (isId ? "Diskon" : "Discount") + (txData.discountName ? " (" + this.escapeHtml(txData.discountName) + ")" : "") + '</span>' +
+            '<span>' + (isId ? "Diskon" : "Discount") + '</span>' +
             '<span class="text-right">-' + this.escapeHtml(txData.discount) + '</span>' +
           '</div>';
       }
@@ -2786,6 +2800,8 @@ window.handleChartPeriodChange = function (select) {
       id: btn.getAttribute("data-tx-id") || "",
       kind: btn.getAttribute("data-tx-kind") || "income",
       amount: btn.getAttribute("data-tx-amount") || "",
+      subtotal: btn.getAttribute("data-tx-subtotal") || "",
+      discount: btn.getAttribute("data-tx-discount") || "",
       operator: btn.getAttribute("data-tx-operator") || "",
       date: btn.getAttribute("data-tx-date") || "",
       note: btn.getAttribute("data-tx-note") || "",

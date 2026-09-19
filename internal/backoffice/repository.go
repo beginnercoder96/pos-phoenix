@@ -487,7 +487,18 @@ func (r *Repository) SaveDiscount(ctx context.Context, d DiscountBundle) error {
 
 // DeleteDiscount removes a discount/bundle by ID.
 func (r *Repository) DeleteDiscount(ctx context.Context, id int64) error {
-	_, err := r.DB.ExecContext(ctx, `DELETE FROM discounts_and_bundles WHERE id=?`, id)
+	conn, err := r.DB.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF;`); err != nil {
+		return err
+	}
+	defer conn.ExecContext(context.Background(), `PRAGMA foreign_keys = ON;`)
+
+	_, err = conn.ExecContext(ctx, `DELETE FROM discounts_and_bundles WHERE id=?`, id)
 	return err
 }
 

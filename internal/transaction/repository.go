@@ -271,6 +271,31 @@ func (r Repository) All(ctx context.Context, userID int64, isAdmin bool, from, t
 	return entries, nil
 }
 
+// TotalDiscountCents returns the total discount amount across all items in cents.
+func (e Entry) TotalDiscountCents() int64 {
+	var total int64
+	for _, it := range e.Items {
+		total += it.DiscountAmount
+	}
+	return total
+}
+
+// GrossSubtotalCents returns the total amount before discounts.
+func (e Entry) GrossSubtotalCents() int64 {
+	disc := e.TotalDiscountCents()
+	if disc > 0 {
+		return e.AmountCents + disc
+	}
+	var total int64
+	for _, it := range e.Items {
+		total += it.AmountCents
+	}
+	if total > 0 {
+		return total
+	}
+	return e.AmountCents
+}
+
 func populateItems(ctx context.Context, db *sql.DB, entries []Entry) error {
 	if len(entries) == 0 {
 		return nil
@@ -281,7 +306,7 @@ func populateItems(ctx context.Context, db *sql.DB, entries []Entry) error {
 		ids[i] = entry.ID
 		placeholders[i] = "?"
 	}
-	query := `SELECT id, transaction_id, category, item_name, amount_cents FROM transaction_items WHERE transaction_id IN (` + strings.Join(placeholders, ",") + `) ORDER BY id ASC`
+	query := `SELECT id, transaction_id, category, item_name, amount_cents, COALESCE(item_type,'SERVICE'), COALESCE(barber_id,0), COALESCE(discount_amount,0), COALESCE(commission_earned,0), COALESCE(bundle_id,0) FROM transaction_items WHERE transaction_id IN (` + strings.Join(placeholders, ",") + `) ORDER BY id ASC`
 	rows, err := db.QueryContext(ctx, query, ids...)
 	if err != nil {
 		return err
@@ -290,7 +315,7 @@ func populateItems(ctx context.Context, db *sql.DB, entries []Entry) error {
 	itemMap := make(map[int64][]Item)
 	for rows.Next() {
 		var it Item
-		if err := rows.Scan(&it.ID, &it.TransactionID, &it.Category, &it.ItemName, &it.AmountCents); err != nil {
+		if err := rows.Scan(&it.ID, &it.TransactionID, &it.Category, &it.ItemName, &it.AmountCents, &it.ItemType, &it.BarberID, &it.DiscountAmount, &it.CommissionEarned, &it.BundleID); err != nil {
 			return err
 		}
 		itemMap[it.TransactionID] = append(itemMap[it.TransactionID], it)

@@ -1306,6 +1306,19 @@ func TestCreateTransactionWithBundlingAndDiscount(t *testing.T) {
 	if txAmountCents != 4000000 { // 50.000 - 10.000 = 40.000 (in cents = 4000000)
 		t.Fatalf("expected net amount_cents=4000000, got %d", txAmountCents)
 	}
+
+	// 5. Verify deleting a bundle that was used in an existing transaction item succeeds
+	delRec := requestAs(t, handler, service, adminID, http.MethodPost, fmt.Sprintf("/backoffice/discounts/%d/delete", bundleID), url.Values{
+		"csrf": {csrf},
+	})
+	if delRec.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther when deleting used bundle, got %d body: %s", delRec.Code, delRec.Body.String())
+	}
+	var count int
+	_ = db.QueryRow(`SELECT COUNT(*) FROM discounts_and_bundles WHERE id=?`, bundleID).Scan(&count)
+	if count != 0 {
+		t.Fatalf("expected bundle to be deleted from discounts_and_bundles, but still exists")
+	}
 }
 
 
