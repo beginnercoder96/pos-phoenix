@@ -452,6 +452,24 @@ func (r *Repository) SaveCatalogItem(ctx context.Context, item CatalogItem) erro
 	return err
 }
 
+// DeleteCatalogItem removes a catalog item by ID.
+func (r *Repository) DeleteCatalogItem(ctx context.Context, id int64) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM catalog_items WHERE id=?`, id)
+	return err
+}
+
+// ToggleCatalogItemStatus toggles the is_active status of a catalog item and returns the new status.
+func (r *Repository) ToggleCatalogItemStatus(ctx context.Context, id int64) (bool, error) {
+	var current bool
+	err := r.DB.QueryRowContext(ctx, `SELECT is_active FROM catalog_items WHERE id=?`, id).Scan(&current)
+	if err != nil {
+		return false, err
+	}
+	next := !current
+	_, err = r.DB.ExecContext(ctx, `UPDATE catalog_items SET is_active=? WHERE id=?`, next, id)
+	return next, err
+}
+
 // ListDiscounts returns all discounts and bundles.
 func (r *Repository) ListDiscounts(ctx context.Context) ([]DiscountBundle, error) {
 	rows, err := r.DB.QueryContext(ctx,
@@ -487,8 +505,31 @@ func (r *Repository) SaveDiscount(ctx context.Context, d DiscountBundle) error {
 
 // DeleteDiscount removes a discount/bundle by ID.
 func (r *Repository) DeleteDiscount(ctx context.Context, id int64) error {
-	_, err := r.DB.ExecContext(ctx, `DELETE FROM discounts_and_bundles WHERE id=?`, id)
+	conn, err := r.DB.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF;`); err != nil {
+		return err
+	}
+	defer conn.ExecContext(context.Background(), `PRAGMA foreign_keys = ON;`)
+
+	_, err = conn.ExecContext(ctx, `DELETE FROM discounts_and_bundles WHERE id=?`, id)
 	return err
+}
+
+// ToggleDiscountStatus toggles the is_active status of a discount/bundle and returns the new status.
+func (r *Repository) ToggleDiscountStatus(ctx context.Context, id int64) (bool, error) {
+	var current bool
+	err := r.DB.QueryRowContext(ctx, `SELECT is_active FROM discounts_and_bundles WHERE id=?`, id).Scan(&current)
+	if err != nil {
+		return false, err
+	}
+	next := !current
+	_, err = r.DB.ExecContext(ctx, `UPDATE discounts_and_bundles SET is_active=? WHERE id=?`, next, id)
+	return next, err
 }
 
 // GetEmployeeProductCommissions returns product commissions for employees in a branch for a month.

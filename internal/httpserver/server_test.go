@@ -763,6 +763,51 @@ func TestCreateTransactionWithMultipleCategories(t *testing.T) {
 	}
 }
 
+func TestCatalogProductCommissionIntegration(t *testing.T) {
+	db, handler, service := testServer(t)
+	operatorID := addUser(t, db, "barber2@example.com", "operator")
+
+	// 1. Insert product into catalog_items with commission
+	_, err := db.Exec(`INSERT INTO catalog_items(name, category, item_type, price_cents, commission_amount, is_active)
+		VALUES('Hair Tonic Special', 'Product', 'PRODUCT', 5000000, 500000, 1)`)
+	if err != nil {
+		t.Fatalf("failed to insert catalog item: %v", err)
+	}
+
+	today := time.Now().In(time.FixedZone("WIB", 7*3600)).Format("2006-01-02")
+	form := url.Values{
+		"kind":        {"income"},
+		"date":        {today},
+		"note":        {"Customer Toni: Hair Tonic Special"},
+		"category[]":  {"Product"},
+		"item_name[]": {"Hair Tonic Special"},
+		"amount[]":    {"50000"},
+	}
+
+	rr := requestAs(t, handler, service, operatorID, http.MethodPost, "/transactions", form)
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("create status=%d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var itType string
+	var barberID, commEarned int64
+	err = db.QueryRow(`SELECT item_type, barber_id, commission_earned FROM transaction_items WHERE item_name='Hair Tonic Special'`).
+		Scan(&itType, &barberID, &commEarned)
+	if err != nil {
+		t.Fatalf("failed to query transaction item: %v", err)
+	}
+
+	if itType != "PRODUCT" {
+		t.Errorf("item_type=%q, want 'PRODUCT'", itType)
+	}
+	if barberID != operatorID {
+		t.Errorf("barber_id=%d, want %d", barberID, operatorID)
+	}
+	if commEarned != 500000 {
+		t.Errorf("commission_earned=%d, want 500000 (Rp 5.000)", commEarned)
+	}
+}
+
 func TestReversalOfMultiCategoryTransaction(t *testing.T) {
 	db, handler, service := testServer(t)
 	adminID := addUser(t, db, "admin-multi@example.com", "superadmin")
@@ -1092,5 +1137,331 @@ func TestOperatorBankCredentialsAndSlipColors(t *testing.T) {
 	}
 }
 
+func TestUsernameLoginAndForgotPasswordHTTP(t *testing.T) {
+	db, handler, service := testServer(t)
 
+	// Seed admin user
+	adminID := addUser(t, db, "admin@example.com", "superadmin")
+	_, err := db.Exec(`UPDATE users SET username='admin' WHERE id=?`, adminID)
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	csrf := "01234567890123456789012345678901"
+
+	// 1. Test Login with Username (not email)
+	loginForm := url.Values{
+		"csrf":     {csrf},
+		"username": {"admin"},
+		"password": {"correct horse battery staple"},
+	}
+	reqLogin := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginForm.Encode()))
+	reqLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLogin.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLogin := httptest.NewRecorder()
+	handler.ServeHTTP(recLogin, reqLogin)
+
+	if recLogin.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on username login, got %d, body: %s", recLogin.Code, recLogin.Body.String())
+	}
+	if recLogin.Header().Get("Location") != "/" {
+		t.Fatalf("expected redirect to '/', got %s", recLogin.Header().Get("Location"))
+	}
+
+	// 2. Test GET /forgot-password
+	reqForgot := httptest.NewRequest(http.MethodGet, "/forgot-password", nil)
+	recForgot := httptest.NewRecorder()
+	handler.ServeHTTP(recForgot, reqForgot)
+	if recForgot.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /forgot-password, got %d", recForgot.Code)
+	}
+
+	// 3. Test POST /forgot-password
+	forgotForm := url.Values{
+		"csrf":  {csrf},
+		"email": {"admin@example.com"},
+	}
+	reqForgotPost := httptest.NewRequest(http.MethodPost, "/forgot-password", strings.NewReader(forgotForm.Encode()))
+	reqForgotPost.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqForgotPost.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recForgotPost := httptest.NewRecorder()
+	handler.ServeHTTP(recForgotPost, reqForgotPost)
+
+	if recForgotPost.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for POST /forgot-password, got %d, body: %s", recForgotPost.Code, recForgotPost.Body.String())
+	}
+	forgotHTML := recForgotPost.Body.String()
+	if !strings.Contains(forgotHTML, "/reset-password?token=") {
+		t.Fatalf("expected forgot-password response to contain mock reset link, got: %s", forgotHTML)
+	}
+
+	// Extract token from mock link in HTML
+	tokenIdx := strings.Index(forgotHTML, "/reset-password?token=")
+	if tokenIdx < 0 {
+		t.Fatal("token not found in response")
+	}
+	tokenSub := forgotHTML[tokenIdx+len("/reset-password?token="):]
+	endToken := strings.IndexAny(tokenSub, `"'> `)
+	token := tokenSub[:endToken]
+
+	// 4. Test GET /reset-password?token=...
+	reqResetGet := httptest.NewRequest(http.MethodGet, "/reset-password?token="+token, nil)
+	recResetGet := httptest.NewRecorder()
+	handler.ServeHTTP(recResetGet, reqResetGet)
+	if recResetGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /reset-password, got %d", recResetGet.Code)
+	}
+
+	// 5. Test POST /reset-password
+	newPassword := "brandNewSecurePassword999!"
+	resetForm := url.Values{
+		"csrf":             {csrf},
+		"token":            {token},
+		"password":         {newPassword},
+		"password_confirm": {newPassword},
+	}
+	reqResetPost := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(resetForm.Encode()))
+	reqResetPost.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqResetPost.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recResetPost := httptest.NewRecorder()
+	handler.ServeHTTP(recResetPost, reqResetPost)
+
+	if recResetPost.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for POST /reset-password, got %d, body: %s", recResetPost.Code, recResetPost.Body.String())
+	}
+	if !strings.Contains(recResetPost.Body.String(), "login") && !strings.Contains(recResetPost.Body.String(), "signIn") {
+		t.Fatalf("expected login page returned upon successful reset")
+	}
+
+	// 6. Test Login with new password and username
+	loginFormNew := url.Values{
+		"csrf":     {csrf},
+		"username": {"admin"},
+		"password": {newPassword},
+	}
+	reqLoginNew := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginFormNew.Encode()))
+	reqLoginNew.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLoginNew.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLoginNew := httptest.NewRecorder()
+	handler.ServeHTTP(recLoginNew, reqLoginNew)
+
+	if recLoginNew.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on login with new password, got %d", recLoginNew.Code)
+	}
+
+	// 7. Test Create Operator with Username
+	createOpForm := url.Values{
+		"csrf":         {csrf},
+		"username":     {"barber_anto"},
+		"email":        {"anto@example.com"},
+		"display_name": {"Anto Barber"},
+		"password":     {"secureanto12345"},
+		"staff_type":   {"barberman"},
+	}
+	recCreateOp := requestAs(t, handler, service, adminID, http.MethodPost, "/operators", createOpForm)
+	if recCreateOp.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 on create operator, got %d, body: %s", recCreateOp.Code, recCreateOp.Body.String())
+	}
+
+	var savedUname, savedEmail string
+	err = db.QueryRow(`SELECT username, email FROM users WHERE username='barber_anto'`).Scan(&savedUname, &savedEmail)
+	if err != nil {
+		t.Fatalf("operator barber_anto was not saved with username: %v", err)
+	}
+	if savedUname != "barber_anto" || savedEmail != "anto@example.com" {
+		t.Fatalf("unexpected operator data: uname=%s, email=%s", savedUname, savedEmail)
+	}
+}
+
+func TestCreateTransactionWithBundlingAndDiscount(t *testing.T) {
+	db, handler, service := testServer(t)
+	adminID := addUser(t, db, "bnd-admin@example.com", "superadmin")
+
+	// 1. Insert an active BUNDLE into discounts_and_bundles
+	res, err := db.Exec(`INSERT INTO discounts_and_bundles(code, name, type, value, service_allocation_ratio, product_allocation_ratio, is_active)
+		VALUES ('BND-01', 'Paket Ganteng', 'BUNDLE', 7500000, 0.6, 0.4, 1)`)
+	if err != nil {
+		t.Fatalf("failed to insert bundle: %v", err)
+	}
+	bundleID, _ := res.LastInsertId()
+
+	csrf := "01234567890123456789012345678901"
+	jakarta, _ := time.LoadLocation("Asia/Jakarta")
+	today := time.Now().In(jakarta).Format("2006-01-02")
+
+	// 2. Submit transaction with bundling item
+	form := url.Values{
+		"csrf":        {csrf},
+		"date":        {today},
+		"kind":        {"income"},
+		"category[]":  {"Bundling"},
+		"item_name[]": {"Paket Ganteng"},
+		"amount[]":    {"75000"},
+		"bundle_id[]": {strconv.FormatInt(bundleID, 10)},
+		"note":        {"Test bundling tx"},
+	}
+
+	rec := requestAs(t, handler, service, adminID, http.MethodPost, "/transactions", form)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on bundling transaction, got %d, body: %s", rec.Code, rec.Body.String())
+	}
+
+	// 3. Verify transaction_items record
+	var savedItemType string
+	var savedBundleID int64
+	var savedAmountCents int64
+	err = db.QueryRow(`SELECT item_type, bundle_id, amount_cents FROM transaction_items WHERE category='Bundling' ORDER BY id DESC LIMIT 1`).
+		Scan(&savedItemType, &savedBundleID, &savedAmountCents)
+	if err != nil {
+		t.Fatalf("failed to query saved transaction item: %v", err)
+	}
+	if savedBundleID != bundleID {
+		t.Fatalf("expected bundle_id=%d, got %d", bundleID, savedBundleID)
+	}
+	if savedItemType != "SERVICE" {
+		t.Fatalf("expected item_type='SERVICE', got %s", savedItemType)
+	}
+	if savedAmountCents != 7500000 {
+		t.Fatalf("expected amount_cents=7500000, got %d", savedAmountCents)
+	}
+
+	// 4. Test order-level discount
+	discForm := url.Values{
+		"csrf":                  {csrf},
+		"date":                  {today},
+		"kind":                  {"income"},
+		"category[]":            {"Haircut"},
+		"item_name[]":           {"Haircut Regular"},
+		"amount[]":              {"50000"},
+		"order_discount_amount": {"10000"},
+		"note":                  {"Test order discount tx"},
+	}
+
+	recDisc := requestAs(t, handler, service, adminID, http.MethodPost, "/transactions", discForm)
+	if recDisc.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on discount transaction, got %d, body: %s", recDisc.Code, recDisc.Body.String())
+	}
+
+	var txAmountCents int64
+	err = db.QueryRow(`SELECT amount_cents FROM transactions WHERE note='Test order discount tx' ORDER BY id DESC LIMIT 1`).
+		Scan(&txAmountCents)
+	if err != nil {
+		t.Fatalf("failed to query discount transaction: %v", err)
+	}
+	if txAmountCents != 4000000 { // 50.000 - 10.000 = 40.000 (in cents = 4000000)
+		t.Fatalf("expected net amount_cents=4000000, got %d", txAmountCents)
+	}
+
+	// 5. Verify deleting a bundle that was used in an existing transaction item succeeds
+	delRec := requestAs(t, handler, service, adminID, http.MethodPost, fmt.Sprintf("/backoffice/discounts/%d/delete", bundleID), url.Values{
+		"csrf": {csrf},
+	})
+	if delRec.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther when deleting used bundle, got %d body: %s", delRec.Code, delRec.Body.String())
+	}
+	var count int
+	_ = db.QueryRow(`SELECT COUNT(*) FROM discounts_and_bundles WHERE id=?`, bundleID).Scan(&count)
+	if count != 0 {
+		t.Fatalf("expected bundle to be deleted from discounts_and_bundles, but still exists")
+	}
+}
+
+func TestCatalogItemLifecycleAndDashboardIntegration(t *testing.T) {
+	db, handler, service := testServer(t)
+	adminID := addUser(t, db, "cat-admin@example.com", "superadmin")
+	csrf := "01234567890123456789012345678901"
+
+	// 1. Create a new catalog item via POST /backoffice/products (using ordinary Rupiah: 75000 and 5000)
+	createForm := url.Values{
+		"csrf":            {csrf},
+		"name":            {"Pomade Premium Oil"},
+		"item_type":       {"PRODUCT"},
+		"category_select": {"__NEW__"},
+		"category_new":    {"Hair Care"},
+		"price":           {"75000"}, // Rp 75.000 (auto-converted to 7500000 cents)
+		"commission":      {"5000"},  // Rp 5.000 (auto-converted to 500000 cents)
+	}
+
+	recCreate := requestAs(t, handler, service, adminID, http.MethodPost, "/backoffice/products", createForm)
+	if recCreate.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on create product, got %d, body: %s", recCreate.Code, recCreate.Body.String())
+	}
+
+	// Verify inserted row in cents
+	var itemID int64
+	var itemName, itemCategory, itemType string
+	var itemPrice, itemComm int64
+	var isActive int
+	err := db.QueryRow(`SELECT id, name, category, item_type, price_cents, commission_amount, is_active FROM catalog_items WHERE name='Pomade Premium Oil'`).
+		Scan(&itemID, &itemName, &itemCategory, &itemType, &itemPrice, &itemComm, &isActive)
+	if err != nil {
+		t.Fatalf("failed to find created catalog item: %v", err)
+	}
+	if itemCategory != "Hair Care" || itemType != "PRODUCT" || itemPrice != 7500000 || itemComm != 500000 || isActive != 1 {
+		t.Fatalf("unexpected item fields: cat=%s type=%s price=%d comm=%d active=%d", itemCategory, itemType, itemPrice, itemComm, isActive)
+	}
+
+	// 2. Verify it appears on Dashboard GET / (via JSON catalog script in dashboard HTML)
+	recDash := requestAs(t, handler, service, adminID, http.MethodGet, "/", nil)
+	if recDash.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on dashboard, got %d", recDash.Code)
+	}
+	dashBody := recDash.Body.String()
+	if !strings.Contains(dashBody, "Pomade Premium Oil") {
+		t.Fatalf("expected dashboard catalog to contain 'Pomade Premium Oil'")
+	}
+	if !strings.Contains(dashBody, "Hair Care") {
+		t.Fatalf("expected dashboard catalog to contain category 'Hair Care'")
+	}
+
+	// 3. Edit the catalog item (change price & name using ordinary Rupiah: 80000 and 6000)
+	editForm := url.Values{
+		"csrf":            {csrf},
+		"id":              {strconv.FormatInt(itemID, 10)},
+		"name":            {"Pomade Premium Matte"},
+		"item_type":       {"PRODUCT"},
+		"category_select": {"Hair Care"},
+		"price":           {"80000"}, // Rp 80.000
+		"commission":      {"6000"},  // Rp 6.000
+	}
+	recEdit := requestAs(t, handler, service, adminID, http.MethodPost, "/backoffice/products", editForm)
+	if recEdit.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on edit product, got %d, body: %s", recEdit.Code, recEdit.Body.String())
+	}
+
+	err = db.QueryRow(`SELECT name, price_cents, commission_amount FROM catalog_items WHERE id=?`, itemID).
+		Scan(&itemName, &itemPrice, &itemComm)
+	if err != nil || itemName != "Pomade Premium Matte" || itemPrice != 8000000 || itemComm != 600000 {
+		t.Fatalf("expected updated item: name=%s price=%d comm=%d err=%v", itemName, itemPrice, itemComm, err)
+	}
+
+	// 4. Toggle Status (Active -> Inactive)
+	toggleRec := requestAs(t, handler, service, adminID, http.MethodPost, fmt.Sprintf("/backoffice/products/%d/toggle", itemID), url.Values{"csrf": {csrf}})
+	if toggleRec.Code != http.StatusSeeOther && toggleRec.Code != http.StatusOK {
+		t.Fatalf("expected 303 or 200 on toggle, got %d", toggleRec.Code)
+	}
+
+	var statusAfterToggle int
+	_ = db.QueryRow(`SELECT is_active FROM catalog_items WHERE id=?`, itemID).Scan(&statusAfterToggle)
+	if statusAfterToggle != 0 {
+		t.Fatalf("expected is_active=0 after toggle, got %d", statusAfterToggle)
+	}
+
+	// 5. Inactive items should NOT be included in dashboard catalog
+	recDash2 := requestAs(t, handler, service, adminID, http.MethodGet, "/", nil)
+	if strings.Contains(recDash2.Body.String(), "Pomade Premium Matte") {
+		t.Fatalf("expected inactive item 'Pomade Premium Matte' to NOT appear in dashboard catalog")
+	}
+
+	// 6. Delete the catalog item
+	delRec := requestAs(t, handler, service, adminID, http.MethodPost, fmt.Sprintf("/backoffice/products/%d/delete", itemID), url.Values{"csrf": {csrf}})
+	if delRec.Code != http.StatusSeeOther && delRec.Code != http.StatusOK {
+		t.Fatalf("expected 303 or 200 on delete, got %d", delRec.Code)
+	}
+
+	var countAfterDel int
+	_ = db.QueryRow(`SELECT COUNT(*) FROM catalog_items WHERE id=?`, itemID).Scan(&countAfterDel)
+	if countAfterDel != 0 {
+		t.Fatalf("expected item to be deleted, found count=%d", countAfterDel)
+	}
+}

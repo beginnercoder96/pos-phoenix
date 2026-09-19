@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -106,9 +107,37 @@ func ensureBackofficeColumns(db *sql.DB) error {
 		}
 	}
 
+	// Add username to users if missing
+	if !hasColumn(db, "users", "username") {
+		if _, err := db.Exec(`ALTER TABLE users ADD COLUMN username TEXT`); err != nil {
+			_ = err
+		}
+		_, _ = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL`)
+	}
+
+	// Ensure password_resets table exists
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS password_resets (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		token_hash TEXT NOT NULL UNIQUE,
+		expires_at DATETIME NOT NULL,
+		used_at DATETIME,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash);`)
+
+	// Backfill username for existing users
+	backfillUsernames(db)
+
 	// Seed distinct dummy bank credentials for sample employees
 	seedSampleEmployeeBankCredentials(db)
 
+	// Clean up any duplicate employee_profit_sharing_rules and enforce unique index
+	_, _ = db.Exec(`DELETE FROM employee_profit_sharing_rules 
+		WHERE id NOT IN (
+			SELECT MIN(id) FROM employee_profit_sharing_rules GROUP BY rule_id, user_id
+		)`)
+	_, _ = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_profit_sharing_rule_user ON employee_profit_sharing_rules(rule_id, user_id)`)
 
 	// Add new columns to transaction_items if missing
 	for _, col := range []struct {
@@ -208,9 +237,9 @@ func seedBranches(db *sql.DB) error {
 		var empCountK int
 		_ = db.QueryRow(`SELECT COUNT(*) FROM users WHERE branch_id=?`, klasemanID).Scan(&empCountK)
 		if empCountK == 0 {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO users(email, display_name, password_hash, role, branch_id, staff_type, active) VALUES
-				('karyawan1.klaseman@pardis.com', 'Karyawan 1 (Klaseman)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1),
-				('karyawan2.klaseman@pardis.com', 'Karyawan 2 (Klaseman)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1)`,
+			_, _ = db.Exec(`INSERT OR IGNORE INTO users(username, email, display_name, password_hash, role, branch_id, staff_type, active) VALUES
+				('karyawan1_klaseman', 'karyawan1.klaseman@pardis.com', 'Karyawan 1 (Klaseman)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1),
+				('karyawan2_klaseman', 'karyawan2.klaseman@pardis.com', 'Karyawan 2 (Klaseman)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1)`,
 				klasemanID, klasemanID)
 		}
 
@@ -218,9 +247,9 @@ func seedBranches(db *sql.DB) error {
 		var empCountL int
 		_ = db.QueryRow(`SELECT COUNT(*) FROM users WHERE branch_id=?`, ledokID).Scan(&empCountL)
 		if empCountL == 0 {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO users(email, display_name, password_hash, role, branch_id, staff_type, active) VALUES
-				('karyawan1.ledok@pardis.com', 'Karyawan 1 (Ledok)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1),
-				('karyawan2.ledok@pardis.com', 'Karyawan 2 (Ledok)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1)`,
+			_, _ = db.Exec(`INSERT OR IGNORE INTO users(username, email, display_name, password_hash, role, branch_id, staff_type, active) VALUES
+				('karyawan1_ledok', 'karyawan1.ledok@pardis.com', 'Karyawan 1 (Ledok)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1),
+				('karyawan2_ledok', 'karyawan2.ledok@pardis.com', 'Karyawan 2 (Ledok)', '$argon2id$v=19$m=65536,t=3,p=2$c2FtcGxlc2FsdDEyMzQ1Ng$c2FtcGxlaGFzaDEyMzQ1Njc4OTA=', 'operator', ?, 'barberman', 1)`,
 				ledokID, ledokID)
 		}
 
@@ -267,18 +296,22 @@ func seedProfitSharingForPeriod(db *sql.DB, klasemanID, ledokID int64, period st
 	_, _ = db.Exec(`INSERT OR IGNORE INTO branch_profit_sharing_rules(branch_id, period_month, owner_percentage, unallocated_percentage) VALUES(?, ?, 20.0, 10.0)`, klasemanID, period)
 	var kRuleID int64
 	if err := db.QueryRow(`SELECT id FROM branch_profit_sharing_rules WHERE branch_id=? AND period_month=?`, klasemanID, period).Scan(&kRuleID); err == nil {
-		rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, klasemanID)
-		var kEmps []int64
-		if rows != nil {
-			for rows.Next() {
-				var id int64
-				_ = rows.Scan(&id)
-				kEmps = append(kEmps, id)
+		var count int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM employee_profit_sharing_rules WHERE rule_id=?`, kRuleID).Scan(&count)
+		if count == 0 {
+			rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, klasemanID)
+			var kEmps []int64
+			if rows != nil {
+				for rows.Next() {
+					var id int64
+					_ = rows.Scan(&id)
+					kEmps = append(kEmps, id)
+				}
+				rows.Close()
 			}
-			rows.Close()
-		}
-		for _, eid := range kEmps {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 35.0)`, kRuleID, eid)
+			for _, eid := range kEmps {
+				_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 35.0)`, kRuleID, eid)
+			}
 		}
 	}
 
@@ -286,21 +319,25 @@ func seedProfitSharingForPeriod(db *sql.DB, klasemanID, ledokID int64, period st
 	_, _ = db.Exec(`INSERT OR IGNORE INTO branch_profit_sharing_rules(branch_id, period_month, owner_percentage, unallocated_percentage) VALUES(?, ?, 20.0, 10.0)`, ledokID, period)
 	var lRuleID int64
 	if err := db.QueryRow(`SELECT id FROM branch_profit_sharing_rules WHERE branch_id=? AND period_month=?`, ledokID, period).Scan(&lRuleID); err == nil {
-		rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, ledokID)
-		var lEmps []int64
-		if rows != nil {
-			for rows.Next() {
-				var id int64
-				_ = rows.Scan(&id)
-				lEmps = append(lEmps, id)
+		var count int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM employee_profit_sharing_rules WHERE rule_id=?`, lRuleID).Scan(&count)
+		if count == 0 {
+			rows, _ := db.Query(`SELECT id FROM users WHERE branch_id=? AND role IN ('operator','barberman') ORDER BY id LIMIT 2`, ledokID)
+			var lEmps []int64
+			if rows != nil {
+				for rows.Next() {
+					var id int64
+					_ = rows.Scan(&id)
+					lEmps = append(lEmps, id)
+				}
+				rows.Close()
 			}
-			rows.Close()
-		}
-		if len(lEmps) >= 1 {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 40.0)`, lRuleID, lEmps[0])
-		}
-		if len(lEmps) >= 2 {
-			_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 30.0)`, lRuleID, lEmps[1])
+			if len(lEmps) >= 1 {
+				_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 40.0)`, lRuleID, lEmps[0])
+			}
+			if len(lEmps) >= 2 {
+				_, _ = db.Exec(`INSERT OR IGNORE INTO employee_profit_sharing_rules(rule_id, user_id, percentage) VALUES(?, ?, 30.0)`, lRuleID, lEmps[1])
+			}
 		}
 	}
 }
@@ -410,3 +447,40 @@ func seedSimulationTransactions(db *sql.DB, klasemanID, ledokID int64) {
 		}
 	}
 }
+
+// backfillUsernames ensures all existing users have a non-empty username.
+func backfillUsernames(db *sql.DB) {
+	rows, err := db.Query(`SELECT id, email, display_name FROM users WHERE username IS NULL OR username = ''`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	type toUpdate struct {
+		id       int64
+		username string
+	}
+	var updates []toUpdate
+
+	for rows.Next() {
+		var id int64
+		var email, displayName string
+		if err := rows.Scan(&id, &email, &displayName); err == nil {
+			uname := ""
+			if at := strings.Index(email, "@"); at > 0 {
+				uname = strings.ToLower(strings.TrimSpace(email[:at]))
+			} else {
+				uname = strings.ToLower(strings.TrimSpace(displayName))
+			}
+			uname = strings.ReplaceAll(uname, " ", "_")
+			uname = strings.ReplaceAll(uname, ".", "_")
+			if uname != "" {
+				updates = append(updates, toUpdate{id: id, username: uname})
+			}
+		}
+	}
+	for _, u := range updates {
+		_, _ = db.Exec(`UPDATE users SET username = ? WHERE id = ? AND (username IS NULL OR username = '')`, u.username, u.id)
+	}
+}
+

@@ -15,3 +15,42 @@ func TestParseCents(t *testing.T) {
 		}
 	}
 }
+
+func TestEntryDiscountCalculations(t *testing.T) {
+	entry := Entry{
+		AmountCents: 3600000,
+		Items: []Item{
+			{
+				Category:       "Haircut",
+				ItemName:       "Regular",
+				AmountCents:    4000000,
+				DiscountAmount: 400000,
+			},
+		},
+	}
+
+	if entry.TotalDiscountCents() != 400000 {
+		t.Fatalf("expected TotalDiscountCents=400000, got %d", entry.TotalDiscountCents())
+	}
+	if entry.GrossSubtotalCents() != 4000000 {
+		t.Fatalf("expected GrossSubtotalCents=4000000, got %d", entry.GrossSubtotalCents())
+	}
+
+	noDiscEntry := Entry{
+		AmountCents: 5000000,
+		Items: []Item{
+			{
+				Category:       "Shampoo",
+				AmountCents:    5000000,
+				DiscountAmount: 0,
+			},
+		},
+	}
+	if noDiscEntry.TotalDiscountCents() != 0 {
+		t.Fatalf("expected TotalDiscountCents=0, got %d", noDiscEntry.TotalDiscountCents())
+	}
+	if noDiscEntry.GrossSubtotalCents() != 5000000 {
+		t.Fatalf("expected GrossSubtotalCents=5000000, got %d", noDiscEntry.GrossSubtotalCents())
+	}
+}
+

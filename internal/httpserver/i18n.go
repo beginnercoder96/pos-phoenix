@@ -8,9 +8,12 @@ import (
 
 func templateFuncs(location *time.Location) map[string]any {
 	return map[string]any{
-		"money": func(cents int64) string { return formatRupiah(cents) },
-		"date":  func(t time.Time) string { return t.In(location).Format("02 Jan 2006 15:04") },
-		"sub":   func(a, b int64) int64 { return a - b },
+		"money":        func(cents int64) string { return formatRupiah(cents) },
+		"moneyCompact": func(cents int64) string { return formatRupiahCompact(cents) },
+		"moneyNumber":  func(cents int64) string { return formatRupiahNumber(cents) },
+		"date":         func(t time.Time) string { return t.In(location).Format("02 Jan 2006 15:04") },
+		"pct":          func(ratio float64) string { return fmt.Sprintf("%.0f%%", ratio*100) },
+		"sub":          func(a, b int64) int64 { return a - b },
 		"add": func(a, b any) int64 {
 			var aInt, bInt int64
 			switch v := a.(type) {
@@ -57,9 +60,60 @@ func formatRupiah(cents int64) string {
 	return result
 }
 
+func formatRupiahCompact(cents int64) string {
+	negative := cents < 0
+	if negative {
+		cents = -cents
+	}
+	whole, fraction := cents/100, cents%100
+	digits := strconv.FormatInt(whole, 10)
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "." + digits[i:]
+	}
+	result := "Rp " + digits
+	if fraction != 0 {
+		result += "," + fmt.Sprintf("%02d", fraction)
+	}
+	if negative {
+		return "-" + result
+	}
+	return result
+}
+
+func formatRupiahNumber(cents int64) string {
+	negative := cents < 0
+	if negative {
+		cents = -cents
+	}
+	whole, fraction := cents/100, cents%100
+	digits := strconv.FormatInt(whole, 10)
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "." + digits[i:]
+	}
+	result := digits
+	if fraction != 0 {
+		result += "," + fmt.Sprintf("%02d", fraction)
+	}
+	if negative {
+		return "-" + result
+	}
+	return result
+}
+
 func translate(language, key string) string {
 	en := map[string]string{
-		"language": "Language", "theme": "Theme", "english": "English", "indonesian": "Indonesian", "light": "Light", "dark": "Dark", "save": "Save", "currency": "Indonesian Rupiah", "appName": "POS Phoenix", "welcome": "Welcome back", "secureCashflow": "A place where the nice haircut trim come from us!", "email": "Email", "password": "Password", "signIn": "Sign in", "cashflowReport": "Cash-flow report", "today": "Today", "thisMonth": "This month", "from": "From", "to": "To", "apply": "Apply", "downloadCSV": "Download CSV", "income": "Income", "expense": "Expense", "balance": "Balance", "newTransaction": "New transaction", "type": "Type", "amount": "Amount", "category": "Category", "note": "Note", "saveTransaction": "Save transaction", "transactions": "Transactions", "records": "records", "page": "page", "previous": "Previous", "next": "Next", "noTransactions": "No transactions in this period.", "reverseReason": "Reversal reason", "reverse": "Reverse", "reversedBy": "Reversed by transaction", "operatorAdministration": "Operator administration", "dashboard": "Dashboard", "createOperator": "Create operator", "displayName": "Display name", "temporaryPassword": "Temporary password", "passwordHint": "12–128 characters. Share it securely.", "operators": "Operators", "active": "Active", "inactive": "Inactive", "deactivate": "Deactivate", "activate": "Activate", "noOperators": "No operators created yet.", "signOut": "Sign out", "reversal": "Reversal", "customerRefund": "Customer refund",
+		"language": "Language", "theme": "Theme", "english": "English", "indonesian": "Indonesian", "light": "Light", "dark": "Dark", "save": "Save", "currency": "Indonesian Rupiah", "appName": "POS Phoenix", "welcome": "Welcome back", "secureCashflow": "A place where the nice haircut trim come from us!", "email": "Email", "password": "Password", "signIn": "Sign in", "cashflowReport": "Cash-flow report", "today": "Today", "thisMonth": "This month", "from": "From", "to": "To", "apply": "Apply", "downloadCSV": "Download CSV", "income": "Income", "expense": "Expense", "balance": "Balance", "newTransaction": "New transaction", "type": "Type", "amount": "Amount", "category": "Category", "note": "Note", "saveTransaction": "Save transaction", "transactions": "Transactions", "records": "records", "page": "page", "previous": "Previous", "next": "Next", "noTransactions": "No transactions in this period.", "reverseReason": "Reversal reason", "reverse": "Reverse", "reversedBy": "Cancelled by reversal transaction", "operatorAdministration": "Operator administration", "dashboard": "Dashboard", "createOperator": "Create operator", "displayName": "Display name", "temporaryPassword": "Temporary password", "passwordHint": "12–128 characters. Share it securely.", "operators": "Operators", "active": "Active", "inactive": "Inactive", "deactivate": "Deactivate", "activate": "Activate", "noOperators": "No operators created yet.", "signOut": "Sign out", "reversal": "Reversal", "customerRefund": "Customer refund",
+		"username": "Username", "usernamePlaceholder": "Enter username", "usernameExample": "e.g. yogi", "usernameHint": "3–50 characters, letters, numbers, dot, dash, underscore.",
+		"forgotPassword": "Forgot password?", "resetPassword": "Reset Password", "sendResetLink": "Send Reset Link",
+		"newPassword": "New Password", "confirmNewPassword": "Confirm New Password",
+		"passwordResetSuccess": "Password has been successfully updated. You can now sign in.",
+		"backToSignIn": "Back to Sign In",
+		"enterRegisteredEmail": "Enter your registered email address to receive password reset instructions.",
+		"resetLinkMockNotice": "Mock Mode: Reset link generated below (simulated email delivery):",
+		"invalidOrExpiredToken": "The password reset link is invalid or has expired.",
+		"passwordsDoNotMatch": "New password and confirmation do not match.",
+		"resetEmailSentMessage": "If that email is registered in our system, a password reset link has been generated.",
+		"clickToResetPassword": "Click here to reset your password",
 		"addCategory": "Add Category / Item", "item": "Item / Service", "total": "Total", "remove": "Remove", "selectCategory": "Select category", "selectItem": "Select service / item", "customItem": "Custom item", "items": "Items", "downloadExcel": "Download Excel (.xlsx)",
 		"customDate":    "Custom Date",
 		"cashflowTrend": "Cash-flow trend", "trendSubtitle": "Income and expense by period",
@@ -95,7 +149,7 @@ func translate(language, key string) string {
 		"boEmpShareDesc": "Share amount:",
 		"boUnallocated":  "Unallocated Reserve Balance", "boUnallocatedDesc": "Automatically calculated from remaining percentage",
 		"boTotalAlloc":  "Total Allocation",
-		"boSaveConfig":  "💾 Save Profit Sharing Configuration",
+		"boSaveConfig":  "Save Profit Sharing Configuration",
 		"boNoEmployees": "No employees assigned to this branch. Add employees via the Operators page.",
 		"boNetRevenue":  "Branch Net Service Revenue", "boReserveBalance": "Unallocated Reserve",
 		"boReserveRemainder": "remaining reserve",
@@ -103,33 +157,79 @@ func translate(language, key string) string {
 		"boEmpName": "Employee Name", "boProfitSharePct": "Share (%)",
 		"boProfitShareAmt": "Service Share", "boProductComm": "Product Commission",
 		"boTakeHome": "Net Take-Home Pay", "boAction": "Action",
-		"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download All Payroll Slips (PDF)",
+		"boDownloadSlip": "Download Slip", "boDownloadAll": "Download All Payroll Slips (PDF)",
 		"boNoPayroll":      "No employees assigned to this branch, or no profit sharing config for this period.",
 		"boDiscountsTitle": "Discount & Bundling Management", "boAddDiscount": "Add New Discount / Bundling",
 		"boProductsTitle": "Product Catalog & Commission Settings", "boAddProduct": "Add / Edit Catalog Item",
 		// Discounts form
-		"boDiscCode": "Code", "boDiscName": "Name", "boDiscType": "Type", "boDiscValue": "Value", "boDiscStatus": "Status",
+		"boDiscCode": "Code", "boDiscName": "Name", "boDiscNamePlaceholder": "e.g. New Year Discount", "boDiscType": "Type", "boDiscValue": "Value", "boDiscStatus": "Status",
 		"boDiscTypePct": "Percentage (%)", "boDiscTypeFixed": "Fixed Amount (Rp)", "boDiscTypeBundle": "Bundle Package",
 		"boDiscActive": "Active", "boDiscInactive": "Inactive",
 		"boDiscServiceRatio": "Service Allocation Ratio", "boDiscProductRatio": "Product Allocation Ratio",
-		"boDiscSave": "💾 Save Discount", "boDiscList": "Discount & Bundling List",
+		"boDiscServiceShort": "Service", "boDiscProductShort": "Product", "boDiscBundleAllocation": "Bundle Allocation",
+		"boDiscSave": "Save Discount", "boDiscList": "Discount & Bundling List",
 		"boDiscTypePctLabel": "Percentage", "boDiscTypeFixedLabel": "Fixed", "boDiscTypeBundleLabel": "Bundle",
-		"boDiscActionDelete": "🗑️ Delete", "boDiscConfirmDelete": "Delete this discount?",
+		"boDiscActionDelete": "Delete", "boDiscConfirmDelete": "Delete this discount?",
+		"boDiscToggleStatus": "Click to toggle active status",
 		"boDiscEmpty": "No discounts or bundles yet.",
 		// Products form
 		"boProdName": "Item Name", "boProdCategory": "Category", "boProdType": "Item Type",
 		"boProdTypeService": "Service (SERVICE)", "boProdTypeProduct": "Product (PRODUCT)",
-		"boProdPrice": "Price (Cents)", "boProdPriceHint": "Example: Rp 120,000 = 12000000",
-		"boProdComm": "Commission per Item (Cents)", "boProdCommHint": "Rp 5,000 = 500000, Rp 10,000 = 1000000",
-		"boProdSave": "💾 Save Item", "boProdList": "Catalog List",
+		"boProdPrice": "Price (Rupiah)", "boProdPriceHint": "e.g. 40000 for Rp 40,000",
+		"boProdComm": "Commission per Item (Rupiah)", "boProdCommHint": "e.g. 5000 for Rp 5,000 (Products only)",
+		"boProdSave": "Save Item", "boProdUpdate": "Update Item", "boProdCancelEdit": "Cancel Edit", "boProdList": "Catalog List",
 		"boProdColName": "Name", "boProdColCategory": "Category", "boProdColType": "Type",
-		"boProdColPrice": "Price", "boProdColComm": "Commission / Item", "boProdColStatus": "Status",
+		"boProdColPrice": "Price (Rp)", "boProdColComm": "Commission / Item (Rp)",
+		"boProdColCommLine1": "Commission", "boProdColCommLine2": "/ Item (Rp)", "boProdColStatus": "Status",
 		"boProdLabelProduct": "PRODUCT", "boProdLabelService": "SERVICE",
-		"boProdEmpty": "No items in catalog yet.",
+		"boProdActionEdit": "Edit", "boProdActionDelete": "Delete", "boProdConfirmDelete": "Delete this catalog item?",
+		"boProdCategorySelect": "-- Select Category --", "boProdCategoryNew": "+ New Category...", "boProdCategoryNewPlaceholder": "Enter new category name",
+		"boProdToggleStatus": "Click to toggle active status", "boProdEmpty": "No catalog items yet.",
+		"boProdSavedToast": "Item saved successfully", "boProdDeletedToast": "Item deleted successfully", "boProdStatusUpdated": "Item status updated",
+		// Thermal Printer keys (EN)
+		"printReceipt": "Print Receipt", "thermalPrinter": "Thermal Printer", "printerConnected": "Printer Connected",
+		"printerDisconnected": "Printer Disconnected", "connectPrinter": "Connect Bluetooth Printer",
+		"disconnectPrinter": "Disconnect Printer", "testPrint": "Test Print", "printViaBluetooth": "Print via Bluetooth",
+		"printViaBrowser": "Print via Browser (PDF)", "receiptPreview": "Receipt Preview",
+		"printReceiptQuestion": "Would you like to print the receipt for this transaction?",
+		"printReceiptSuccess": "Receipt printed successfully.", "skip": "Skip",
+		"printerModalTitle": "Thermal Printer Settings (Okay 58D)",
+		"printerModalHint": "Connect via Web Bluetooth to standard 58mm thermal printers (Okay 58D) or use browser print dialog as fallback.",
+		"storeName": "Pardis Barber Shop", "receiptFooter": "Thank you for your visit!",
+		// Operator Credential keys (EN)
+		"phoneNumber": "Phone / WhatsApp Number", "phonePlaceholder": "e.g. 08123456789",
+		"branch": "Branch", "selectBranchOptional": "-- Select Branch (Optional) --", "selectBranch": "-- Select Branch --",
+		"staffType": "Staff Type", "barberman": "Barberman", "cashier": "Cashier", "manager": "Manager",
+		"bankName": "Bank Name / Code", "bankNamePlaceholder": "e.g. BCA, Mandiri, BRI, BNI",
+		"bankAccount": "Bank Account Number", "bankAccountPlaceholder": "e.g. 001 1234567",
+		"editEmployeeCredentials": "⚙️ Edit Employee Data & Bank Credentials",
+		"fullName": "Full Name", "accountNumber": "Account Number", "accountNumberPlaceholder": "Account number",
+		"cancel": "Cancel", "saveCredentialChanges": "Save Credential Changes",
+		"confirmChangesTitle": "Confirm Changes", "confirmChangesDesc": "Please ensure employee data is correct before saving.",
+		"credentialChangeDetails": "Credential Change Details", "credentialChangeNotice": "Changes will be saved and apply immediately to operations and profit sharing.",
+		"yesSaveChanges": "Yes, Save Changes", "saving": "Saving...", "accountShort": "Acc",
+		"dataSavedSuccess": "Data Saved Successfully", "dataSavedSuccessMsg": "Employee data changes have been successfully saved.",
+		"configSavedSuccess": "Configuration Saved Successfully", "configSavedSuccessMsg": "Profit sharing configuration has been saved successfully.",
+		"discSavedSuccess": "Discount Saved Successfully", "discSavedSuccessMsg": "Discount has been added to the catalog.",
+		"discDeletedSuccess": "Discount Deleted Successfully", "discDeletedSuccessMsg": "Discount has been successfully removed.",
+		"confirmDeleteDisc": "Delete Discount", "confirmDeleteDiscDesc": "Are you sure you want to delete this discount or bundling package?",
+		"yesDeleteDiscount": "Yes, Delete Discount", "deleting": "Deleting...",
+		"noDiscount": "No Discount (Normal Price)", "subtotal": "Subtotal", "discount": "Discount",
 	}
 	if language == "id" {
 		id := map[string]string{
-			"language": "Bahasa", "theme": "Tema", "english": "Inggris", "indonesian": "Indonesia", "light": "Terang", "dark": "Gelap", "save": "Simpan", "currency": "Rupiah Indonesia", "appName": "POS Phoenix", "welcome": "Selamat datang kembali", "secureCashflow": "Tempat untuk mendapatkan potongan rambut terbaik Anda!", "email": "Email", "password": "Kata sandi", "signIn": "Masuk", "cashflowReport": "Laporan arus kas", "today": "Hari ini", "thisMonth": "Bulan ini", "from": "Dari", "to": "Sampai", "apply": "Terapkan", "downloadCSV": "Unduh CSV", "income": "Pemasukan", "expense": "Pengeluaran", "balance": "Saldo", "newTransaction": "Transaksi baru", "type": "Jenis", "amount": "Jumlah", "category": "Kategori", "note": "Catatan", "saveTransaction": "Simpan transaksi", "transactions": "Transaksi", "records": "catatan", "page": "halaman", "previous": "Sebelumnya", "next": "Berikutnya", "noTransactions": "Tidak ada transaksi pada periode ini.", "reverseReason": "Alasan pembatalan", "reverse": "Batalkan", "reversedBy": "Dibatalkan oleh transaksi", "operatorAdministration": "Administrasi operator", "dashboard": "Dasbor", "createOperator": "Buat operator", "displayName": "Nama tampilan", "temporaryPassword": "Kata sandi sementara", "passwordHint": "12–128 karakter. Bagikan dengan aman.", "operators": "Operator", "active": "Aktif", "inactive": "Tidak aktif", "deactivate": "Nonaktifkan", "activate": "Aktifkan", "noOperators": "Belum ada operator.", "signOut": "Keluar", "reversal": "Pembatalan", "customerRefund": "Pengembalian dana pelanggan",
+			"language": "Bahasa", "theme": "Tema", "english": "Inggris", "indonesian": "Indonesia", "light": "Terang", "dark": "Gelap", "save": "Simpan", "currency": "Rupiah Indonesia", "appName": "POS Phoenix", "welcome": "Selamat datang kembali", "secureCashflow": "Tempat untuk mendapatkan potongan rambut terbaik Anda!", "email": "Email", "password": "Kata sandi", "signIn": "Masuk", "cashflowReport": "Laporan arus kas", "today": "Hari ini", "thisMonth": "Bulan ini", "from": "Dari", "to": "Sampai", "apply": "Terapkan", "downloadCSV": "Unduh CSV", "income": "Pemasukan", "expense": "Pengeluaran", "balance": "Saldo", "newTransaction": "Transaksi baru", "type": "Jenis", "amount": "Jumlah", "category": "Kategori", "note": "Catatan", "saveTransaction": "Simpan transaksi", "transactions": "Transaksi", "records": "catatan", "page": "halaman", "previous": "Sebelumnya", "next": "Berikutnya", "noTransactions": "Tidak ada transaksi pada periode ini.", "reverseReason": "Alasan pembatalan", "reverse": "Batalkan", "reversedBy": "Dibatalkan oleh transaksi pembalik", "operatorAdministration": "Administrasi operator", "dashboard": "Dasbor", "createOperator": "Buat operator", "displayName": "Nama tampilan", "temporaryPassword": "Kata sandi sementara", "passwordHint": "12–128 karakter. Bagikan dengan aman.", "operators": "Operator", "active": "Aktif", "inactive": "Tidak aktif", "deactivate": "Nonaktifkan", "activate": "Aktifkan", "noOperators": "Belum ada operator.", "signOut": "Keluar", "reversal": "Pembatalan", "customerRefund": "Pengembalian dana pelanggan",
+			"username": "Username", "usernamePlaceholder": "Masukkan username", "usernameExample": "Contoh: yogi", "usernameHint": "3–50 karakter, huruf, angka, titik, strip, garis bawah.",
+			"forgotPassword": "Lupa kata sandi?", "resetPassword": "Atur Ulang Kata Sandi", "sendResetLink": "Kirim Link Atur Ulang",
+			"newPassword": "Kata Sandi Baru", "confirmNewPassword": "Konfirmasi Kata Sandi Baru",
+			"passwordResetSuccess": "Kata sandi berhasil diperbarui. Anda sekarang dapat masuk kembali.",
+			"backToSignIn": "Kembali ke Halaman Masuk",
+			"enterRegisteredEmail": "Masukkan email akun Anda untuk menerima tautan atur ulang kata sandi.",
+			"resetLinkMockNotice": "Mode Mock / Dev: Tautan atur ulang berhasil dibuat (simulasi pengiriman email):",
+			"invalidOrExpiredToken": "Tautan atur ulang kata sandi tidak valid atau telah kedaluwarsa.",
+			"passwordsDoNotMatch": "Kata sandi baru dan konfirmasi kata sandi tidak cocok.",
+			"resetEmailSentMessage": "Jika email terdaftar di sistem, tautan atur ulang kata sandi telah berhasil dibuat.",
+			"clickToResetPassword": "Klik tautan ini untuk mengatur ulang kata sandi Anda",
 			"addCategory": "Tambah Kategori / Item", "item": "Item / Layanan", "total": "Total", "remove": "Hapus", "selectCategory": "Pilih kategori", "selectItem": "Pilih layanan / item", "customItem": "Item lainnya", "items": "Item", "downloadExcel": "Unduh Excel (.xlsx)",
 			"customDate":    "Tanggal Khusus",
 			"cashflowTrend": "Tren arus kas", "trendSubtitle": "Pemasukan dan pengeluaran per periode",
@@ -165,7 +265,7 @@ func translate(language, key string) string {
 			"boEmpShareDesc": "Bagi hasil:",
 			"boUnallocated":  "Sisa Saldo Tidak Terpakai (Cadangan)", "boUnallocatedDesc": "Otomatis dihitung dari sisa persentase",
 			"boTotalAlloc":  "Total Alokasi",
-			"boSaveConfig":  "💾 Simpan Konfigurasi Bagi Hasil",
+			"boSaveConfig":  "Simpan Konfigurasi Bagi Hasil",
 			"boNoEmployees": "Belum ada karyawan yang ditugaskan ke cabang ini. Tambahkan karyawan melalui halaman Operators.",
 			"boNetRevenue":  "Net Omzet Jasa Cabang", "boReserveBalance": "Saldo Cadangan (Tidak Terpakai)",
 			"boReserveRemainder": "sisa saldo",
@@ -173,29 +273,65 @@ func translate(language, key string) string {
 			"boEmpName": "Nama Karyawan", "boProfitSharePct": "Bagi Hasil (%)",
 			"boProfitShareAmt": "Bagi Hasil Jasa", "boProductComm": "Komisi Produk",
 			"boTakeHome": "Total Gaji Bersih", "boAction": "Aksi",
-			"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download Semua Slip Gaji (PDF)",
+			"boDownloadSlip": "Download Slip", "boDownloadAll": "Download Semua Slip Gaji (PDF)",
 			"boNoPayroll":      "Belum ada karyawan yang ditugaskan ke cabang ini, atau belum ada konfigurasi bagi hasil untuk periode ini.",
 			"boDiscountsTitle": "Manajemen Diskon & Bundling", "boAddDiscount": "Tambah Diskon / Bundling Baru",
 			"boProductsTitle": "Katalog Produk & Pengaturan Komisi", "boAddProduct": "Tambah / Edit Item Katalog",
 			// Discounts form (ID)
-			"boDiscCode": "Kode", "boDiscName": "Nama", "boDiscType": "Tipe", "boDiscValue": "Nilai", "boDiscStatus": "Status",
+			"boDiscCode": "Kode", "boDiscName": "Nama", "boDiscNamePlaceholder": "Contoh: Diskon Tahun Baru", "boDiscType": "Tipe", "boDiscValue": "Nilai", "boDiscStatus": "Status",
 			"boDiscTypePct": "Persentase (%)", "boDiscTypeFixed": "Nominal Tetap (Rp)", "boDiscTypeBundle": "Paket Bundling",
 			"boDiscActive": "Aktif", "boDiscInactive": "Tidak Aktif",
 			"boDiscServiceRatio": "Rasio Alokasi Jasa", "boDiscProductRatio": "Rasio Alokasi Produk",
-			"boDiscSave": "💾 Simpan Diskon", "boDiscList": "Daftar Diskon & Bundling",
+			"boDiscServiceShort": "Jasa", "boDiscProductShort": "Produk", "boDiscBundleAllocation": "Alokasi Bundling",
+			"boDiscSave": "Simpan Diskon", "boDiscList": "Daftar Diskon & Bundling",
 			"boDiscTypePctLabel": "Persentase", "boDiscTypeFixedLabel": "Nominal", "boDiscTypeBundleLabel": "Bundling",
-			"boDiscActionDelete": "🗑️ Hapus", "boDiscConfirmDelete": "Hapus diskon ini?",
+			"boDiscActionDelete": "Hapus", "boDiscConfirmDelete": "Hapus diskon ini?",
+			"boDiscToggleStatus": "Klik untuk ubah status aktif/tidak aktif",
 			"boDiscEmpty": "Belum ada diskon atau bundling.",
 			// Products form (ID)
 			"boProdName": "Nama Item", "boProdCategory": "Kategori", "boProdType": "Tipe Item",
 			"boProdTypeService": "Jasa (SERVICE)", "boProdTypeProduct": "Produk (PRODUCT)",
-			"boProdPrice": "Harga (Cents)", "boProdPriceHint": "Contoh: Rp 120.000 = 12000000",
-			"boProdComm": "Komisi per-Item (Cents)", "boProdCommHint": "Rp 5.000 = 500000, Rp 10.000 = 1000000",
-			"boProdSave": "💾 Simpan Item", "boProdList": "Daftar Katalog",
+			"boProdPrice": "Harga (Rupiah)", "boProdPriceHint": "Contoh: 40000 untuk Rp 40.000",
+			"boProdComm": "Komisi per-Item (Rupiah)", "boProdCommHint": "Contoh: 5000 untuk Rp 5.000 (Khusus produk)",
+			"boProdSave": "Simpan Item", "boProdUpdate": "Perbarui Item", "boProdCancelEdit": "Batal Edit", "boProdList": "Daftar Katalog",
 			"boProdColName": "Nama", "boProdColCategory": "Kategori", "boProdColType": "Tipe",
-			"boProdColPrice": "Harga", "boProdColComm": "Komisi / Item", "boProdColStatus": "Status",
+			"boProdColPrice": "Harga (Rp)", "boProdColComm": "Komisi / Item (Rp)",
+			"boProdColCommLine1": "Komisi", "boProdColCommLine2": "/ Item (Rp)", "boProdColStatus": "Status",
 			"boProdLabelProduct": "PRODUK", "boProdLabelService": "JASA",
+			"boProdActionEdit": "Edit", "boProdActionDelete": "Hapus", "boProdConfirmDelete": "Hapus item katalog ini?",
+			"boProdCategorySelect": "-- Pilih Kategori --", "boProdCategoryNew": "+ Kategori Baru...", "boProdCategoryNewPlaceholder": "Ketik nama kategori baru",
+			"boProdToggleStatus": "Klik untuk ubah status aktif/tidak aktif",
 			"boProdEmpty": "Belum ada item dalam katalog.",
+			"boProdSavedToast": "Item berhasil disimpan", "boProdDeletedToast": "Item berhasil dihapus", "boProdStatusUpdated": "Status item diperbarui",
+			// Thermal Printer keys (ID)
+			"printReceipt": "Cetak Struk", "thermalPrinter": "Printer Thermal", "printerConnected": "Printer Terhubung",
+			"printerDisconnected": "Printer Belum Terhubung", "connectPrinter": "Hubungkan Printer Bluetooth",
+			"disconnectPrinter": "Putuskan Printer", "testPrint": "Cetak Uji Coba", "printViaBluetooth": "Cetak via Bluetooth",
+			"printViaBrowser": "Cetak via Browser (PDF)", "receiptPreview": "Pratinjau Struk",
+			"printReceiptQuestion": "Apakah Anda ingin langsung mencetak struk transaksi ini?",
+			"printReceiptSuccess": "Struk berhasil dicetak.", "skip": "Lewati",
+			"printerModalTitle": "Pengaturan Printer Thermal (Okay 58D)",
+			"printerModalHint": "Hubungkan ke printer thermal 58mm via Web Bluetooth (Okay 58D) atau gunakan dialog cetak browser jika printer belum terhubung.",
+			"storeName": "Pardis Barber Shop", "receiptFooter": "Terima Kasih Atas Kunjungan Anda!",
+			// Operator Credential keys (ID)
+			"phoneNumber": "Nomor HP / WhatsApp", "phonePlaceholder": "Contoh: 08123456789",
+			"branch": "Cabang", "selectBranchOptional": "-- Pilih Cabang (Opsional) --", "selectBranch": "-- Pilih Cabang --",
+			"staffType": "Tipe Staf", "barberman": "Barberman", "cashier": "Kasir", "manager": "Manager",
+			"bankName": "Nama / Kode Bank", "bankNamePlaceholder": "Contoh: BCA, Mandiri, BRI, BNI",
+			"bankAccount": "Nomor Rekening Bank", "bankAccountPlaceholder": "Contoh: 001 1234567",
+			"editEmployeeCredentials": "⚙️ Edit Data Karyawan & Kredensial Bank",
+			"fullName": "Nama Lengkap", "accountNumber": "Nomor Rekening", "accountNumberPlaceholder": "Nomor rekening",
+			"cancel": "Batal", "saveCredentialChanges": "Simpan Perubahan Kredensial",
+			"confirmChangesTitle": "Konfirmasi Perubahan", "confirmChangesDesc": "Pastikan data karyawan sudah benar sebelum disimpan.",
+			"credentialChangeDetails": "Detail Perubahan Kredensial", "credentialChangeNotice": "Perubahan akan disimpan dan langsung berlaku untuk operasional serta bagi hasil.",
+			"yesSaveChanges": "Ya, Simpan Perubahan", "saving": "Menyimpan...", "accountShort": "Rek",
+			"dataSavedSuccess": "Data Berhasil Disimpan", "dataSavedSuccessMsg": "Perubahan data karyawan telah berhasil disimpan.",
+			"configSavedSuccess": "Konfigurasi Berhasil Disimpan", "configSavedSuccessMsg": "Pengaturan persentase bagi hasil berhasil diperbarui.",
+			"discSavedSuccess": "Diskon Berhasil Disimpan", "discSavedSuccessMsg": "Diskon telah berhasil ditambahkan ke katalog.",
+			"discDeletedSuccess": "Diskon Berhasil Dihapus", "discDeletedSuccessMsg": "Diskon telah berhasil dihapus dari sistem.",
+			"confirmDeleteDisc": "Hapus Diskon", "confirmDeleteDiscDesc": "Apakah Anda yakin ingin menghapus diskon atau paket bundling ini?",
+			"yesDeleteDiscount": "Ya, Hapus Diskon", "deleting": "Menghapus...",
+			"noDiscount": "Tanpa Diskon (Harga Normal)", "subtotal": "Subtotal", "discount": "Diskon",
 		}
 		if value, ok := id[key]; ok {
 			return value

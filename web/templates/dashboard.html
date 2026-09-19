@@ -4,9 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Dashboard · POS Phoenix</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260919-v5">
   <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script id="catalog-data" type="application/json">{{.CatalogJSON}}</script>
+  <script id="active-discounts-data" type="application/json">{{.ActiveDiscountsJSON}}</script>
   <script>
     try {
       var cDataEl = document.getElementById("catalog-data");
@@ -14,8 +15,14 @@
     } catch (e) {
       window.POS_CATALOG = [];
     }
+    try {
+      var dDataEl = document.getElementById("active-discounts-data");
+      window.POS_ACTIVE_DISCOUNTS = dDataEl ? JSON.parse(dDataEl.textContent) : [];
+    } catch (e) {
+      window.POS_ACTIVE_DISCOUNTS = [];
+    }
   </script>
-  <script defer src="/static/js/app.js?v=20260916-align"></script>
+  <script defer src="/static/js/app.js?v=20260919-v5"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -57,6 +64,14 @@
             <p class="text-sm font-bold text-slate-300">{{label .Language "dashboard"}} | {{.Greeting}}, {{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Email}}{{end}}</p>
           </div>
           <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <button type="button" id="btn-thermal-printer-settings" class="preference-select flex items-center gap-2 !min-h-11 !bg-white !text-slate-900 !border-slate-300 px-3 font-bold text-xs shadow-sm cursor-pointer active:scale-95" title="{{label .Language "thermalPrinter"}}">
+              <span class="relative flex h-2.5 w-2.5 shrink-0">
+                <span id="printer-status-ping" class="hidden animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span id="printer-status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-400"></span>
+              </span>
+              <svg class="w-4 h-4 text-slate-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              <span id="printer-btn-label" class="hidden sm:inline font-bold text-slate-900">{{label .Language "thermalPrinter"}}</span>
+            </button>
             <form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit>
               <input type="hidden" name="csrf" value="{{.CSRF}}">
               <input type="hidden" name="return_to" value="{{.CurrentURL}}">
@@ -411,9 +426,10 @@
                   </div>
                   <div>
                     <label class="sr-only">{{label .Language "item"}}</label>
-                    <select name="item_name[]" class="field h-11 min-h-11 item-select">
+                    <select name="item_name[]" class="field h-11 min-h-11 font-semibold text-xs sm:text-sm item-select">
                       <option value="">-- {{label .Language "selectItem"}} --</option>
                     </select>
+                    <input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">
                   </div>
                   <div>
                     <label class="sr-only">{{label .Language "amount"}}</label>
@@ -429,10 +445,46 @@
                 <button type="button" id="add-category-btn" class="btn-secondary min-h-11 font-bold">
                   ＋ {{label .Language "addCategory"}}
                 </button>
-                <div class="flex items-center gap-2 text-base font-bold">
-                  <span class="muted text-sm">{{label .Language "total"}}:</span>
-                  <span id="transaction-total-display" class="text-lg font-black text-emerald-600 dark:text-emerald-400">Rp 0,00</span>
-                </div>
+              </div>
+            </div>
+
+            <!-- Discount / Promo Section (Income Only) -->
+            <div id="transaction-discount-section" class="rounded-2xl p-4 surface-soft border border-slate-200/80 dark:border-slate-800 space-y-2.5 transition-all">
+              <div class="flex items-center justify-between">
+                <label for="transaction-discount-select" class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer">
+                  <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  <span>{{label .Language "boDiscounts"}}</span>
+                </label>
+                <span id="discount-applied-badge" class="hidden text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                  -Rp 0,00
+                </span>
+              </div>
+              <select id="transaction-discount-select" name="selected_discount_id" class="field h-11 min-h-11 font-semibold text-xs sm:text-sm">
+                <option value="">-- {{label .Language "noDiscount"}} --</option>
+                {{range .ActiveDiscounts}}
+                <option value="{{.ID}}" data-type="{{.Type}}" data-value="{{.Value}}" data-code="{{.Code}}" data-name="{{.Name}}">
+                  {{.Name}} {{if eq .Type "PERCENTAGE"}}(-{{.Value}}%){{else}}(-{{money .Value}}){{end}}
+                </option>
+                {{end}}
+              </select>
+              <input type="hidden" id="order-discount-amount-input" name="order_discount_amount" value="0">
+            </div>
+
+            <!-- Price Breakdown Summary -->
+            <div id="transaction-summary-card" class="rounded-2xl p-4 surface-soft border border-slate-200/80 dark:border-slate-800 space-y-2">
+              <div id="summary-subtotal-row" class="hidden flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{{label .Language "subtotal"}}:</span>
+                <span id="transaction-subtotal-display" class="font-semibold text-slate-700 dark:text-slate-300">Rp 0,00</span>
+              </div>
+              <div id="summary-discount-row" class="hidden flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                <span id="summary-discount-label">{{label .Language "discount"}}:</span>
+                <span id="transaction-discount-display" class="font-bold">-Rp 0,00</span>
+              </div>
+              <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                <span class="text-sm font-bold text-slate-700 dark:text-slate-300">{{label .Language "total"}}:</span>
+                <span id="transaction-total-display" class="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">Rp 0,00</span>
               </div>
             </div>
 
@@ -460,28 +512,64 @@
                     {{else}}
                       <span class="truncate font-bold">{{.Category}}</span>
                     {{end}}
+                    {{if gt .TotalDiscountCents 0}}
+                      <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                        <svg class="w-3 h-3 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span>{{label $.Language "discount"}} -{{money .TotalDiscountCents}}</span>
+                      </span>
+                    {{end}}
                     {{if .ReversalOfID.Valid}}
-                      <span class="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800">{{label $.Language "reversal"}} #{{.ReversalOfID.Int64}}</span>
+                      <span class="rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-400">{{label $.Language "reversal"}} #{{.ReversalOfID.Int64}}</span>
                     {{end}}
                   </div>
-                  <p class="mt-1.5 break-words text-xs text-slate-500">
+                  <p class="mt-1.5 break-words text-xs font-medium text-slate-600 dark:text-slate-400">
                     {{.OperatorName}} · {{date .OccurredAt}}{{if .Note}} · {{.Note}}{{end}}
                   </p>
                 </div>
-                <p class="max-w-[42vw] break-words text-right font-black sm:max-w-none {{if eq .Kind "income"}}text-emerald-700{{else}}text-rose-700{{end}}">
-                  {{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountCents}}
-                </p>
+                <div class="text-right">
+                  <p class="max-w-[42vw] break-words text-right font-black sm:max-w-none {{if eq .Kind "income"}}text-emerald-700{{else}}text-rose-700{{end}}">
+                    {{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountCents}}
+                  </p>
+                  {{if not .ReversalOfID.Valid}}
+                    {{if not .ReversedByID.Valid}}
+                      <div class="mt-1.5 flex justify-end">
+                        <button type="button" class="btn-print-receipt btn-secondary !min-h-9 !px-3 !py-1 text-xs font-bold gap-1.5 shadow-sm transition active:scale-95 flex items-center cursor-pointer"
+                          data-tx-id="{{.ID}}"
+                          data-tx-kind="{{.Kind}}"
+                          data-tx-amount="{{money .AmountCents}}"
+                          data-tx-operator="{{.OperatorName}}"
+                          data-tx-date="{{date .OccurredAt}}"
+                          data-tx-note="{{.Note}}"
+                          {{if gt .TotalDiscountCents 0}}
+                          data-tx-subtotal="{{money .GrossSubtotalCents}}"
+                          data-tx-discount="{{money .TotalDiscountCents}}"
+                          {{end}}
+                          data-tx-items='{{if .Items}}[{{range $i, $it := .Items}}{{if $i}},{{end}}{"name":"{{if $it.ItemName}}{{$it.ItemName}}{{else}}{{$it.Category}}{{end}}","category":"{{$it.Category}}","amount":"{{money $it.AmountCents}}"}{{end}}]{{else}}[{"name":"{{.Category}}","category":"{{.Category}}","amount":"{{money .AmountCents}}" }]{{end}}'
+                          title="{{label $.Language "printReceipt"}}"
+                        >
+                          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                          <span>{{label $.Language "printReceipt"}}</span>
+                        </button>
+                      </div>
+                    {{end}}
+                  {{end}}
+                </div>
               </div>
-              {{if and (eq $.User.Role "superadmin") (not .ReversalOfID.Valid)}}
+              {{if not .ReversalOfID.Valid}}
                 {{if .ReversedByID.Valid}}
-                  <p class="mt-3 border-t pt-3 text-sm font-bold text-amber-700">{{label $.Language "reversedBy"}} #{{.ReversedByID.Int64}}</p>
-                {{else}}
-                  <form class="mt-3 grid gap-2 border-t pt-3 sm:grid-cols-[1fr_auto]" method="post" action="/transactions/{{.ID}}/reverse">
+                  <div class="mt-3 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                    <div class="inline-flex items-center gap-2 rounded-xl bg-rose-50/80 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 shadow-sm">
+                      <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                      <span>{{label $.Language "reversedBy"}} <strong>#{{.ReversedByID.Int64}}</strong></span>
+                    </div>
+                  </div>
+                {{else if eq $.User.Role "superadmin"}}
+                  <form class="transaction-reverse-form mt-3 grid gap-2 border-t pt-3 sm:grid-cols-[1fr_auto]" method="post" action="/transactions/{{.ID}}/reverse" data-tx-id="{{.ID}}">
                     <input type="hidden" name="csrf" value="{{$.CSRF}}">
                     <input type="hidden" name="return_to" value="{{$.CurrentURL}}">
                     <label class="sr-only" for="reason-{{.ID}}">{{label $.Language "reverseReason"}}</label>
                     <input id="reason-{{.ID}}" name="reason" required minlength="5" maxlength="250" class="field h-11 min-h-11 min-w-0" placeholder="{{label $.Language "reverseReason"}}">
-                    <button class="h-11 min-h-11 rounded-xl bg-amber-600 px-4 font-bold text-white hover:bg-amber-700 transition" type="submit">{{label $.Language "reverse"}}</button>
+                    <button class="h-11 min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-700 shadow-sm shadow-rose-600/20 transition cursor-pointer active:scale-95" type="submit">{{label $.Language "reverse"}}</button>
                   </form>
                 {{end}}
               {{end}}
@@ -500,6 +588,8 @@
       </main>
     </div>
   </div>
+  <!-- Hidden thermal receipt container for browser window.print() -->
+  <div id="thermal-print-container" aria-hidden="true" style="display:none;"></div>
 </body>
 </html>
 {{end}}

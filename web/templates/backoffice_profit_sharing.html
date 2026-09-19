@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Profit sharing configuration per branch.">
   <title>{{label .Language "boProfitSharing"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
-  <script defer src="/static/js/app.js?v=20260916-align"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260918-thermal2">
+  <script defer src="/static/js/app.js?v=20260918-thermal2"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -104,7 +104,7 @@
           {{if .Error}}<p class="text-red-500 text-sm mb-3">{{.Error}}</p>{{end}}
           {{if .Success}}<p class="text-emerald-500 text-sm mb-3">{{.Success}}</p>{{end}}
 
-          <form method="post" action="/backoffice/profit-sharing" id="profit-sharing-form">
+          <form method="post" action="/backoffice/profit-sharing" id="profit-sharing-form" data-net-revenue="{{.NetServiceRevenue}}">
             <input type="hidden" name="csrf" value="{{.CSRF}}">
             <input type="hidden" name="branch" value="{{.SelectedBranch}}">
             <input type="hidden" name="period" value="{{.SelectedPeriod}}">
@@ -122,11 +122,11 @@
               </div>
 
               {{range .EmployeeRules}}
-              <div class="flex items-center gap-4 p-3 rounded-xl bg-emerald-500/10">
+              <div class="emp-rule-row flex items-center gap-4 p-3 rounded-xl bg-emerald-500/10">
                 <input type="hidden" name="employee_id" value="{{.UserID}}">
                 <div class="flex-1">
                   <p class="font-bold">{{.DisplayName}}</p>
-                  <p class="muted text-xs">{{label $.Language "boEmpShareDesc"}} {{money .ShareAmount}}</p>
+                  <p class="muted text-xs">{{label $.Language "boEmpShareDesc"}} <span class="emp-share-amount font-semibold">{{money .ShareAmount}}</span></p>
                 </div>
                 <div class="w-24">
                   <input type="number" name="employee_percentage" value="{{printf "%.1f" .Percentage}}" min="0" max="100" step="0.1" class="field h-11 min-h-11 text-right emp-pct-input">
@@ -160,7 +160,9 @@
             </div>
 
             <div class="mt-6">
-              <button type="submit" class="btn-primary w-full h-12 font-bold" id="ps-save-btn">{{label .Language "boSaveConfig"}}</button>
+              <button type="submit" class="w-full h-12 font-bold rounded-xl transition duration-150 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none" id="ps-save-btn" disabled>
+                <span id="ps-save-text">{{label .Language "boSaveConfig"}}</span>
+              </button>
             </div>
           </form>
         </section>
@@ -178,21 +180,145 @@
         el.addEventListener('change', function() { psFilterForm.submit(); });
       });
     }
+
+    var form = document.getElementById('profit-sharing-form');
+    var saveBtn = document.getElementById('ps-save-btn');
+    var saveText = document.getElementById('ps-save-text');
+    var ownerInput = document.getElementById('owner-pct-input');
+    var netRev = parseInt(form.getAttribute('data-net-revenue'), 10) || 0;
+
+    function formatRupiahCents(cents) {
+      var negative = cents < 0;
+      if (negative) cents = -cents;
+      var whole = Math.floor(cents / 100);
+      var fraction = cents % 100;
+      var fracStr = fraction < 10 ? '0' + fraction : '' + fraction;
+      var digits = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      return (negative ? "-" : "") + "Rp " + digits + "," + fracStr;
+    }
+
+    function toPct(val) {
+      var n = parseFloat(val);
+      return isNaN(n) ? 0 : Math.round(n * 10) / 10;
+    }
+
+    function formatInputPct(el) {
+      if (!el) return;
+      var val = parseFloat(el.value);
+      if (!isNaN(val)) {
+        el.value = (Math.round(val * 10) / 10).toFixed(1);
+      }
+    }
+
+    function recordInitial() {
+      if (ownerInput) {
+        var v = toPct(ownerInput.value);
+        ownerInput.value = v.toFixed(1);
+        ownerInput.dataset.initial = v.toFixed(1);
+      }
+      document.querySelectorAll('.emp-pct-input').forEach(function(el) {
+        var v = toPct(el.value);
+        el.value = v.toFixed(1);
+        el.dataset.initial = v.toFixed(1);
+      });
+    }
+
+    function isFormDirty() {
+      if (ownerInput && toPct(ownerInput.value) !== toPct(ownerInput.dataset.initial)) return true;
+      var empInputs = document.querySelectorAll('.emp-pct-input');
+      for (var i = 0; i < empInputs.length; i++) {
+        if (toPct(empInputs[i].value) !== toPct(empInputs[i].dataset.initial)) return true;
+      }
+      return false;
+    }
+
     function recalculate() {
-      var ownerPct = parseFloat(document.getElementById('owner-pct-input').value) || 0;
+      var ownerPct = toPct(ownerInput ? ownerInput.value : 0);
       var empTotal = 0;
-      document.querySelectorAll('.emp-pct-input').forEach(function(el) { empTotal += parseFloat(el.value) || 0; });
-      var total = ownerPct + empTotal;
-      var remaining = Math.max(0, 100 - total);
+      document.querySelectorAll('.emp-pct-input').forEach(function(el) {
+        var pct = toPct(el.value);
+        empTotal += pct;
+        var row = el.closest('.emp-rule-row');
+        if (row && netRev > 0) {
+          var shareSpan = row.querySelector('.emp-share-amount');
+          if (shareSpan) {
+            var shareCents = Math.round(netRev * pct / 100.0);
+            shareSpan.textContent = formatRupiahCents(shareCents);
+          }
+        }
+      });
+      var total = Math.round((ownerPct + empTotal) * 10) / 10;
+      var remaining = Math.max(0, Math.round((100 - total) * 10) / 10);
       document.getElementById('unallocated-pct').textContent = remaining.toFixed(1) + '%';
       var totalEl = document.getElementById('total-pct');
       totalEl.textContent = total.toFixed(1) + '%';
-      totalEl.style.color = total > 100 ? '#ef4444' : '';
+      var isOver = total > 100;
+      totalEl.style.color = isOver ? '#ef4444' : '';
+
+      var dirty = isFormDirty();
+      if (!dirty || isOver) {
+        saveBtn.disabled = true;
+        saveBtn.className = "w-full h-12 font-bold rounded-xl transition duration-150 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none";
+      } else {
+        saveBtn.disabled = false;
+        saveBtn.className = "btn-primary w-full h-12 font-bold shadow-md shadow-blue-500/20 cursor-pointer transition active:scale-[0.99]";
+      }
     }
-    var ownerInput = document.getElementById('owner-pct-input');
-    if (ownerInput) ownerInput.addEventListener('input', recalculate);
-    document.querySelectorAll('.emp-pct-input').forEach(function(el) { el.addEventListener('input', recalculate); });
+
+    recordInitial();
+    if (ownerInput) {
+      ownerInput.addEventListener('input', recalculate);
+      ownerInput.addEventListener('change', function() { formatInputPct(this); recalculate(); });
+      ownerInput.addEventListener('blur', function() { formatInputPct(this); recalculate(); });
+    }
+    document.querySelectorAll('.emp-pct-input').forEach(function(el) {
+      el.addEventListener('input', recalculate);
+      el.addEventListener('change', function() { formatInputPct(this); recalculate(); });
+      el.addEventListener('blur', function() { formatInputPct(this); recalculate(); });
+    });
     recalculate();
+
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (saveBtn.disabled) return;
+
+        var isId = (document.documentElement.lang || 'id') === 'id';
+        var originalText = saveText.textContent;
+        saveBtn.disabled = true;
+        saveText.textContent = isId ? 'Menyimpan...' : 'Saving...';
+
+        var formData = new FormData(form);
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Server returned ' + res.status);
+          return res.json().catch(function() { return { ok: true }; });
+        })
+        .then(function() {
+          recordInitial();
+          saveText.textContent = originalText;
+          recalculate();
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? 'Konfigurasi Berhasil Disimpan' : 'Configuration Saved Successfully',
+              isId ? 'Pengaturan persentase bagi hasil berhasil diperbarui.' : 'Profit sharing configuration has been saved successfully.',
+              3000,
+              'success'
+            );
+          }
+        })
+        .catch(function(err) {
+          console.warn('AJAX submit failed, falling back to standard submit:', err);
+          form.submit();
+        });
+      });
+    }
   </script>
 </body>
 </html>

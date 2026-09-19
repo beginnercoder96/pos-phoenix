@@ -55,9 +55,9 @@
     border-bottom: 1px solid #0a1130;
   }
   .topbar-inner { @apply mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8; }
-  .brand-mark { @apply flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500 text-lg font-black text-white shadow-lg; box-shadow: 0 8px 22px rgba(16,185,129,.28); }
-  .eyebrow { @apply text-xs font-bold uppercase tracking-[.18em] text-emerald-600; }
-  [data-theme="dark"] .eyebrow { @apply text-emerald-400; }
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[.18em]; color: #059669 !important; }
+  [data-theme="dark"] .eyebrow,
+  [data-theme="dark"] .surface .eyebrow { color: #34d399 !important; }
   .muted { @apply text-slate-500; }
   [data-theme="dark"] .muted { @apply text-slate-400; }
 
@@ -74,11 +74,36 @@
     border-color: #0e173e;
   }
 
-  .preference-select { @apply min-h-11 appearance-none rounded-xl border border-slate-300 bg-white px-3 font-bold text-slate-900 outline-none ring-emerald-400 transition focus:ring-2; }
-  [data-theme="dark"] .preference-select {
-    background-color: #010318;
-    border-color: #121c47;
-    color: #f1f5f9;
+  .preference-select { 
+    @apply min-h-11 appearance-none rounded-xl border border-slate-300 bg-white px-3 font-bold text-slate-800 outline-none transition duration-150 cursor-pointer shadow-sm; 
+  }
+  .preference-select:hover {
+    border-color: #2563eb !important;
+    background-color: #eff6ff !important;
+    color: #1d4ed8 !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12) !important;
+  }
+  .preference-select:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25) !important;
+  }
+  [data-theme="dark"] .preference-select,
+  [data-theme="dark"] .surface .preference-select {
+    background-color: #010318 !important;
+    border-color: #1a275a !important;
+    color: #f1f5f9 !important;
+  }
+  [data-theme="dark"] .preference-select:hover,
+  [data-theme="dark"] .surface .preference-select:hover {
+    background-color: rgba(37, 99, 235, 0.14) !important;
+    border-color: #3b82f6 !important;
+    color: #93c5fd !important;
+    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.2) !important;
+  }
+  [data-theme="dark"] .preference-select:focus,
+  [data-theme="dark"] .surface .preference-select:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35) !important;
   }
   .field-label { @apply mb-1.5 block text-sm font-semibold text-slate-700; }
   [data-theme="dark"] .field-label { color: #e2e8f0; }
@@ -171,16 +196,29 @@
     background-color: #1d4ed8 !important;
     color: #ffffff !important;
   }
-  .btn-secondary { @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700; }
+  .btn-secondary { 
+    @apply inline-flex min-h-11 items-center justify-center text-center rounded-xl px-4 font-semibold shadow-sm transition active:scale-[0.98]; 
+    background-color: #ffffff;
+    border: 1.5px solid #2563eb;
+    color: #2563eb;
+  }
+  .btn-secondary:hover {
+    background-color: #eff6ff;
+    border-color: #1d4ed8;
+    color: #1d4ed8;
+  }
   [data-theme="dark"] .btn-secondary {
-    background-color: #010318;
-    border-color: #121c47;
-    color: #f1f5f9;
+    background-color: rgba(37, 99, 235, 0.08);
+    border: 1.5px solid #3b82f6;
+    color: #60a5fa;
   }
   [data-theme="dark"] .btn-secondary:hover {
-    border-color: #3b82f6;
+    background-color: rgba(37, 99, 235, 0.22);
+    border-color: #60a5fa;
     color: #93c5fd;
   }
+
+
 
   /* Stat cards */
   .stat-card { @apply relative overflow-hidden rounded-2xl border p-4 shadow-sm sm:p-5; }
@@ -197,8 +235,12 @@
   [data-theme="dark"] .text-slate-900 { color: #f8fafc !important; }
   [data-theme="dark"] .text-slate-950 { color: #ffffff !important; }
   [data-theme="dark"] .text-emerald-700 { color: #6ee7b7 !important; }
+  [data-theme="dark"] .text-rose-300 { color: #fca5a5 !important; }
+  [data-theme="dark"] .text-rose-400 { color: #fda4af !important; }
+  [data-theme="dark"] .text-rose-500 { color: #f43f5e !important; }
+  [data-theme="dark"] .text-rose-600 { color: #fb7185 !important; }
   [data-theme="dark"] .text-rose-700 { color: #fda4af !important; }
-  [data-theme="dark"] .surface select { color: #f8fafc !important; border-color: #121c47 !important; background-color: #010318 !important; }
+  [data-theme="dark"] .surface select:not(.preference-select) { color: #f8fafc !important; border-color: #121c47 !important; background-color: #010318 !important; }
   [data-theme="dark"] .stat-card .text-lg { color: #f8fafc !important; }
   [data-theme="dark"] .bg-white { background-color: #010318 !important; border-color: #0e173e !important; }
   [data-theme="dark"] .bg-emerald-50 { background-color: #022319 !important; border-color: #074732 !important; color: #ecfdf5 !important; }
@@ -228,3 +270,190 @@
   from { opacity: 0; transform: translateX(50px) scale(.95); }
   to   { opacity: 1; transform: translateX(0) scale(1); }
 }
+
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Thermal Printer (58mm) Print Layout */
+@media print {
+  body.printing-thermal {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+  }
+  body.printing-thermal * {
+    visibility: hidden;
+  }
+  body.printing-thermal #thermal-print-container,
+  body.printing-thermal #thermal-print-container * {
+    visibility: visible !important;
+  }
+  body.printing-thermal #thermal-print-container {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 2mm 3mm !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+  @page {
+    size: 58mm auto;
+    margin: 0;
+  }
+}
+
+/* Virtual Receipt Paper Preview - Always Authentic White Thermal Paper */
+.thermal-receipt-paper,
+[data-theme="dark"] .thermal-receipt-paper {
+  width: 100%;
+  max-width: 280px;
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.3;
+  box-shadow: 0 14px 35px -6px rgba(0, 0, 0, 0.35), 0 4px 12px -2px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+.thermal-receipt-paper *,
+[data-theme="dark"] .thermal-receipt-paper * {
+  color: #111827 !important;
+}
+.thermal-receipt-paper .text-slate-600,
+.thermal-receipt-paper .text-slate-700,
+[data-theme="dark"] .thermal-receipt-paper .text-slate-600,
+[data-theme="dark"] .thermal-receipt-paper .text-slate-700 {
+  color: #4b5563 !important;
+}
+.thermal-receipt-paper .border-dashed,
+[data-theme="dark"] .thermal-receipt-paper .border-dashed {
+  border-color: #111827 !important;
+}
+.thermal-receipt-paper-cut,
+[data-theme="dark"] .thermal-receipt-paper-cut {
+  background: linear-gradient(135deg, transparent 33.33%, #ffffff 33.33%, #ffffff 66.66%, transparent 66.66%),
+              linear-gradient(-135deg, transparent 33.33%, #ffffff 33.33%, #ffffff 66.66%, transparent 66.66%) !important;
+  background-size: 12px 8px !important;
+  height: 8px;
+  width: 100%;
+}
+
+/* Table Action Buttons (Standalone, never purged by Tailwind) */
+.btn-action-edit {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: 1px solid #bfdbfe;
+  background-color: #eff6ff;
+  color: #2563eb;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.btn-action-edit:hover {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+.btn-action-edit:active {
+  transform: scale(0.95);
+}
+[data-theme="dark"] .btn-action-edit {
+  background-color: rgba(30, 58, 138, 0.35) !important;
+  border-color: rgba(59, 130, 246, 0.6) !important;
+  color: #93c5fd !important;
+}
+[data-theme="dark"] .btn-action-edit:hover {
+  background-color: #2563eb !important;
+  border-color: #60a5fa !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.5) !important;
+}
+
+.btn-action-delete {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: 1px solid #fecdd3;
+  background-color: #fff1f2;
+  color: #e11d48;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.btn-action-delete:hover {
+  background-color: #e11d48 !important;
+  border-color: #e11d48 !important;
+  color: #ffffff !important;
+}
+.btn-action-delete:active {
+  transform: scale(0.95);
+}
+[data-theme="dark"] .btn-action-delete {
+  background-color: rgba(136, 19, 55, 0.35) !important;
+  border-color: rgba(244, 63, 94, 0.6) !important;
+  color: #fca5a5 !important;
+}
+[data-theme="dark"] .btn-action-delete:hover {
+  background-color: #e11d48 !important;
+  border-color: #fb7185 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.5) !important;
+}
+
+/* Discount delete button with text */
+.btn-delete-discount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid #fecdd3;
+  background-color: #fff1f2;
+  color: #be123c;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+}
+.btn-delete-discount:hover {
+  background-color: #e11d48 !important;
+  border-color: #e11d48 !important;
+  color: #ffffff !important;
+}
+.btn-delete-discount:active {
+  transform: scale(0.95);
+}
+[data-theme="dark"] .btn-delete-discount {
+  background-color: rgba(136, 19, 55, 0.35) !important;
+  border-color: rgba(244, 63, 94, 0.6) !important;
+  color: #fca5a5 !important;
+}
+[data-theme="dark"] .btn-delete-discount:hover {
+  background-color: #e11d48 !important;
+  border-color: #fb7185 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.5) !important;
+}
+

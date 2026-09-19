@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -44,6 +46,7 @@ type backofficeData struct {
 	PayrollSummaries       []backoffice.EmployeePayrollSummary
 	Employees              []auth.User
 	Greeting               string
+	Categories             []string
 }
 
 type employeeRuleView struct {
@@ -127,34 +130,25 @@ func (s *Server) backofficeProfitSharing(w http.ResponseWriter, r *http.Request)
 	var unallocPct float64
 
 	rule, empRules, err := s.backoffice.GetProfitSharingConfig(r.Context(), branch.ID, periodMonth)
+	ruleMap := make(map[int64]float64)
 	if err == nil && rule != nil {
 		ownerPct = rule.OwnerPercentage
 		unallocPct = rule.UnallocatedPercentage
 		for _, er := range empRules {
-			name := ""
-			for _, emp := range employees {
-				if emp.ID == er.UserID {
-					name = emp.DisplayName
-					break
-				}
-			}
-			empRuleViews = append(empRuleViews, employeeRuleView{
-				UserID:      er.UserID,
-				DisplayName: name,
-				Percentage:  er.Percentage,
-				ShareAmount: int64(float64(netServiceRevenue) * er.Percentage / 100.0),
-			})
+			ruleMap[er.UserID] = er.Percentage
 		}
 	} else {
-		// Default: show all employees with 0%
-		for _, emp := range employees {
-			empRuleViews = append(empRuleViews, employeeRuleView{
-				UserID:      emp.ID,
-				DisplayName: emp.DisplayName,
-				Percentage:  0,
-			})
-		}
 		unallocPct = 100
+	}
+
+	for _, emp := range employees {
+		pct := ruleMap[emp.ID]
+		empRuleViews = append(empRuleViews, employeeRuleView{
+			UserID:      emp.ID,
+			DisplayName: emp.DisplayName,
+			Percentage:  pct,
+			ShareAmount: int64(float64(netServiceRevenue) * pct / 100.0),
+		})
 	}
 
 	data := backofficeData{
@@ -209,11 +203,13 @@ func (s *Server) backofficeSaveProfitSharing(w http.ResponseWriter, r *http.Requ
 	empIDs := r.PostForm["employee_id"]
 	empPcts := r.PostForm["employee_percentage"]
 	var empRules []backoffice.EmployeeProfitRule
+	seen := make(map[int64]bool)
 	for i, idStr := range empIDs {
 		id, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil || id <= 0 {
+		if err != nil || id <= 0 || seen[id] {
 			continue
 		}
+		seen[id] = true
 		pct := 0.0
 		if i < len(empPcts) {
 			pct, _ = strconv.ParseFloat(empPcts[i], 64)
@@ -238,11 +234,21 @@ func (s *Server) backofficeSaveProfitSharing(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := s.backoffice.SaveProfitSharingConfig(r.Context(), branch.ID, periodMonth, ownerPct, empRules, u.ID); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to save: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "failed to save: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/backoffice/profit-sharing?branch=%s&period=%s", branchCode, periodMonth), http.StatusSeeOther)
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/backoffice/profit-sharing?branch=%s&period=%s&saved=config", branchCode, periodMonth), http.StatusSeeOther)
 }
 
 func (s *Server) backofficeDiscounts(w http.ResponseWriter, r *http.Request) {
@@ -284,9 +290,23 @@ func (s *Server) backofficeSaveDiscount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	val, _ := strconv.ParseInt(r.FormValue("value"), 10, 64)
+	if (d.Type == "FIXED_AMOUNT" || d.Type == "BUNDLE") && val < 1000000 {
+		val = val * 100
+	}
 	d.Value = val
-	d.ServiceAllocationRatio, _ = strconv.ParseFloat(r.FormValue("service_ratio"), 64)
-	d.ProductAllocationRatio, _ = strconv.ParseFloat(r.FormValue("product_ratio"), 64)
+	if d.Type != "BUNDLE" {
+		d.ServiceAllocationRatio = 1.0
+		d.ProductAllocationRatio = 0.0
+	} else {
+		srvRatio, _ := strconv.ParseFloat(r.FormValue("service_ratio"), 64)
+		if srvRatio < 0 {
+			srvRatio = 0
+		} else if srvRatio > 1.0 {
+			srvRatio = 1.0
+		}
+		d.ServiceAllocationRatio = srvRatio
+		d.ProductAllocationRatio = math.Round((1.0-srvRatio)*100) / 100
+	}
 	d.IsActive = r.FormValue("is_active") == "1" || r.FormValue("is_active") == "on"
 
 	if idStr := r.FormValue("id"); idStr != "" {
@@ -294,10 +314,21 @@ func (s *Server) backofficeSaveDiscount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.backoffice.SaveDiscount(r.Context(), d); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to save discount: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "failed to save discount: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/backoffice/discounts", http.StatusSeeOther)
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true, "name": d.Name, "code": d.Code})
+		return
+	}
+
+	http.Redirect(w, r, "/backoffice/discounts?saved_disc="+url.QueryEscape(d.Name), http.StatusSeeOther)
 }
 
 func (s *Server) backofficeDeleteDiscount(w http.ResponseWriter, r *http.Request) {
@@ -311,9 +342,49 @@ func (s *Server) backofficeDeleteDiscount(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := s.backoffice.DeleteDiscount(r.Context(), id); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to delete discount", http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "failed to delete discount", http.StatusInternalServerError)
 		return
 	}
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+
+	http.Redirect(w, r, "/backoffice/discounts?deleted_disc=true", http.StatusSeeOther)
+}
+
+func (s *Server) backofficeToggleDiscount(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid discount ID", http.StatusBadRequest)
+		return
+	}
+	newStatus, err := s.backoffice.ToggleDiscountStatus(r.Context(), id)
+	if err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to toggle discount status", http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "failed to toggle discount status", http.StatusInternalServerError)
+		return
+	}
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true, "is_active": newStatus})
+		return
+	}
+
 	http.Redirect(w, r, "/backoffice/discounts", http.StatusSeeOther)
 }
 
@@ -323,6 +394,22 @@ func (s *Server) backofficeProducts(w http.ResponseWriter, r *http.Request) {
 	now := s.now().In(s.location)
 	items, _ := s.backoffice.ListCatalogItems(r.Context(), "")
 
+	seenCat := map[string]bool{
+		"Haircut Services":  true,
+		"Add Ons":           true,
+		"Chemical Services": true,
+		"Hair Treatment":    true,
+		"Product":           true,
+	}
+	categories := []string{"Haircut Services", "Add Ons", "Chemical Services", "Hair Treatment", "Product"}
+	for _, it := range items {
+		cat := strings.TrimSpace(it.Category)
+		if cat != "" && !seenCat[cat] {
+			seenCat[cat] = true
+			categories = append(categories, cat)
+		}
+	}
+
 	data := backofficeData{
 		User:            u,
 		CSRF:            s.csrf(w, r),
@@ -331,6 +418,7 @@ func (s *Server) backofficeProducts(w http.ResponseWriter, r *http.Request) {
 		CurrentURL:      r.URL.RequestURI(),
 		CurrentDateTime: formatCurrentDateTime(now, s.location, pref.Language),
 		CatalogItems:    items,
+		Categories:      categories,
 	}
 	s.renderBackoffice(w, "backoffice_products.html", data)
 }
@@ -341,29 +429,139 @@ func (s *Server) backofficeSaveProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item := backoffice.CatalogItem{
-		Name:     strings.TrimSpace(r.FormValue("name")),
-		Category: strings.TrimSpace(r.FormValue("category")),
-		ItemType: r.FormValue("item_type"),
-		IsActive: true,
-	}
-	if item.Name == "" {
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	if item.ItemType != "SERVICE" && item.ItemType != "PRODUCT" {
-		item.ItemType = "SERVICE"
+
+	category := strings.TrimSpace(r.FormValue("category"))
+	if category == "" {
+		category = strings.TrimSpace(r.FormValue("category_select"))
+		if category == "__NEW__" || category == "" {
+			category = strings.TrimSpace(r.FormValue("category_new"))
+		}
 	}
 
-	item.PriceCents, _ = strconv.ParseInt(r.FormValue("price_cents"), 10, 64)
-	item.CommissionAmount, _ = strconv.ParseInt(r.FormValue("commission_amount"), 10, 64)
+	itemType := r.FormValue("item_type")
+	if itemType != "SERVICE" && itemType != "PRODUCT" {
+		itemType = "SERVICE"
+	}
 
+	var priceCents int64
+	if priceStr := strings.TrimSpace(r.FormValue("price")); priceStr != "" {
+		priceRupiah, _ := strconv.ParseInt(priceStr, 10, 64)
+		priceCents = priceRupiah * 100
+	} else {
+		priceCents, _ = strconv.ParseInt(r.FormValue("price_cents"), 10, 64)
+	}
+
+	var commissionAmount int64
+	if commRupiahStr := strings.TrimSpace(r.FormValue("commission")); commRupiahStr != "" {
+		commRupiah, _ := strconv.ParseInt(commRupiahStr, 10, 64)
+		commissionAmount = commRupiah * 100
+	} else {
+		commStr := r.FormValue("commission_amount")
+		if commStr == "" {
+			commStr = r.FormValue("commission_cents")
+		}
+		commissionAmount, _ = strconv.ParseInt(commStr, 10, 64)
+	}
+	if itemType == "SERVICE" {
+		commissionAmount = 0
+	}
+
+	isActive := true
+	if activeStr := r.FormValue("is_active"); activeStr == "0" {
+		isActive = false
+	}
+
+	var id int64
 	if idStr := r.FormValue("id"); idStr != "" {
-		item.ID, _ = strconv.ParseInt(idStr, 10, 64)
+		id, _ = strconv.ParseInt(idStr, 10, 64)
+	}
+
+	item := backoffice.CatalogItem{
+		ID:               id,
+		Name:             name,
+		Category:         category,
+		ItemType:         itemType,
+		PriceCents:       priceCents,
+		CommissionAmount: commissionAmount,
+		IsActive:         isActive,
 	}
 
 	if err := s.backoffice.SaveCatalogItem(r.Context(), item); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to save product: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "failed to save product: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":   true,
+			"id":   item.ID,
+			"name": item.Name,
+		})
+		return
+	}
+	http.Redirect(w, r, "/backoffice/products?saved_prod="+url.QueryEscape(item.Name), http.StatusSeeOther)
+}
+
+func (s *Server) backofficeDeleteProduct(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid product ID", http.StatusBadRequest)
+		return
+	}
+	if err := s.backoffice.DeleteCatalogItem(r.Context(), id); err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to delete product: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "failed to delete product", http.StatusInternalServerError)
+		return
+	}
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+	http.Redirect(w, r, "/backoffice/products", http.StatusSeeOther)
+}
+
+func (s *Server) backofficeToggleProductStatus(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid product ID", http.StatusBadRequest)
+		return
+	}
+	newStatus, err := s.backoffice.ToggleCatalogItemStatus(r.Context(), id)
+	if err != nil {
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			http.Error(w, "failed to toggle status: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "failed to toggle status: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "is_active": newStatus})
 		return
 	}
 	http.Redirect(w, r, "/backoffice/products", http.StatusSeeOther)

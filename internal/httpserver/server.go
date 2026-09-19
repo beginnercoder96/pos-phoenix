@@ -79,10 +79,15 @@ type pageData struct {
 	Catalog                     []CatalogCategory
 	CatalogJSON                 template.HTML
 	CatalogJS                   template.JS
+	ActiveDiscounts             []backoffice.DiscountBundle
+	ActiveDiscountsJSON         template.HTML
 	Greeting                    string
 	RedirectURL                 string
 	Branches                    []backoffice.Branch
 	SavedName                   string
+	Success                     string
+	ResetToken                  string
+	ResetLink                   string
 }
 
 func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error) {
@@ -101,9 +106,17 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	}
 	s := &Server{auth: auth.Service{DB: db}, transactions: transactionstore.Repository{DB: db}, backoffice: &backoffice.Repository{DB: db}, templates: t, secure: secure, location: location, now: time.Now}
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(safeDir("web/static"))))
+	staticFS := http.StripPrefix("/static/", http.FileServer(safeDir("web/static")))
+	mux.HandleFunc("GET /static/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+		staticFS.ServeHTTP(w, r)
+	})
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.login)
+	mux.HandleFunc("GET /forgot-password", s.forgotPasswordPage)
+	mux.HandleFunc("POST /forgot-password", s.requestPasswordReset)
+	mux.HandleFunc("GET /reset-password", s.resetPasswordPage)
+	mux.HandleFunc("POST /reset-password", s.submitPasswordReset)
 	mux.HandleFunc("POST /logout", s.withUser(s.logout))
 	mux.HandleFunc("GET /loading", s.loadingPage)
 	mux.HandleFunc("GET /", s.withUser(s.dashboard))
@@ -126,8 +139,11 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	mux.HandleFunc("GET /backoffice/discounts", s.withUser(s.adminOnly(s.backofficeDiscounts)))
 	mux.HandleFunc("POST /backoffice/discounts", s.withUser(s.adminOnly(s.backofficeSaveDiscount)))
 	mux.HandleFunc("POST /backoffice/discounts/{id}/delete", s.withUser(s.adminOnly(s.backofficeDeleteDiscount)))
+	mux.HandleFunc("POST /backoffice/discounts/{id}/toggle", s.withUser(s.adminOnly(s.backofficeToggleDiscount)))
 	mux.HandleFunc("GET /backoffice/products", s.withUser(s.adminOnly(s.backofficeProducts)))
 	mux.HandleFunc("POST /backoffice/products", s.withUser(s.adminOnly(s.backofficeSaveProduct)))
+	mux.HandleFunc("POST /backoffice/products/{id}/delete", s.withUser(s.adminOnly(s.backofficeDeleteProduct)))
+	mux.HandleFunc("POST /backoffice/products/{id}/toggle", s.withUser(s.adminOnly(s.backofficeToggleProductStatus)))
 	mux.HandleFunc("GET /backoffice/payroll", s.withUser(s.adminOnly(s.backofficePayroll)))
 	mux.HandleFunc("GET /backoffice/payroll/slip", s.withUser(s.adminOnly(s.backofficePayrollSlip)))
 	mux.HandleFunc("GET /backoffice/payroll/slip-all", s.withUser(s.adminOnly(s.backofficePayrollSlipAll)))
@@ -154,9 +170,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusForbidden)
 		return
 	}
-	u, err := s.auth.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
+	username := strings.TrimSpace(r.FormValue("username"))
+	if username == "" || strings.Contains(username, "@") {
+		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect."}), http.StatusUnauthorized)
+		return
+	}
+	u, err := s.auth.Authenticate(r.Context(), username, r.FormValue("password"))
 	if err != nil {
-		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Email or password is incorrect."}), http.StatusUnauthorized)
+		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect."}), http.StatusUnauthorized)
 		return
 	}
 	token, err := s.auth.CreateSession(r.Context(), u.ID)
@@ -167,6 +188,96 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: "session", Value: token, Path: "/", HttpOnly: true, Secure: s.secure, SameSite: http.SameSiteLaxMode, MaxAge: 43200})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+func (s *Server) forgotPasswordPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, "forgot_password.html", localizedData(r, pageData{CSRF: s.csrf(w, r)}))
+}
+
+func (s *Server) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	email := strings.TrimSpace(r.FormValue("email"))
+	if email == "" {
+		s.renderStatus(w, "forgot_password.html", localizedData(r, pageData{
+			CSRF:  s.csrf(w, r),
+			Error: "Please enter your registered email address.",
+		}), http.StatusBadRequest)
+		return
+	}
+
+	token, resetLink, err := s.auth.CreatePasswordResetToken(r.Context(), email)
+	if err != nil {
+		s.renderStatus(w, "forgot_password.html", localizedData(r, pageData{
+			CSRF:  s.csrf(w, r),
+			Error: err.Error(),
+		}), http.StatusBadRequest)
+		return
+	}
+
+	s.render(w, "forgot_password.html", localizedData(r, pageData{
+		CSRF:       s.csrf(w, r),
+		Success:    "resetEmailSentMessage",
+		ResetToken: token,
+		ResetLink:  resetLink,
+	}))
+}
+
+func (s *Server) resetPasswordPage(w http.ResponseWriter, r *http.Request) {
+	token := strings.TrimSpace(r.URL.Query().Get("token"))
+	if token == "" {
+		http.Redirect(w, r, "/forgot-password", http.StatusSeeOther)
+		return
+	}
+	_, err := s.auth.ValidatePasswordResetToken(r.Context(), token)
+	if err != nil {
+		s.renderStatus(w, "reset_password.html", localizedData(r, pageData{
+			CSRF:       s.csrf(w, r),
+			Error:      "invalidOrExpiredToken",
+			ResetToken: token,
+		}), http.StatusBadRequest)
+		return
+	}
+	s.render(w, "reset_password.html", localizedData(r, pageData{
+		CSRF:       s.csrf(w, r),
+		ResetToken: token,
+	}))
+}
+
+func (s *Server) submitPasswordReset(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	token := strings.TrimSpace(r.FormValue("token"))
+	password := r.FormValue("password")
+	confirm := r.FormValue("password_confirm")
+
+	if password != confirm {
+		s.renderStatus(w, "reset_password.html", localizedData(r, pageData{
+			CSRF:       s.csrf(w, r),
+			Error:      "passwordsDoNotMatch",
+			ResetToken: token,
+		}), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.auth.ResetPasswordWithToken(r.Context(), token, password); err != nil {
+		s.renderStatus(w, "reset_password.html", localizedData(r, pageData{
+			CSRF:       s.csrf(w, r),
+			Error:      err.Error(),
+			ResetToken: token,
+		}), http.StatusBadRequest)
+		return
+	}
+
+	s.render(w, "login.html", localizedData(r, pageData{
+		CSRF:    s.csrf(w, r),
+		Success: "passwordResetSuccess",
+	}))
+}
+
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if !s.validCSRF(r) {
 		http.Error(w, "invalid request", 403)
@@ -318,6 +429,22 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 
 	currentDateTime := formatCurrentDateTime(now, s.location, pref.Language)
 
+	allDiscounts, _ := s.backoffice.ListDiscounts(r.Context())
+	var activeDiscounts []backoffice.DiscountBundle
+	var activeBundles []backoffice.DiscountBundle
+	for _, d := range allDiscounts {
+		if d.IsActive {
+			if d.Type == "BUNDLE" {
+				activeBundles = append(activeBundles, d)
+			} else {
+				activeDiscounts = append(activeDiscounts, d)
+			}
+		}
+	}
+	catalogItems, _ := s.backoffice.ListCatalogItems(r.Context(), "")
+	dynamicCatalog := BuildCatalog(catalogItems, activeBundles)
+	activeDiscJSON, _ := json.Marshal(activeDiscounts)
+
 	data := localizedData(r, pageData{
 		User: u, Entries: result.Entries, Summary: result.Summary, Trend: trend, CSRF: s.csrf(w, r),
 		Today: now.Format("2006-01-02"), From: from.In(s.location).Format("2006-01-02"),
@@ -330,7 +457,11 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		CalendarMonthLimit: calDaysInMonth,
 		CalendarBlanks:     calBlanks,
 		CalendarDays:       calDays,
-		Catalog: DefaultCatalog, CatalogJSON: CatalogJSON(), CatalogJS: CatalogJS(),
+		Catalog:             dynamicCatalog,
+		CatalogJSON:         DynamicCatalogJSON(dynamicCatalog),
+		CatalogJS:           DynamicCatalogJS(dynamicCatalog),
+		ActiveDiscounts:     activeDiscounts,
+		ActiveDiscountsJSON: template.HTML(activeDiscJSON),
 		Greeting: greeting,
 	})
 	if result.Page > 1 {
@@ -472,6 +603,10 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 	if len(barberIDs) == 0 {
 		barberIDs = r.PostForm["barber_id[]"]
 	}
+	bundleIDs := r.PostForm["bundle_id"]
+	if len(bundleIDs) == 0 {
+		bundleIDs = r.PostForm["bundle_id[]"]
+	}
 	discounts := r.PostForm["discount_amount"]
 	if len(discounts) == 0 {
 		discounts = r.PostForm["discount_amount[]"]
@@ -485,6 +620,15 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 	var totalCents int64
 	var distinctCategories []string
 	seenCat := make(map[string]bool)
+
+	catalogItemMap := make(map[string]backoffice.CatalogItem)
+	if s.backoffice != nil {
+		if cItems, err := s.backoffice.ListCatalogItems(r.Context(), ""); err == nil {
+			for _, ci := range cItems {
+				catalogItemMap[strings.ToLower(strings.TrimSpace(ci.Name))] = ci
+			}
+		}
+	}
 
 	if len(categories) > 0 {
 		for i, cat := range categories {
@@ -517,6 +661,13 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 			if i < len(barberIDs) {
 				bID, _ = strconv.ParseInt(barberIDs[i], 10, 64)
 			}
+			if bID == 0 {
+				bID = u.ID
+			}
+			var bndID int64
+			if i < len(bundleIDs) {
+				bndID, _ = strconv.ParseInt(bundleIDs[i], 10, 64)
+			}
 			var discAmt int64
 			if i < len(discounts) {
 				discAmt, _ = transactionstore.ParseCents(discounts[i])
@@ -525,6 +676,24 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 			if i < len(commissions) {
 				commEarned, _ = transactionstore.ParseCents(commissions[i])
 			}
+
+			// Infer ItemType and Commission from catalog if not explicitly specified
+			if ci, ok := catalogItemMap[strings.ToLower(itemName)]; ok {
+				if itType == "" || itType == "SERVICE" {
+					itType = ci.ItemType
+				}
+				if commEarned == 0 && ci.ItemType == "PRODUCT" {
+					commEarned = ci.CommissionAmount
+				}
+			} else if strings.EqualFold(cat, "Product") {
+				if itType == "" || itType == "SERVICE" {
+					itType = "PRODUCT"
+				}
+			}
+			if itType == "" {
+				itType = "SERVICE"
+			}
+
 			items = append(items, transactionstore.Item{
 				Category:         cat,
 				ItemName:         itemName,
@@ -533,6 +702,7 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 				BarberID:         bID,
 				DiscountAmount:   discAmt,
 				CommissionEarned: commEarned,
+				BundleID:         bndID,
 			})
 			totalCents += cents
 			if !seenCat[cat] {
@@ -574,11 +744,43 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 		branchID = u.BranchID
 	}
 
+	var totalDiscountCents int64
+	for _, it := range items {
+		totalDiscountCents += it.DiscountAmount
+	}
+	if orderDiscStr := r.FormValue("order_discount_amount"); orderDiscStr != "" && totalDiscountCents == 0 {
+		if orderDiscAmt, err := transactionstore.ParseCents(orderDiscStr); err == nil && orderDiscAmt > 0 {
+			if len(items) > 0 && totalCents > 0 {
+				rem := orderDiscAmt
+				for idx := range items {
+					share := (items[idx].AmountCents * orderDiscAmt) / totalCents
+					if share > rem {
+						share = rem
+					}
+					items[idx].DiscountAmount = share
+					rem -= share
+				}
+				if rem > 0 {
+					items[0].DiscountAmount += rem
+				}
+				totalDiscountCents = orderDiscAmt
+			}
+		}
+	}
+
+	finalAmountCents := totalCents
+	if kind == "income" && totalDiscountCents > 0 {
+		finalAmountCents = totalCents - totalDiscountCents
+		if finalAmountCents <= 0 {
+			finalAmountCents = 1
+		}
+	}
+
 	err = s.transactions.Create(r.Context(), transactionstore.Entry{
 		OperatorID:  u.ID,
 		BranchID:    branchID,
 		Kind:        kind,
-		AmountCents: totalCents,
+		AmountCents: finalAmountCents,
 		Category:    joinedCategory,
 		Note:        strings.TrimSpace(r.FormValue("note")),
 		OccurredAt:  s.now().UTC(),
@@ -633,12 +835,13 @@ func (s *Server) createOperator(w http.ResponseWriter, r *http.Request) {
 	if bStr := r.FormValue("branch_id"); bStr != "" {
 		branchID, _ = strconv.ParseInt(bStr, 10, 64)
 	}
+	username := strings.TrimSpace(r.FormValue("username"))
 	staffType := strings.TrimSpace(r.FormValue("staff_type"))
 	phone := strings.TrimSpace(r.FormValue("phone_number"))
 	bankName := strings.TrimSpace(r.FormValue("bank_name"))
 	bankAccount := strings.TrimSpace(r.FormValue("bank_account_number"))
 
-	if err := s.auth.CreateOperatorWithBranchAndCredentials(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), "operator", staffType, branchID, phone, bankName, bankAccount); err != nil {
+	if err := s.auth.CreateOperatorWithBranchAndCredentials(r.Context(), username, r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), "operator", staffType, branchID, phone, bankName, bankAccount); err != nil {
 		operators, _ := s.auth.ListOperators(r.Context())
 		branches, _ := s.backoffice.ListBranches(r.Context())
 		s.renderStatus(w, "operators.html", localizedData(r, pageData{User: userFrom(r.Context()), Operators: operators, Branches: branches, CSRF: s.csrf(w, r), Error: err.Error()}), http.StatusBadRequest)

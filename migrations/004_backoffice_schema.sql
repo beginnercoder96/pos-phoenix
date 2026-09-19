@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS employee_profit_sharing_rules (
   rule_id INTEGER NOT NULL REFERENCES branch_profit_sharing_rules(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id),
   percentage REAL NOT NULL DEFAULT 0,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(rule_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_employee_profit_sharing_rule ON employee_profit_sharing_rules(rule_id);
 

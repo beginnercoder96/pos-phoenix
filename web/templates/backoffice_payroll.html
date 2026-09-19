@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Employee payroll, generate and download Excel slips.">
   <title>{{label .Language "boPayroll"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260916-align">
-  <script defer src="/static/js/app.js?v=20260916-align"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260918-thermal2">
+  <script defer src="/static/js/app.js?v=20260918-thermal2"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -96,10 +96,12 @@
             </div>
             <div class="flex items-center gap-2">
               <a href="/backoffice/payroll/slip-all?branch={{.SelectedBranch}}&period={{.SelectedPeriod}}" class="btn-primary h-11 flex items-center gap-2 px-4 shadow-sm" id="btn-download-all-slips" target="_blank">
-                🖨️ {{label .Language "boDownloadAll"}}
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                <span>{{label .Language "boDownloadAll"}}</span>
               </a>
               <a href="/backoffice/payroll/slip-all?branch={{.SelectedBranch}}&period={{.SelectedPeriod}}&format=excel" class="btn-secondary h-11 flex items-center gap-2 px-3 text-xs" title="Download Excel">
-                📊 Excel
+                <svg class="w-4 h-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span>Excel</span>
               </a>
             </div>
           </div>
@@ -121,7 +123,7 @@
               </thead>
               <tbody>
                 {{range .PayrollSummaries}}
-                <tr class="border-b hover:bg-white/5">
+                <tr class="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-100/90 dark:hover:bg-slate-800/50 transition">
                   <td class="py-3 px-3 font-medium">{{.DisplayName}}</td>
                   <td class="py-3 px-3 text-right">{{printf "%.1f" .ServiceSharePercent}}%</td>
                   <td class="py-3 px-3 text-right text-emerald-500">{{money .ServiceShareCents}}</td>
@@ -129,11 +131,12 @@
                   <td class="py-3 px-3 text-right font-black text-lg">{{money .TotalPayCents}}</td>
                   <td class="py-3 px-3 text-center">
                     <div class="flex items-center justify-center gap-1.5">
-                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}" class="btn-secondary text-xs px-2.5 py-1" id="btn-slip-{{.UserID}}" target="_blank" title="Cetak / Lihat Slip">
-                        🖨️ {{label $.Language "boDownloadSlip"}}
+                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}" class="btn-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1.5" id="btn-slip-{{.UserID}}" target="_blank" title="{{label $.Language "boDownloadSlip"}}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        <span>{{label $.Language "boDownloadSlip"}}</span>
                       </a>
-                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}&format=excel" class="btn-secondary text-xs px-2 py-1 text-slate-400 hover:text-white" title="Download Excel">
-                        📊
+                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}&format=excel" class="btn-secondary text-xs px-2 py-1 text-slate-400 hover:text-white inline-flex items-center" title="Download Excel">
+                        <svg class="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                       </a>
                     </div>
                   </td>
