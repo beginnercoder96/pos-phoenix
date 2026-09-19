@@ -8,10 +8,12 @@ import (
 
 func templateFuncs(location *time.Location) map[string]any {
 	return map[string]any{
-		"money": func(cents int64) string { return formatRupiah(cents) },
-		"date":  func(t time.Time) string { return t.In(location).Format("02 Jan 2006 15:04") },
-		"pct":   func(ratio float64) string { return fmt.Sprintf("%.0f%%", ratio*100) },
-		"sub":   func(a, b int64) int64 { return a - b },
+		"money":        func(cents int64) string { return formatRupiah(cents) },
+		"moneyCompact": func(cents int64) string { return formatRupiahCompact(cents) },
+		"moneyNumber":  func(cents int64) string { return formatRupiahNumber(cents) },
+		"date":         func(t time.Time) string { return t.In(location).Format("02 Jan 2006 15:04") },
+		"pct":          func(ratio float64) string { return fmt.Sprintf("%.0f%%", ratio*100) },
+		"sub":          func(a, b int64) int64 { return a - b },
 		"add": func(a, b any) int64 {
 			var aInt, bInt int64
 			switch v := a.(type) {
@@ -52,6 +54,46 @@ func formatRupiah(cents int64) string {
 		digits = digits[:i] + "." + digits[i:]
 	}
 	result := "Rp " + digits + "," + fmt.Sprintf("%02d", fraction)
+	if negative {
+		return "-" + result
+	}
+	return result
+}
+
+func formatRupiahCompact(cents int64) string {
+	negative := cents < 0
+	if negative {
+		cents = -cents
+	}
+	whole, fraction := cents/100, cents%100
+	digits := strconv.FormatInt(whole, 10)
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "." + digits[i:]
+	}
+	result := "Rp " + digits
+	if fraction != 0 {
+		result += "," + fmt.Sprintf("%02d", fraction)
+	}
+	if negative {
+		return "-" + result
+	}
+	return result
+}
+
+func formatRupiahNumber(cents int64) string {
+	negative := cents < 0
+	if negative {
+		cents = -cents
+	}
+	whole, fraction := cents/100, cents%100
+	digits := strconv.FormatInt(whole, 10)
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "." + digits[i:]
+	}
+	result := digits
+	if fraction != 0 {
+		result += "," + fmt.Sprintf("%02d", fraction)
+	}
 	if negative {
 		return "-" + result
 	}
@@ -107,7 +149,7 @@ func translate(language, key string) string {
 		"boEmpShareDesc": "Share amount:",
 		"boUnallocated":  "Unallocated Reserve Balance", "boUnallocatedDesc": "Automatically calculated from remaining percentage",
 		"boTotalAlloc":  "Total Allocation",
-		"boSaveConfig":  "💾 Save Profit Sharing Configuration",
+		"boSaveConfig":  "Save Profit Sharing Configuration",
 		"boNoEmployees": "No employees assigned to this branch. Add employees via the Operators page.",
 		"boNetRevenue":  "Branch Net Service Revenue", "boReserveBalance": "Unallocated Reserve",
 		"boReserveRemainder": "remaining reserve",
@@ -115,7 +157,7 @@ func translate(language, key string) string {
 		"boEmpName": "Employee Name", "boProfitSharePct": "Share (%)",
 		"boProfitShareAmt": "Service Share", "boProductComm": "Product Commission",
 		"boTakeHome": "Net Take-Home Pay", "boAction": "Action",
-		"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download All Payroll Slips (PDF)",
+		"boDownloadSlip": "Download Slip", "boDownloadAll": "Download All Payroll Slips (PDF)",
 		"boNoPayroll":      "No employees assigned to this branch, or no profit sharing config for this period.",
 		"boDiscountsTitle": "Discount & Bundling Management", "boAddDiscount": "Add New Discount / Bundling",
 		"boProductsTitle": "Product Catalog & Commission Settings", "boAddProduct": "Add / Edit Catalog Item",
@@ -125,7 +167,7 @@ func translate(language, key string) string {
 		"boDiscActive": "Active", "boDiscInactive": "Inactive",
 		"boDiscServiceRatio": "Service Allocation Ratio", "boDiscProductRatio": "Product Allocation Ratio",
 		"boDiscServiceShort": "Service", "boDiscProductShort": "Product", "boDiscBundleAllocation": "Bundle Allocation",
-		"boDiscSave": "💾 Save Discount", "boDiscList": "Discount & Bundling List",
+		"boDiscSave": "Save Discount", "boDiscList": "Discount & Bundling List",
 		"boDiscTypePctLabel": "Percentage", "boDiscTypeFixedLabel": "Fixed", "boDiscTypeBundleLabel": "Bundle",
 		"boDiscActionDelete": "Delete", "boDiscConfirmDelete": "Delete this discount?",
 		"boDiscToggleStatus": "Click to toggle active status",
@@ -133,12 +175,17 @@ func translate(language, key string) string {
 		// Products form
 		"boProdName": "Item Name", "boProdCategory": "Category", "boProdType": "Item Type",
 		"boProdTypeService": "Service (SERVICE)", "boProdTypeProduct": "Product (PRODUCT)",
-		"boProdPrice": "Price (Cents)", "boProdPriceHint": "Example: Rp 120,000 = 12000000",
-		"boProdComm": "Commission per Item (Cents)", "boProdCommHint": "Rp 5,000 = 500000, Rp 10,000 = 1000000",
-		"boProdSave": "💾 Save Item", "boProdList": "Catalog List",
+		"boProdPrice": "Price (Rupiah)", "boProdPriceHint": "e.g. 40000 for Rp 40,000",
+		"boProdComm": "Commission per Item (Rupiah)", "boProdCommHint": "e.g. 5000 for Rp 5,000 (Products only)",
+		"boProdSave": "Save Item", "boProdUpdate": "Update Item", "boProdCancelEdit": "Cancel Edit", "boProdList": "Catalog List",
 		"boProdColName": "Name", "boProdColCategory": "Category", "boProdColType": "Type",
-		"boProdColPrice": "Price", "boProdColComm": "Commission / Item", "boProdColStatus": "Status",
+		"boProdColPrice": "Price (Rp)", "boProdColComm": "Commission / Item (Rp)",
+		"boProdColCommLine1": "Commission", "boProdColCommLine2": "/ Item (Rp)", "boProdColStatus": "Status",
 		"boProdLabelProduct": "PRODUCT", "boProdLabelService": "SERVICE",
+		"boProdActionEdit": "Edit", "boProdActionDelete": "Delete", "boProdConfirmDelete": "Delete this catalog item?",
+		"boProdCategorySelect": "-- Select Category --", "boProdCategoryNew": "+ New Category...", "boProdCategoryNewPlaceholder": "Enter new category name",
+		"boProdToggleStatus": "Click to toggle active status", "boProdEmpty": "No catalog items yet.",
+		"boProdSavedToast": "Item saved successfully", "boProdDeletedToast": "Item deleted successfully", "boProdStatusUpdated": "Item status updated",
 		// Thermal Printer keys (EN)
 		"printReceipt": "Print Receipt", "thermalPrinter": "Thermal Printer", "printerConnected": "Printer Connected",
 		"printerDisconnected": "Printer Disconnected", "connectPrinter": "Connect Bluetooth Printer",
@@ -218,7 +265,7 @@ func translate(language, key string) string {
 			"boEmpShareDesc": "Bagi hasil:",
 			"boUnallocated":  "Sisa Saldo Tidak Terpakai (Cadangan)", "boUnallocatedDesc": "Otomatis dihitung dari sisa persentase",
 			"boTotalAlloc":  "Total Alokasi",
-			"boSaveConfig":  "💾 Simpan Konfigurasi Bagi Hasil",
+			"boSaveConfig":  "Simpan Konfigurasi Bagi Hasil",
 			"boNoEmployees": "Belum ada karyawan yang ditugaskan ke cabang ini. Tambahkan karyawan melalui halaman Operators.",
 			"boNetRevenue":  "Net Omzet Jasa Cabang", "boReserveBalance": "Saldo Cadangan (Tidak Terpakai)",
 			"boReserveRemainder": "sisa saldo",
@@ -226,7 +273,7 @@ func translate(language, key string) string {
 			"boEmpName": "Nama Karyawan", "boProfitSharePct": "Bagi Hasil (%)",
 			"boProfitShareAmt": "Bagi Hasil Jasa", "boProductComm": "Komisi Produk",
 			"boTakeHome": "Total Gaji Bersih", "boAction": "Aksi",
-			"boDownloadSlip": "📄 Download Slip", "boDownloadAll": "📥 Download Semua Slip Gaji (PDF)",
+			"boDownloadSlip": "Download Slip", "boDownloadAll": "Download Semua Slip Gaji (PDF)",
 			"boNoPayroll":      "Belum ada karyawan yang ditugaskan ke cabang ini, atau belum ada konfigurasi bagi hasil untuk periode ini.",
 			"boDiscountsTitle": "Manajemen Diskon & Bundling", "boAddDiscount": "Tambah Diskon / Bundling Baru",
 			"boProductsTitle": "Katalog Produk & Pengaturan Komisi", "boAddProduct": "Tambah / Edit Item Katalog",
@@ -236,7 +283,7 @@ func translate(language, key string) string {
 			"boDiscActive": "Aktif", "boDiscInactive": "Tidak Aktif",
 			"boDiscServiceRatio": "Rasio Alokasi Jasa", "boDiscProductRatio": "Rasio Alokasi Produk",
 			"boDiscServiceShort": "Jasa", "boDiscProductShort": "Produk", "boDiscBundleAllocation": "Alokasi Bundling",
-			"boDiscSave": "💾 Simpan Diskon", "boDiscList": "Daftar Diskon & Bundling",
+			"boDiscSave": "Simpan Diskon", "boDiscList": "Daftar Diskon & Bundling",
 			"boDiscTypePctLabel": "Persentase", "boDiscTypeFixedLabel": "Nominal", "boDiscTypeBundleLabel": "Bundling",
 			"boDiscActionDelete": "Hapus", "boDiscConfirmDelete": "Hapus diskon ini?",
 			"boDiscToggleStatus": "Klik untuk ubah status aktif/tidak aktif",
@@ -244,13 +291,18 @@ func translate(language, key string) string {
 			// Products form (ID)
 			"boProdName": "Nama Item", "boProdCategory": "Kategori", "boProdType": "Tipe Item",
 			"boProdTypeService": "Jasa (SERVICE)", "boProdTypeProduct": "Produk (PRODUCT)",
-			"boProdPrice": "Harga (Cents)", "boProdPriceHint": "Contoh: Rp 120.000 = 12000000",
-			"boProdComm": "Komisi per-Item (Cents)", "boProdCommHint": "Rp 5.000 = 500000, Rp 10.000 = 1000000",
-			"boProdSave": "💾 Simpan Item", "boProdList": "Daftar Katalog",
+			"boProdPrice": "Harga (Rupiah)", "boProdPriceHint": "Contoh: 40000 untuk Rp 40.000",
+			"boProdComm": "Komisi per-Item (Rupiah)", "boProdCommHint": "Contoh: 5000 untuk Rp 5.000 (Khusus produk)",
+			"boProdSave": "Simpan Item", "boProdUpdate": "Perbarui Item", "boProdCancelEdit": "Batal Edit", "boProdList": "Daftar Katalog",
 			"boProdColName": "Nama", "boProdColCategory": "Kategori", "boProdColType": "Tipe",
-			"boProdColPrice": "Harga", "boProdColComm": "Komisi / Item", "boProdColStatus": "Status",
+			"boProdColPrice": "Harga (Rp)", "boProdColComm": "Komisi / Item (Rp)",
+			"boProdColCommLine1": "Komisi", "boProdColCommLine2": "/ Item (Rp)", "boProdColStatus": "Status",
 			"boProdLabelProduct": "PRODUK", "boProdLabelService": "JASA",
+			"boProdActionEdit": "Edit", "boProdActionDelete": "Hapus", "boProdConfirmDelete": "Hapus item katalog ini?",
+			"boProdCategorySelect": "-- Pilih Kategori --", "boProdCategoryNew": "+ Kategori Baru...", "boProdCategoryNewPlaceholder": "Ketik nama kategori baru",
+			"boProdToggleStatus": "Klik untuk ubah status aktif/tidak aktif",
 			"boProdEmpty": "Belum ada item dalam katalog.",
+			"boProdSavedToast": "Item berhasil disimpan", "boProdDeletedToast": "Item berhasil dihapus", "boProdStatusUpdated": "Status item diperbarui",
 			// Thermal Printer keys (ID)
 			"printReceipt": "Cetak Struk", "thermalPrinter": "Printer Thermal", "printerConnected": "Printer Terhubung",
 			"printerDisconnected": "Printer Belum Terhubung", "connectPrinter": "Hubungkan Printer Bluetooth",

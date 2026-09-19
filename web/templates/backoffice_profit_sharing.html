@@ -197,27 +197,46 @@
       return (negative ? "-" : "") + "Rp " + digits + "," + fracStr;
     }
 
+    function toPct(val) {
+      var n = parseFloat(val);
+      return isNaN(n) ? 0 : Math.round(n * 10) / 10;
+    }
+
+    function formatInputPct(el) {
+      if (!el) return;
+      var val = parseFloat(el.value);
+      if (!isNaN(val)) {
+        el.value = (Math.round(val * 10) / 10).toFixed(1);
+      }
+    }
+
     function recordInitial() {
-      if (ownerInput) ownerInput.dataset.initial = ownerInput.value.trim();
+      if (ownerInput) {
+        var v = toPct(ownerInput.value);
+        ownerInput.value = v.toFixed(1);
+        ownerInput.dataset.initial = v.toFixed(1);
+      }
       document.querySelectorAll('.emp-pct-input').forEach(function(el) {
-        el.dataset.initial = el.value.trim();
+        var v = toPct(el.value);
+        el.value = v.toFixed(1);
+        el.dataset.initial = v.toFixed(1);
       });
     }
 
     function isFormDirty() {
-      if (ownerInput && ownerInput.value.trim() !== (ownerInput.dataset.initial || '')) return true;
+      if (ownerInput && toPct(ownerInput.value) !== toPct(ownerInput.dataset.initial)) return true;
       var empInputs = document.querySelectorAll('.emp-pct-input');
       for (var i = 0; i < empInputs.length; i++) {
-        if (empInputs[i].value.trim() !== (empInputs[i].dataset.initial || '')) return true;
+        if (toPct(empInputs[i].value) !== toPct(empInputs[i].dataset.initial)) return true;
       }
       return false;
     }
 
     function recalculate() {
-      var ownerPct = parseFloat(ownerInput ? ownerInput.value : 0) || 0;
+      var ownerPct = toPct(ownerInput ? ownerInput.value : 0);
       var empTotal = 0;
       document.querySelectorAll('.emp-pct-input').forEach(function(el) {
-        var pct = parseFloat(el.value) || 0;
+        var pct = toPct(el.value);
         empTotal += pct;
         var row = el.closest('.emp-rule-row');
         if (row && netRev > 0) {
@@ -228,8 +247,8 @@
           }
         }
       });
-      var total = ownerPct + empTotal;
-      var remaining = Math.max(0, 100 - total);
+      var total = Math.round((ownerPct + empTotal) * 10) / 10;
+      var remaining = Math.max(0, Math.round((100 - total) * 10) / 10);
       document.getElementById('unallocated-pct').textContent = remaining.toFixed(1) + '%';
       var totalEl = document.getElementById('total-pct');
       totalEl.textContent = total.toFixed(1) + '%';
@@ -247,8 +266,16 @@
     }
 
     recordInitial();
-    if (ownerInput) ownerInput.addEventListener('input', recalculate);
-    document.querySelectorAll('.emp-pct-input').forEach(function(el) { el.addEventListener('input', recalculate); });
+    if (ownerInput) {
+      ownerInput.addEventListener('input', recalculate);
+      ownerInput.addEventListener('change', function() { formatInputPct(this); recalculate(); });
+      ownerInput.addEventListener('blur', function() { formatInputPct(this); recalculate(); });
+    }
+    document.querySelectorAll('.emp-pct-input').forEach(function(el) {
+      el.addEventListener('input', recalculate);
+      el.addEventListener('change', function() { formatInputPct(this); recalculate(); });
+      el.addEventListener('blur', function() { formatInputPct(this); recalculate(); });
+    });
     recalculate();
 
     if (form) {

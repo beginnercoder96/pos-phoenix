@@ -452,6 +452,24 @@ func (r *Repository) SaveCatalogItem(ctx context.Context, item CatalogItem) erro
 	return err
 }
 
+// DeleteCatalogItem removes a catalog item by ID.
+func (r *Repository) DeleteCatalogItem(ctx context.Context, id int64) error {
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM catalog_items WHERE id=?`, id)
+	return err
+}
+
+// ToggleCatalogItemStatus toggles the is_active status of a catalog item and returns the new status.
+func (r *Repository) ToggleCatalogItemStatus(ctx context.Context, id int64) (bool, error) {
+	var current bool
+	err := r.DB.QueryRowContext(ctx, `SELECT is_active FROM catalog_items WHERE id=?`, id).Scan(&current)
+	if err != nil {
+		return false, err
+	}
+	next := !current
+	_, err = r.DB.ExecContext(ctx, `UPDATE catalog_items SET is_active=? WHERE id=?`, next, id)
+	return next, err
+}
+
 // ListDiscounts returns all discounts and bundles.
 func (r *Repository) ListDiscounts(ctx context.Context) ([]DiscountBundle, error) {
 	rows, err := r.DB.QueryContext(ctx,

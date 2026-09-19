@@ -763,6 +763,51 @@ func TestCreateTransactionWithMultipleCategories(t *testing.T) {
 	}
 }
 
+func TestCatalogProductCommissionIntegration(t *testing.T) {
+	db, handler, service := testServer(t)
+	operatorID := addUser(t, db, "barber2@example.com", "operator")
+
+	// 1. Insert product into catalog_items with commission
+	_, err := db.Exec(`INSERT INTO catalog_items(name, category, item_type, price_cents, commission_amount, is_active)
+		VALUES('Hair Tonic Special', 'Product', 'PRODUCT', 5000000, 500000, 1)`)
+	if err != nil {
+		t.Fatalf("failed to insert catalog item: %v", err)
+	}
+
+	today := time.Now().In(time.FixedZone("WIB", 7*3600)).Format("2006-01-02")
+	form := url.Values{
+		"kind":        {"income"},
+		"date":        {today},
+		"note":        {"Customer Toni: Hair Tonic Special"},
+		"category[]":  {"Product"},
+		"item_name[]": {"Hair Tonic Special"},
+		"amount[]":    {"50000"},
+	}
+
+	rr := requestAs(t, handler, service, operatorID, http.MethodPost, "/transactions", form)
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("create status=%d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var itType string
+	var barberID, commEarned int64
+	err = db.QueryRow(`SELECT item_type, barber_id, commission_earned FROM transaction_items WHERE item_name='Hair Tonic Special'`).
+		Scan(&itType, &barberID, &commEarned)
+	if err != nil {
+		t.Fatalf("failed to query transaction item: %v", err)
+	}
+
+	if itType != "PRODUCT" {
+		t.Errorf("item_type=%q, want 'PRODUCT'", itType)
+	}
+	if barberID != operatorID {
+		t.Errorf("barber_id=%d, want %d", barberID, operatorID)
+	}
+	if commEarned != 500000 {
+		t.Errorf("commission_earned=%d, want 500000 (Rp 5.000)", commEarned)
+	}
+}
+
 func TestReversalOfMultiCategoryTransaction(t *testing.T) {
 	db, handler, service := testServer(t)
 	adminID := addUser(t, db, "admin-multi@example.com", "superadmin")
@@ -1321,7 +1366,102 @@ func TestCreateTransactionWithBundlingAndDiscount(t *testing.T) {
 	}
 }
 
+func TestCatalogItemLifecycleAndDashboardIntegration(t *testing.T) {
+	db, handler, service := testServer(t)
+	adminID := addUser(t, db, "cat-admin@example.com", "superadmin")
+	csrf := "01234567890123456789012345678901"
 
+	// 1. Create a new catalog item via POST /backoffice/products (using ordinary Rupiah: 75000 and 5000)
+	createForm := url.Values{
+		"csrf":            {csrf},
+		"name":            {"Pomade Premium Oil"},
+		"item_type":       {"PRODUCT"},
+		"category_select": {"__NEW__"},
+		"category_new":    {"Hair Care"},
+		"price":           {"75000"}, // Rp 75.000 (auto-converted to 7500000 cents)
+		"commission":      {"5000"},  // Rp 5.000 (auto-converted to 500000 cents)
+	}
 
+	recCreate := requestAs(t, handler, service, adminID, http.MethodPost, "/backoffice/products", createForm)
+	if recCreate.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on create product, got %d, body: %s", recCreate.Code, recCreate.Body.String())
+	}
 
+	// Verify inserted row in cents
+	var itemID int64
+	var itemName, itemCategory, itemType string
+	var itemPrice, itemComm int64
+	var isActive int
+	err := db.QueryRow(`SELECT id, name, category, item_type, price_cents, commission_amount, is_active FROM catalog_items WHERE name='Pomade Premium Oil'`).
+		Scan(&itemID, &itemName, &itemCategory, &itemType, &itemPrice, &itemComm, &isActive)
+	if err != nil {
+		t.Fatalf("failed to find created catalog item: %v", err)
+	}
+	if itemCategory != "Hair Care" || itemType != "PRODUCT" || itemPrice != 7500000 || itemComm != 500000 || isActive != 1 {
+		t.Fatalf("unexpected item fields: cat=%s type=%s price=%d comm=%d active=%d", itemCategory, itemType, itemPrice, itemComm, isActive)
+	}
 
+	// 2. Verify it appears on Dashboard GET / (via JSON catalog script in dashboard HTML)
+	recDash := requestAs(t, handler, service, adminID, http.MethodGet, "/", nil)
+	if recDash.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on dashboard, got %d", recDash.Code)
+	}
+	dashBody := recDash.Body.String()
+	if !strings.Contains(dashBody, "Pomade Premium Oil") {
+		t.Fatalf("expected dashboard catalog to contain 'Pomade Premium Oil'")
+	}
+	if !strings.Contains(dashBody, "Hair Care") {
+		t.Fatalf("expected dashboard catalog to contain category 'Hair Care'")
+	}
+
+	// 3. Edit the catalog item (change price & name using ordinary Rupiah: 80000 and 6000)
+	editForm := url.Values{
+		"csrf":            {csrf},
+		"id":              {strconv.FormatInt(itemID, 10)},
+		"name":            {"Pomade Premium Matte"},
+		"item_type":       {"PRODUCT"},
+		"category_select": {"Hair Care"},
+		"price":           {"80000"}, // Rp 80.000
+		"commission":      {"6000"},  // Rp 6.000
+	}
+	recEdit := requestAs(t, handler, service, adminID, http.MethodPost, "/backoffice/products", editForm)
+	if recEdit.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 SeeOther on edit product, got %d, body: %s", recEdit.Code, recEdit.Body.String())
+	}
+
+	err = db.QueryRow(`SELECT name, price_cents, commission_amount FROM catalog_items WHERE id=?`, itemID).
+		Scan(&itemName, &itemPrice, &itemComm)
+	if err != nil || itemName != "Pomade Premium Matte" || itemPrice != 8000000 || itemComm != 600000 {
+		t.Fatalf("expected updated item: name=%s price=%d comm=%d err=%v", itemName, itemPrice, itemComm, err)
+	}
+
+	// 4. Toggle Status (Active -> Inactive)
+	toggleRec := requestAs(t, handler, service, adminID, http.MethodPost, fmt.Sprintf("/backoffice/products/%d/toggle", itemID), url.Values{"csrf": {csrf}})
+	if toggleRec.Code != http.StatusSeeOther && toggleRec.Code != http.StatusOK {
+		t.Fatalf("expected 303 or 200 on toggle, got %d", toggleRec.Code)
+	}
+
+	var statusAfterToggle int
+	_ = db.QueryRow(`SELECT is_active FROM catalog_items WHERE id=?`, itemID).Scan(&statusAfterToggle)
+	if statusAfterToggle != 0 {
+		t.Fatalf("expected is_active=0 after toggle, got %d", statusAfterToggle)
+	}
+
+	// 5. Inactive items should NOT be included in dashboard catalog
+	recDash2 := requestAs(t, handler, service, adminID, http.MethodGet, "/", nil)
+	if strings.Contains(recDash2.Body.String(), "Pomade Premium Matte") {
+		t.Fatalf("expected inactive item 'Pomade Premium Matte' to NOT appear in dashboard catalog")
+	}
+
+	// 6. Delete the catalog item
+	delRec := requestAs(t, handler, service, adminID, http.MethodPost, fmt.Sprintf("/backoffice/products/%d/delete", itemID), url.Values{"csrf": {csrf}})
+	if delRec.Code != http.StatusSeeOther && delRec.Code != http.StatusOK {
+		t.Fatalf("expected 303 or 200 on delete, got %d", delRec.Code)
+	}
+
+	var countAfterDel int
+	_ = db.QueryRow(`SELECT COUNT(*) FROM catalog_items WHERE id=?`, itemID).Scan(&countAfterDel)
+	if countAfterDel != 0 {
+		t.Fatalf("expected item to be deleted, found count=%d", countAfterDel)
+	}
+}

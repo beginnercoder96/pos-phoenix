@@ -99,6 +99,19 @@
     renderToast(title, message, d, d, type);
   };
 
+  window.queueGlobalToast = function (title, message, duration, type) {
+    var d = duration || 3000;
+    try {
+      sessionStorage.setItem(TOAST_KEY, JSON.stringify({
+        title: title,
+        message: message,
+        startedAt: Date.now(),
+        duration: d,
+        type: type || 'info'
+      }));
+    } catch (e) {}
+  };
+
   function checkToastOnLoad() {
     try {
       var params = new URLSearchParams(window.location.search);
@@ -1955,8 +1968,8 @@ window.handleChartPeriodChange = function (select) {
       lines.push(this.formatLine32(isId ? "No. Trx" : "Trx ID", txNum));
       lines.push(this.formatLine32(isId ? "Waktu" : "Date", txData.date || "-"));
       lines.push(this.formatLine32(isId ? "Kasir" : "Cashier", txData.operator || "-"));
-      if (txData.kind) {
-        var kindLabel = txData.kind === "income" ? (isId ? "Pemasukan" : "Income") : (isId ? "Pengeluaran" : "Expense");
+      if (txData.kind && txData.kind !== "income") {
+        var kindLabel = isId ? "Pengeluaran" : "Expense";
         lines.push(this.formatLine32(isId ? "Tipe" : "Type", kindLabel));
       }
       lines.push("--------------------------------");
@@ -2071,10 +2084,10 @@ window.handleChartPeriodChange = function (select) {
               '<span style="color: #4b5563 !important;">' + (isId ? "Kasir" : "Cashier") + '</span>' +
               '<span class="font-medium text-right" style="color: #111827 !important;">' + txOperator + '</span>' +
             '</div>' +
-            (txData.kind ? (
+            (txData.kind && txData.kind !== "income" ? (
               '<div class="flex justify-between items-center w-full">' +
                 '<span style="color: #4b5563 !important;">' + (isId ? "Tipe" : "Type") + '</span>' +
-                '<span class="font-medium text-right" style="color: #111827 !important;">' + kindLabel + '</span>' +
+                '<span class="font-medium text-right" style="color: #111827 !important;">' + (isId ? "Pengeluaran" : "Expense") + '</span>' +
               '</div>'
             ) : '') +
           '</div>' +

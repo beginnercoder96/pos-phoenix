@@ -142,6 +142,8 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	mux.HandleFunc("POST /backoffice/discounts/{id}/toggle", s.withUser(s.adminOnly(s.backofficeToggleDiscount)))
 	mux.HandleFunc("GET /backoffice/products", s.withUser(s.adminOnly(s.backofficeProducts)))
 	mux.HandleFunc("POST /backoffice/products", s.withUser(s.adminOnly(s.backofficeSaveProduct)))
+	mux.HandleFunc("POST /backoffice/products/{id}/delete", s.withUser(s.adminOnly(s.backofficeDeleteProduct)))
+	mux.HandleFunc("POST /backoffice/products/{id}/toggle", s.withUser(s.adminOnly(s.backofficeToggleProductStatus)))
 	mux.HandleFunc("GET /backoffice/payroll", s.withUser(s.adminOnly(s.backofficePayroll)))
 	mux.HandleFunc("GET /backoffice/payroll/slip", s.withUser(s.adminOnly(s.backofficePayrollSlip)))
 	mux.HandleFunc("GET /backoffice/payroll/slip-all", s.withUser(s.adminOnly(s.backofficePayrollSlipAll)))
@@ -439,7 +441,8 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	dynamicCatalog := BuildCatalog(activeBundles)
+	catalogItems, _ := s.backoffice.ListCatalogItems(r.Context(), "")
+	dynamicCatalog := BuildCatalog(catalogItems, activeBundles)
 	activeDiscJSON, _ := json.Marshal(activeDiscounts)
 
 	data := localizedData(r, pageData{
@@ -618,6 +621,15 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 	var distinctCategories []string
 	seenCat := make(map[string]bool)
 
+	catalogItemMap := make(map[string]backoffice.CatalogItem)
+	if s.backoffice != nil {
+		if cItems, err := s.backoffice.ListCatalogItems(r.Context(), ""); err == nil {
+			for _, ci := range cItems {
+				catalogItemMap[strings.ToLower(strings.TrimSpace(ci.Name))] = ci
+			}
+		}
+	}
+
 	if len(categories) > 0 {
 		for i, cat := range categories {
 			cat = strings.TrimSpace(cat)
@@ -649,12 +661,12 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 			if i < len(barberIDs) {
 				bID, _ = strconv.ParseInt(barberIDs[i], 10, 64)
 			}
+			if bID == 0 {
+				bID = u.ID
+			}
 			var bndID int64
 			if i < len(bundleIDs) {
 				bndID, _ = strconv.ParseInt(bundleIDs[i], 10, 64)
-			}
-			if itType == "" {
-				itType = "SERVICE"
 			}
 			var discAmt int64
 			if i < len(discounts) {
@@ -664,6 +676,24 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 			if i < len(commissions) {
 				commEarned, _ = transactionstore.ParseCents(commissions[i])
 			}
+
+			// Infer ItemType and Commission from catalog if not explicitly specified
+			if ci, ok := catalogItemMap[strings.ToLower(itemName)]; ok {
+				if itType == "" || itType == "SERVICE" {
+					itType = ci.ItemType
+				}
+				if commEarned == 0 && ci.ItemType == "PRODUCT" {
+					commEarned = ci.CommissionAmount
+				}
+			} else if strings.EqualFold(cat, "Product") {
+				if itType == "" || itType == "SERVICE" {
+					itType = "PRODUCT"
+				}
+			}
+			if itType == "" {
+				itType = "SERVICE"
+			}
+
 			items = append(items, transactionstore.Item{
 				Category:         cat,
 				ItemName:         itemName,

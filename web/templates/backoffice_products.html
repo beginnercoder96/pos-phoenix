@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Pardis Barbershop Backoffice — Product catalog and commission settings.">
   <title>{{label .Language "boProducts"}} · Pardis Backoffice</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260918-thermal2">
-  <script defer src="/static/js/app.js?v=20260918-thermal2"></script>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260919-v5">
+  <script defer src="/static/js/app.js?v=20260919-v5"></script>
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
@@ -68,21 +68,37 @@
       </header>
 
       <main class="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <!-- Add Product Form -->
+        <!-- Add / Edit Product Form -->
         <section class="rounded-2xl p-5 shadow-sm surface" id="product-form-section">
-          <h2 class="text-lg font-black tracking-tight mb-4">{{label .Language "boAddProduct"}}</h2>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-black tracking-tight" id="product-form-title">{{label .Language "boAddProduct"}}</h2>
+            <span id="product-edit-badge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-400 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800">
+              Mode Edit
+            </span>
+          </div>
           <form method="post" action="/backoffice/products" class="mt-4 space-y-4" id="product-form">
             <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <input type="hidden" name="id" id="product-id" value="">
+            <input type="hidden" name="category" id="product-category" value="">
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label>
                 <span class="field-label">{{label .Language "boProdName"}}</span>
                 <input type="text" name="name" class="field h-11 min-h-11" placeholder="Pomade Death Waterbased" required id="product-name">
               </label>
-              <label>
-                <span class="field-label">{{label .Language "boProdCategory"}}</span>
-                <input type="text" name="category" class="field h-11 min-h-11" placeholder="Product / Haircut Services" id="product-category">
-              </label>
+              <div>
+                <label for="product-category-select" class="field-label">{{label .Language "boProdCategory"}}</label>
+                <select id="product-category-select" class="field h-11 min-h-11 w-full" required>
+                  <option value="">{{label .Language "boProdCategorySelect"}}</option>
+                  {{range .Categories}}
+                    <option value="{{.}}">{{.}}</option>
+                  {{end}}
+                  <option value="__NEW__">{{label .Language "boProdCategoryNew"}}</option>
+                </select>
+                <input type="text" id="product-category-new" class="field h-11 min-h-11 mt-2 w-full hidden" placeholder="{{label .Language "boProdCategoryNewPlaceholder"}}">
+              </div>
             </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <label>
                 <span class="field-label">{{label .Language "boProdType"}}</span>
@@ -92,23 +108,40 @@
                 </select>
               </label>
               <label>
-                <span class="field-label">{{label .Language "boProdPrice"}}</span>
-                <input type="number" name="price_cents" class="field h-11 min-h-11" placeholder="12000000" min="0" id="product-price">
+                <div class="flex items-center justify-between">
+                  <span class="field-label">{{label .Language "boProdPrice"}}</span>
+                  <span id="price-rupiah-preview" class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400"></span>
+                </div>
+                <input type="number" name="price" class="field h-11 min-h-11" placeholder="40000" min="0" required id="product-price">
                 <span class="muted text-xs">{{label .Language "boProdPriceHint"}}</span>
               </label>
-              <label>
-                <span class="field-label">{{label .Language "boProdComm"}}</span>
-                <input type="number" name="commission_amount" class="field h-11 min-h-11" placeholder="500000" min="0" id="product-commission">
-                <span class="muted text-xs">{{label .Language "boProdCommHint"}}</span>
+              <label id="comm-field-wrapper">
+                <div class="flex items-center justify-between">
+                  <span class="field-label">{{label .Language "boProdComm"}}</span>
+                  <span id="comm-rupiah-preview" class="text-[11px] font-bold text-blue-500"></span>
+                </div>
+                <input type="number" name="commission" class="field h-11 min-h-11 opacity-50 bg-slate-100 dark:bg-slate-900" placeholder="0" min="0" disabled id="product-commission">
+                <span class="muted text-xs" id="comm-hint-text">{{label .Language "boProdCommHint"}}</span>
               </label>
             </div>
-            <button type="submit" class="btn-primary h-11 px-6" id="product-save-btn">{{label .Language "boProdSave"}}</button>
+
+            <div class="flex items-center gap-3 pt-2">
+              <button type="submit" class="btn-primary h-11 px-6 font-bold cursor-pointer" id="product-save-btn">
+                {{label .Language "boProdSave"}}
+              </button>
+              <button type="button" class="btn-secondary h-11 px-5 hidden font-semibold cursor-pointer" id="product-cancel-edit-btn">
+                {{label .Language "boProdCancelEdit"}}
+              </button>
+            </div>
           </form>
         </section>
 
         <!-- Catalog List -->
         <section class="rounded-2xl p-5 shadow-sm surface" id="catalog-list-section">
-          <h2 class="text-lg font-black tracking-tight mb-4">{{label .Language "boProdList"}}</h2>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-black tracking-tight">{{label .Language "boProdList"}}</h2>
+            <span class="text-xs text-slate-500">{{len .CatalogItems}} Item</span>
+          </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm" id="catalog-table">
               <thead>
@@ -117,31 +150,67 @@
                   <th class="text-left py-2 px-3">{{label .Language "boProdColCategory"}}</th>
                   <th class="text-center py-2 px-3">{{label .Language "boProdColType"}}</th>
                   <th class="text-right py-2 px-3">{{label .Language "boProdColPrice"}}</th>
-                  <th class="text-right py-2 px-3">{{label .Language "boProdColComm"}}</th>
+                  <th class="text-right py-2 px-3 leading-snug">
+                    <div>{{label .Language "boProdColCommLine1"}}</div>
+                    <div class="text-[11px] font-normal text-slate-500 dark:text-slate-400">{{label .Language "boProdColCommLine2"}}</div>
+                  </th>
                   <th class="text-center py-2 px-3">{{label .Language "boProdColStatus"}}</th>
+                  <th class="text-center py-2 px-3">{{label .Language "boAction"}}</th>
                 </tr>
               </thead>
               <tbody>
                 {{range .CatalogItems}}
-                <tr class="border-b hover:bg-white/5">
-                  <td class="py-2 px-3 font-medium">{{.Name}}</td>
-                  <td class="py-2 px-3">{{.Category}}</td>
-                  <td class="py-2 px-3 text-center">
-                    {{if eq .ItemType "PRODUCT"}}<span class="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400">{{label $.Language "boProdLabelProduct"}}</span>
-                    {{else}}<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400">{{label $.Language "boProdLabelService"}}</span>{{end}}
+                <tr class="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-100/90 dark:hover:bg-slate-800/50 transition" id="product-row-{{.ID}}">
+                  <td class="py-2.5 px-3 font-medium">{{.Name}}</td>
+                  <td class="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">{{.Category}}</td>
+                  <td class="py-2.5 px-3 text-center">
+                    {{if eq .ItemType "PRODUCT"}}
+                      <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60">{{label $.Language "boProdLabelProduct"}}</span>
+                    {{else}}
+                      <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60">{{label $.Language "boProdLabelService"}}</span>
+                    {{end}}
                   </td>
-                  <td class="py-2 px-3 text-right">{{money .PriceCents}}</td>
-                  <td class="py-2 px-3 text-right">
-                    {{if eq .ItemType "PRODUCT"}}{{money .CommissionAmount}}
-                    {{else}}<span class="muted">—</span>{{end}}
+                  <td class="py-2.5 px-3 text-right font-bold">{{moneyNumber .PriceCents}}</td>
+                  <td class="py-2.5 px-3 text-right">
+                    {{if eq .ItemType "PRODUCT"}}
+                      <span class="font-semibold text-blue-500">{{moneyNumber .CommissionAmount}}</span>
+                    {{else}}
+                      <span class="muted text-xs">—</span>
+                    {{end}}
                   </td>
-                  <td class="py-2 px-3 text-center">
-                    {{if .IsActive}}<span class="text-emerald-500">✓</span>
-                    {{else}}<span class="text-red-400">✗</span>{{end}}
+                  <td class="py-2.5 px-3 text-center">
+                    <form method="post" action="/backoffice/products/{{.ID}}/toggle" class="product-toggle-form inline-block" data-id="{{.ID}}" data-name="{{.Name}}">
+                      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                      <button type="submit" class="btn-toggle-status group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition duration-150 active:scale-95 cursor-pointer border {{if .IsActive}}bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-800/70{{else}}bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:border-slate-700{{end}}" title="{{label $.Language "boProdToggleStatus"}}" data-active="{{if .IsActive}}true{{else}}false{{end}}">
+                        <span class="w-1.5 h-1.5 rounded-full status-dot {{if .IsActive}}bg-emerald-500 ring-2 ring-emerald-300/50 dark:ring-emerald-500/30{{else}}bg-slate-400{{end}}"></span>
+                        <span class="status-label">{{if .IsActive}}{{label $.Language "boDiscActive"}}{{else}}{{label $.Language "boDiscInactive"}}{{end}}</span>
+                      </button>
+                    </form>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <div class="flex items-center justify-center gap-1.5">
+                      <button type="button" class="btn-action-edit btn-edit-product"
+                        data-id="{{.ID}}"
+                        data-name="{{.Name}}"
+                        data-category="{{.Category}}"
+                        data-type="{{.ItemType}}"
+                        data-price="{{.PriceCents}}"
+                        data-commission="{{.CommissionAmount}}"
+                        title="{{label $.Language "boProdActionEdit"}}"
+                        aria-label="{{label $.Language "boProdActionEdit"}}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                      </button>
+                      <form method="post" action="/backoffice/products/{{.ID}}/delete" class="product-delete-form inline-block" data-id="{{.ID}}" data-name="{{.Name}}">
+                        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                        <button type="submit" class="btn-action-delete" title="{{label $.Language "boProdActionDelete"}}" aria-label="{{label $.Language "boProdActionDelete"}}">
+                          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
                 {{else}}
-                <tr><td colspan="6" class="py-8 text-center muted">{{label .Language "boProdEmpty"}}</td></tr>
+                <tr><td colspan="7" class="py-8 text-center muted">{{label .Language "boProdEmpty"}}</td></tr>
                 {{end}}
               </tbody>
             </table>
@@ -150,9 +219,386 @@
       </main>
     </div>
   </div>
+
+  <!-- Delete Product Confirmation Modal -->
+  <div id="delete-product-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 sm:p-6" style="background: rgba(10, 16, 35, 0.65); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);">
+    <div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">
+      <!-- Modal Header -->
+      <div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">{{label .Language "boProdConfirmDelete"}}</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Item yang dihapus tidak akan muncul lagi di katalog.</p>
+        </div>
+      </div>
+
+      <!-- Details Card -->
+      <div class="mt-5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-900/40 p-4">
+        <div>
+          <span class="block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">{{label .Language "boProdColName"}}</span>
+          <span id="del-modal-prod-name" class="block font-black text-base text-slate-900 dark:text-white truncate">-</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">
+        <button id="del-modal-cancel-btn" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">
+          {{label .Language "cancel"}}
+        </button>
+        <button id="del-modal-confirm-btn" class="inline-flex items-center justify-center !min-h-11 px-6 text-xs sm:text-sm font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 active:scale-95 transition-all cursor-pointer" type="button">
+          <span id="del-modal-confirm-text">{{label .Language "boProdActionDelete"}}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes modalPopIn {
+      from { opacity: 0; transform: scale(.93) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+  </style>
+
   <script>
     document.querySelectorAll('[data-auto-submit] select').forEach(function(sel) {
       sel.addEventListener('change', function() { this.closest('form').submit(); });
+    });
+
+    var productForm = document.getElementById('product-form');
+    var formTitle = document.getElementById('product-form-title');
+    var editBadge = document.getElementById('product-edit-badge');
+    var saveBtn = document.getElementById('product-save-btn');
+    var cancelEditBtn = document.getElementById('product-cancel-edit-btn');
+    var idInput = document.getElementById('product-id');
+    var nameInput = document.getElementById('product-name');
+    var categorySelect = document.getElementById('product-category-select');
+    var categoryNewInput = document.getElementById('product-category-new');
+    var hiddenCategory = document.getElementById('product-category');
+    var typeSelect = document.getElementById('product-type');
+    var priceInput = document.getElementById('product-price');
+    var pricePreview = document.getElementById('price-rupiah-preview');
+    var commInput = document.getElementById('product-commission');
+    var commPreview = document.getElementById('comm-rupiah-preview');
+    var isId = (document.documentElement.lang || 'id') === 'id';
+
+    function formatRupiahPreview(rupiah) {
+      if (!rupiah || isNaN(rupiah) || rupiah <= 0) return '';
+      return '= Rp ' + rupiah.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function updateRupiahPreviews() {
+      if (priceInput && pricePreview) {
+        pricePreview.textContent = formatRupiahPreview(parseInt(priceInput.value, 10));
+      }
+      if (commInput && commPreview) {
+        commPreview.textContent = formatRupiahPreview(parseInt(commInput.value, 10));
+      }
+    }
+
+    if (priceInput) priceInput.addEventListener('input', updateRupiahPreviews);
+    if (commInput) commInput.addEventListener('input', updateRupiahPreviews);
+
+    function syncCategoryInputs() {
+      if (!categorySelect) return;
+      if (categorySelect.value === '__NEW__') {
+        categoryNewInput.classList.remove('hidden');
+        categoryNewInput.required = true;
+        hiddenCategory.value = categoryNewInput.value.trim();
+      } else {
+        categoryNewInput.classList.add('hidden');
+        categoryNewInput.required = false;
+        hiddenCategory.value = categorySelect.value.trim();
+      }
+    }
+
+    if (categorySelect) {
+      categorySelect.addEventListener('change', syncCategoryInputs);
+    }
+    if (categoryNewInput) {
+      categoryNewInput.addEventListener('input', function() {
+        if (categorySelect.value === '__NEW__') {
+          hiddenCategory.value = this.value.trim();
+        }
+      });
+    }
+
+    function checkItemType() {
+      if (!typeSelect || !commInput) return;
+      if (typeSelect.value === 'SERVICE') {
+        commInput.disabled = true;
+        commInput.value = '0';
+        commInput.classList.add('opacity-50', 'bg-slate-100', 'dark:bg-slate-900');
+        if (commPreview) commPreview.textContent = '';
+      } else {
+        commInput.disabled = false;
+        commInput.classList.remove('opacity-50', 'bg-slate-100', 'dark:bg-slate-900');
+        updateRupiahPreviews();
+      }
+    }
+
+    if (typeSelect) typeSelect.addEventListener('change', checkItemType);
+    checkItemType();
+
+    function setCategoryValue(catVal) {
+      catVal = (catVal || '').trim();
+      var found = false;
+      for (var i = 0; i < categorySelect.options.length; i++) {
+        if (categorySelect.options[i].value.toLowerCase() === catVal.toLowerCase()) {
+          categorySelect.selectedIndex = i;
+          found = true;
+          break;
+        }
+      }
+      if (!found && catVal) {
+        categorySelect.value = '__NEW__';
+        categoryNewInput.value = catVal;
+        categoryNewInput.classList.remove('hidden');
+      } else {
+        categoryNewInput.classList.add('hidden');
+        categoryNewInput.value = '';
+      }
+      hiddenCategory.value = catVal;
+    }
+
+    function resetFormToCreate() {
+      idInput.value = '';
+      nameInput.value = '';
+      categorySelect.value = '';
+      categoryNewInput.value = '';
+      categoryNewInput.classList.add('hidden');
+      hiddenCategory.value = '';
+      typeSelect.value = 'SERVICE';
+      priceInput.value = '';
+      commInput.value = '0';
+      checkItemType();
+      updateRupiahPreviews();
+
+      formTitle.textContent = isId ? 'Tambah Item Baru' : 'Add / Edit Catalog Item';
+      editBadge.classList.add('hidden');
+      saveBtn.textContent = isId ? 'Simpan Item' : 'Save Item';
+      cancelEditBtn.classList.add('hidden');
+    }
+
+    if (cancelEditBtn) {
+      cancelEditBtn.addEventListener('click', resetFormToCreate);
+    }
+
+    // Handle Edit Item button click
+    document.querySelectorAll('.btn-edit-product').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = this.dataset.id;
+        var name = this.dataset.name;
+        var category = this.dataset.category;
+        var type = this.dataset.type;
+        var priceCents = this.dataset.price;
+        var commissionCents = this.dataset.commission;
+
+        idInput.value = id;
+        nameInput.value = name;
+        setCategoryValue(category);
+        typeSelect.value = type || 'SERVICE';
+        // Convert cents to ordinary Rupiah for easy editing
+        priceInput.value = Math.round((parseInt(priceCents, 10) || 0) / 100);
+        commInput.value = Math.round((parseInt(commissionCents, 10) || 0) / 100);
+
+        checkItemType();
+        updateRupiahPreviews();
+
+        formTitle.textContent = isId ? 'Edit Item: ' + name : 'Edit Item: ' + name;
+        editBadge.classList.remove('hidden');
+        saveBtn.textContent = isId ? 'Perbarui Item' : 'Update Item';
+        cancelEditBtn.classList.remove('hidden');
+
+        document.getElementById('product-form-section').scrollIntoView({ behavior: 'smooth' });
+        nameInput.focus();
+      });
+    });
+
+    // AJAX Form Submit with Toast
+    if (productForm) {
+      productForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        syncCategoryInputs();
+        if (!hiddenCategory.value) {
+          categorySelect.focus();
+          return;
+        }
+
+        var origText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = isId ? 'Menyimpan...' : 'Saving...';
+
+        var formData = new FormData(productForm);
+        fetch(productForm.action, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Save product failed');
+          return res.json().catch(function() { return { ok: true }; });
+        })
+        .then(function(data) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = origText;
+          var pName = (data && data.name) || formData.get('name') || '';
+          var toastFn = window.queueGlobalToast || window.showGlobalToast;
+          if (toastFn) {
+            toastFn(
+              isId ? 'Item Berhasil Disimpan' : 'Item Saved Successfully',
+              isId ? ('Item "' + pName + '" telah berhasil disimpan ke katalog.') : ('Item "' + pName + '" has been saved to the catalog.'),
+              3000,
+              'success'
+            );
+          }
+          window.location.reload();
+        })
+        .catch(function(err) {
+          console.warn('AJAX submit failed, falling back to standard submit:', err);
+          productForm.submit();
+        });
+      });
+    }
+
+    // Modern Delete Confirmation Modal & AJAX Delete
+    var delModal = document.getElementById('delete-product-modal');
+    var delNameEl = document.getElementById('del-modal-prod-name');
+    var delCancelBtn = document.getElementById('del-modal-cancel-btn');
+    var delConfirmBtn = document.getElementById('del-modal-confirm-btn');
+    var delConfirmText = document.getElementById('del-modal-confirm-text');
+    var pendingDeleteForm = null;
+
+    function closeDeleteModal() {
+      if (!delModal) return;
+      delModal.classList.add('hidden');
+      delModal.classList.remove('flex');
+      pendingDeleteForm = null;
+      if (delConfirmBtn) {
+        delConfirmBtn.disabled = false;
+        delConfirmText.textContent = isId ? 'Hapus' : 'Delete';
+      }
+    }
+
+    if (delCancelBtn) delCancelBtn.addEventListener('click', closeDeleteModal);
+    if (delModal) {
+      delModal.addEventListener('click', function(e) {
+        if (e.target === delModal) closeDeleteModal();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !delModal.classList.contains('hidden')) {
+          closeDeleteModal();
+        }
+      });
+    }
+
+    document.querySelectorAll('.product-delete-form').forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        pendingDeleteForm = form;
+        var name = form.dataset.name || '';
+        delNameEl.textContent = name;
+        delModal.classList.remove('hidden');
+        delModal.classList.add('flex');
+      });
+    });
+
+    if (delConfirmBtn) {
+      delConfirmBtn.addEventListener('click', function() {
+        if (!pendingDeleteForm) return;
+        var form = pendingDeleteForm;
+        var name = form.dataset.name || '';
+        var rowId = 'product-row-' + form.dataset.id;
+        var targetRow = document.getElementById(rowId);
+
+        delConfirmBtn.disabled = true;
+        delConfirmText.textContent = isId ? 'Menghapus...' : 'Deleting...';
+
+        var formData = new FormData(form);
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Delete failed');
+          return res.json().catch(function() { return { ok: true }; });
+        })
+        .then(function() {
+          closeDeleteModal();
+          if (targetRow) {
+            targetRow.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+            targetRow.style.opacity = '0';
+            targetRow.style.transform = 'scale(0.95)';
+            setTimeout(function() {
+              targetRow.remove();
+            }, 250);
+          }
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? 'Item Berhasil Dihapus' : 'Item Deleted Successfully',
+              isId ? ('Item "' + name + '" telah berhasil dihapus dari katalog.') : ('Item "' + name + '" has been successfully deleted.'),
+              3000,
+              'success'
+            );
+          }
+        })
+        .catch(function(err) {
+          console.warn('AJAX delete failed, falling back to form submit:', err);
+          form.submit();
+        });
+      });
+    }
+
+    // Toggle Product Status via AJAX + Toast
+    document.querySelectorAll('.product-toggle-form').forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = form.querySelector('.btn-toggle-status');
+        if (!btn || btn.disabled) return;
+        var name = form.dataset.name || '';
+        var dot = btn.querySelector('.status-dot');
+        var labelEl = btn.querySelector('.status-label');
+
+        btn.disabled = true;
+        btn.classList.add('opacity-60');
+
+        var formData = new FormData(form);
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Toggle status failed');
+          return res.json();
+        })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-60');
+          var isActive = !!data.is_active;
+          btn.setAttribute('data-active', isActive ? 'true' : 'false');
+
+          if (isActive) {
+            btn.className = 'btn-toggle-status group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition duration-150 active:scale-95 cursor-pointer border bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-800/70';
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full status-dot bg-emerald-500 ring-2 ring-emerald-300/50 dark:ring-emerald-500/30';
+            if (labelEl) labelEl.textContent = isId ? 'Aktif' : 'Active';
+          } else {
+            btn.className = 'btn-toggle-status group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition duration-150 active:scale-95 cursor-pointer border bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:border-slate-700';
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full status-dot bg-slate-400';
+            if (labelEl) labelEl.textContent = isId ? 'Tidak Aktif' : 'Inactive';
+          }
+        })
+        .catch(function(err) {
+          console.warn('AJAX toggle failed, falling back to form submit:', err);
+          btn.disabled = false;
+          btn.classList.remove('opacity-60');
+          form.submit();
+        });
+      });
     });
   </script>
 </body>

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"strconv"
+	"strings"
 
 	"github.com/mekari/pos-phoenix/internal/backoffice"
 )
@@ -103,10 +104,56 @@ func formatAmountLabel(amount int64) string {
 	return strconv.FormatInt(amount, 10)
 }
 
-func BuildCatalog(bundles []backoffice.DiscountBundle) []CatalogCategory {
-	cats := make([]CatalogCategory, 0, len(DefaultCatalog)+1)
-	hasBundles := false
+func BuildCatalog(items []backoffice.CatalogItem, bundles []backoffice.DiscountBundle) []CatalogCategory {
+	var incomeCategories []CatalogCategory
+	categoryMap := make(map[string]int)
+
+	for _, it := range items {
+		if !it.IsActive {
+			continue
+		}
+		catName := strings.TrimSpace(it.Category)
+		if catName == "" {
+			if it.ItemType == "PRODUCT" {
+				catName = "Product"
+			} else {
+				catName = "Haircut Services"
+			}
+		}
+		amt := it.PriceCents / 100
+		if amt <= 0 && it.PriceCents > 0 {
+			amt = it.PriceCents
+		}
+		catItem := CatalogItem{
+			Name:        it.Name,
+			Amount:      amt,
+			AmountLabel: formatAmountLabel(amt),
+		}
+
+		idx, exists := categoryMap[catName]
+		if !exists {
+			idx = len(incomeCategories)
+			categoryMap[catName] = idx
+			incomeCategories = append(incomeCategories, CatalogCategory{
+				Name: catName,
+				Kind: "income",
+			})
+		}
+		incomeCategories[idx].Items = append(incomeCategories[idx].Items, catItem)
+	}
+
+	// If no items in database, fallback to default income categories
+	if len(incomeCategories) == 0 {
+		for _, c := range DefaultCatalog {
+			if c.Kind == "income" {
+				incomeCategories = append(incomeCategories, c)
+			}
+		}
+	}
+
+	// Add bundles category if any active bundles
 	var bundleCat CatalogCategory
+	hasBundles := false
 	if len(bundles) > 0 {
 		bundleCat = CatalogCategory{
 			Name: "Bundling",
@@ -117,7 +164,7 @@ func BuildCatalog(bundles []backoffice.DiscountBundle) []CatalogCategory {
 				continue
 			}
 			amt := b.Value / 100
-			if amt <= 0 {
+			if amt <= 0 && b.Value > 0 {
 				amt = b.Value
 			}
 			bundleCat.Items = append(bundleCat.Items, CatalogItem{
@@ -132,16 +179,19 @@ func BuildCatalog(bundles []backoffice.DiscountBundle) []CatalogCategory {
 		}
 	}
 
-	for _, c := range DefaultCatalog {
-		if c.Kind == "expense" && hasBundles {
-			cats = append(cats, bundleCat)
-			hasBundles = false
-		}
-		cats = append(cats, c)
-	}
+	cats := make([]CatalogCategory, 0, len(incomeCategories)+2)
+	cats = append(cats, incomeCategories...)
 	if hasBundles {
 		cats = append(cats, bundleCat)
 	}
+
+	// Add Expense categories from DefaultCatalog
+	for _, c := range DefaultCatalog {
+		if c.Kind == "expense" {
+			cats = append(cats, c)
+		}
+	}
+
 	return cats
 }
 
