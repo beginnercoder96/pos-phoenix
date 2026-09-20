@@ -1168,6 +1168,41 @@ func TestUsernameLoginAndForgotPasswordHTTP(t *testing.T) {
 		t.Fatalf("expected redirect to '/', got %s", recLogin.Header().Get("Location"))
 	}
 
+	// 1b. Test Login with Email entered into the form
+	loginFormEmail := url.Values{
+		"csrf":     {csrf},
+		"username": {"admin@example.com"},
+		"password": {"correct horse battery staple"},
+	}
+	reqLoginEmail := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginFormEmail.Encode()))
+	reqLoginEmail.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLoginEmail.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLoginEmail := httptest.NewRecorder()
+	handler.ServeHTTP(recLoginEmail, reqLoginEmail)
+
+	if recLoginEmail.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on email login, got %d, body: %s", recLoginEmail.Code, recLoginEmail.Body.String())
+	}
+	if recLoginEmail.Header().Get("Location") != "/" {
+		t.Fatalf("expected redirect to '/', got %s", recLoginEmail.Header().Get("Location"))
+	}
+
+	// 1c. Test Login with legacy email parameter
+	loginFormLegacy := url.Values{
+		"csrf":     {csrf},
+		"email":    {"admin@example.com"},
+		"password": {"correct horse battery staple"},
+	}
+	reqLoginLegacy := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginFormLegacy.Encode()))
+	reqLoginLegacy.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLoginLegacy.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLoginLegacy := httptest.NewRecorder()
+	handler.ServeHTTP(recLoginLegacy, reqLoginLegacy)
+
+	if recLoginLegacy.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on legacy email login, got %d, body: %s", recLoginLegacy.Code, recLoginLegacy.Body.String())
+	}
+
 	// 2. Test GET /forgot-password
 	reqForgot := httptest.NewRequest(http.MethodGet, "/forgot-password", nil)
 	recForgot := httptest.NewRecorder()

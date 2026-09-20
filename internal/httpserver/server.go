@@ -171,7 +171,10 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := strings.TrimSpace(r.FormValue("username"))
-	if username == "" || strings.Contains(username, "@") {
+	if username == "" {
+		username = strings.TrimSpace(r.FormValue("email"))
+	}
+	if username == "" {
 		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect."}), http.StatusUnauthorized)
 		return
 	}

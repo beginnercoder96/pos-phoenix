@@ -139,15 +139,37 @@ func TestTemporaryFixedCredentials(t *testing.T) {
 		t.Fatalf("expected ID %d, got %d", u1.ID, u1Orig.ID)
 	}
 
-	// 7. STRICT REQUIREMENT: Logging in using email address MUST FAIL
-	if _, err := svc.Authenticate(ctx, "admin@example.com", "adminsupervisor"); err == nil {
-		t.Fatal("expected email login to fail for admin@example.com, but it succeeded")
+	// 7. Email login should succeed as well (both username and email are supported)
+	u1Email, err := svc.Authenticate(ctx, "admin@example.com", "adminsupervisor")
+	if err != nil {
+		t.Fatalf("expected email login to succeed for admin@example.com, got: %v", err)
 	}
-	if _, err := svc.Authenticate(ctx, "ipang@example.com", "adminsupervisor"); err == nil {
-		t.Fatal("expected email login to fail for ipang@example.com, but it succeeded")
+	if u1Email.ID != u1.ID {
+		t.Fatalf("expected ID %d, got %d", u1.ID, u1Email.ID)
 	}
-	if _, err := svc.Authenticate(ctx, "yogi@contoh.com", "yogioperator"); err == nil {
-		t.Fatal("expected email login to fail for yogi@contoh.com, but it succeeded")
+
+	u2Email, err := svc.Authenticate(ctx, "ipang@example.com", "adminsupervisor")
+	if err != nil {
+		t.Fatalf("expected email login to succeed for ipang@example.com, got: %v", err)
+	}
+	if u2Email.ID != u2.ID {
+		t.Fatalf("expected ID %d, got %d", u2.ID, u2Email.ID)
+	}
+
+	u3Email, err := svc.Authenticate(ctx, "yogi@contoh.com", "yogioperator")
+	if err != nil {
+		t.Fatalf("expected email login to succeed for yogi@contoh.com, got: %v", err)
+	}
+	if u3Email.ID != u3.ID {
+		t.Fatalf("expected ID %d, got %d", u3.ID, u3Email.ID)
+	}
+
+	// 8. Nonexistent user or wrong credentials should fail
+	if _, err := svc.Authenticate(ctx, "nonexistent@example.com", "adminsupervisor"); err == nil {
+		t.Fatal("expected nonexistent user to fail")
+	}
+	if _, err := svc.Authenticate(ctx, "", "adminsupervisor"); err == nil {
+		t.Fatal("expected empty username to fail")
 	}
 }
 

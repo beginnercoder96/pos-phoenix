@@ -180,6 +180,8 @@ func (s Service) SetOperatorActive(ctx context.Context, operatorID int64, active
 }
 
 type fixedCredential struct {
+	Username    string
+	Email       string
 	Password    string
 	DisplayName string
 	Role        string
@@ -187,38 +189,39 @@ type fixedCredential struct {
 }
 
 var temporaryFixedCredentials = map[string]fixedCredential{
-	"admin": {Password: "adminsupervisor", DisplayName: "Administrator", Role: "superadmin", StaffType: "owner"},
-	"ipang": {Password: "adminsupervisor", DisplayName: "Ipang", Role: "superadmin", StaffType: "owner"},
-	"yogi":  {Password: "yogioperator", DisplayName: "yogi", Role: "operator", StaffType: "barberman"},
+	"admin":             {Username: "admin", Email: "admin@example.com", Password: "adminsupervisor", DisplayName: "Administrator", Role: "superadmin", StaffType: "owner"},
+	"admin@example.com": {Username: "admin", Email: "admin@example.com", Password: "adminsupervisor", DisplayName: "Administrator", Role: "superadmin", StaffType: "owner"},
+	"ipang":             {Username: "ipang", Email: "ipang@example.com", Password: "adminsupervisor", DisplayName: "Ipang", Role: "superadmin", StaffType: "owner"},
+	"ipang@example.com": {Username: "ipang", Email: "ipang@example.com", Password: "adminsupervisor", DisplayName: "Ipang", Role: "superadmin", StaffType: "owner"},
+	"yogi":              {Username: "yogi", Email: "yogi@contoh.com", Password: "yogioperator", DisplayName: "yogi", Role: "operator", StaffType: "barberman"},
+	"yogi@contoh.com":   {Username: "yogi", Email: "yogi@contoh.com", Password: "yogioperator", DisplayName: "yogi", Role: "operator", StaffType: "barberman"},
 }
 
 func (s Service) Authenticate(ctx context.Context, username, password string) (User, error) {
-	cleanUsername := strings.ToLower(strings.TrimSpace(username))
-	// Client requirement: STRICTLY username only for login (emails with @ are disallowed)
-	if cleanUsername == "" || strings.Contains(cleanUsername, "@") {
+	cleanID := strings.ToLower(strings.TrimSpace(username))
+	if cleanID == "" {
 		return User{}, errors.New("invalid credentials")
 	}
 
-	// Check temporary fixed credentials
-	if fixed, ok := temporaryFixedCredentials[cleanUsername]; ok && fixed.Password == password {
+	// Check temporary fixed credentials (supports either username or email)
+	if fixed, ok := temporaryFixedCredentials[cleanID]; ok && fixed.Password == password {
 		var u User
-		err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE LOWER(username)=? AND active=1`, cleanUsername).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType)
+		err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE (LOWER(username)=? OR LOWER(email)=? OR LOWER(username)=? OR LOWER(email)=?) AND active=1`, cleanID, cleanID, fixed.Username, fixed.Email).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType)
 		if err == nil {
 			if u.Username == "" {
-				u.Username = cleanUsername
+				u.Username = fixed.Username
 			}
 			return u, nil
 		}
 		// If the user does not exist in DB yet, safely create it so foreign keys (sessions, transactions) work
-		email := cleanUsername + "@example.com"
 		hash, _ := HashPassword(fixed.Password)
-		res, err := s.DB.ExecContext(ctx, `INSERT INTO users(username,email,display_name,password_hash,role,active,staff_type) VALUES(?,?,?,?,?,1,?)`, cleanUsername, email, fixed.DisplayName, hash, fixed.Role, fixed.StaffType)
+		res, err := s.DB.ExecContext(ctx, `INSERT INTO users(username,email,display_name,password_hash,role,active,staff_type) VALUES(?,?,?,?,?,1,?)`, fixed.Username, fixed.Email, fixed.DisplayName, hash, fixed.Role, fixed.StaffType)
 		if err == nil {
 			id, _ := res.LastInsertId()
 			return User{
 				ID:          id,
-				Username:    cleanUsername,
-				Email:       email,
+				Username:    fixed.Username,
+				Email:       fixed.Email,
 				DisplayName: fixed.DisplayName,
 				Role:        fixed.Role,
 				Active:      true,
@@ -229,12 +232,16 @@ func (s Service) Authenticate(ctx context.Context, username, password string) (U
 
 	var u User
 	var hash string
-	err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,password_hash,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE LOWER(username)=? AND active=1`, cleanUsername).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &hash, &u.BranchID, &u.StaffType)
+	err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,password_hash,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE (LOWER(username)=? OR LOWER(email)=?) AND active=1`, cleanID, cleanID).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &hash, &u.BranchID, &u.StaffType)
 	if err != nil || !VerifyPassword(hash, password) {
 		return User{}, errors.New("invalid credentials")
 	}
 	if u.Username == "" {
-		u.Username = cleanUsername
+		if strings.Contains(cleanID, "@") {
+			u.Username = strings.Split(cleanID, "@")[0]
+		} else {
+			u.Username = cleanID
+		}
 	}
 	return u, nil
 }

@@ -53,8 +53,8 @@
         <form method="post" action="/login" class="mt-6 space-y-4">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
           <label class="block">
-            <span class="field-label">{{label .Language "username"}}</span>
-            <input class="field" type="text" name="username" placeholder="{{label .Language "usernamePlaceholder"}}" autocomplete="username" required>
+            <span class="field-label">{{label .Language "usernameOrEmail"}}</span>
+            <input class="field" type="text" name="username" placeholder="{{label .Language "usernameOrEmailPlaceholder"}}" autocomplete="username" required>
           </label>
           <label class="block">
             <span class="field-label">{{label .Language "password"}}</span>

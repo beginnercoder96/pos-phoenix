@@ -25,12 +25,15 @@ web/static/css/app.css
 .vscode/
 .idea/
 
-# Test artifacts & scratch
+# Test artifacts, recordings & scratch
 *.png
 !web/static/img/*.png
 test_*.js
 scratch/
 coverage.out
+videos/
+*.webm
+*.mp4
 
 # Reference materials & heavy assets
 figma-component/
