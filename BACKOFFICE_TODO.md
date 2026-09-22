@@ -122,21 +122,21 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ## 🗂️ Rencana Checklist Tugas (TODO Checklist)
 
 ### Milestone 1: Arsitektur & Database Modeling
-- [ ] Buat migration tabel `branches`:
+- [x] Buat migration tabel `branches`:
   - `id`, `code` (`KLASEMAN`, `LEDOK`), `name`, `address`, `is_active`, `created_at`
-- [ ] Perbarui tabel `users` / `operators`:
+- [x] Perbarui tabel `users` / `operators`:
   - Tambahkan `branch_id` (foreign key ke `branches`)
   - Kolom tipe staf (`barberman`, `cashier`, `manager`, `owner`)
-- [ ] Perbarui tabel `catalog_items` / `products`:
+- [x] Perbarui tabel `catalog_items` / `products`:
   - Tambahkan flag `item_type` (`SERVICE` vs `PRODUCT`)
   - Tambahkan `commission_amount` (integer Rp 5.000 - Rp 10.000 untuk item produk)
-- [ ] Buat tabel `branch_profit_sharing_rules`:
+- [x] Buat tabel `branch_profit_sharing_rules`:
   - `id`, `branch_id`, `period_month` (format `YYYY-MM`), `owner_percentage`, `unallocated_percentage`, `updated_by` (`ipang`), `updated_at`
-- [ ] Buat tabel `employee_profit_sharing_rules`:
+- [x] Buat tabel `employee_profit_sharing_rules`:
   - `id`, `rule_id`, `user_id`, `percentage`, `created_at`
-- [ ] Buat tabel `discounts_and_bundles`:
+- [x] Buat tabel `discounts_and_bundles`:
   - `id`, `code`, `name`, `type` (`PERCENTAGE`, `FIXED_AMOUNT`, `BUNDLE`), `value`, `service_allocation_ratio`, `product_allocation_ratio`, `is_active`
-- [ ] Perbarui tabel `transactions` & `transaction_items`:
+- [x] Perbarui tabel `transactions` & `transaction_items`:
   - Tambahkan `branch_id`
   - Tambahkan `barber_id` / `served_by_id` pada tiap baris item
   - Tambahkan `discount_amount`, `bundle_id`, `commission_earned`
@@ -144,15 +144,15 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 2: Core Calculation Engine (Go Backend)
-- [ ] Buat paket `internal/backoffice/calculator`:
+- [x] Buat paket `internal/backoffice/calculator`:
   - Logika pemisahan omzet Jasa vs Retail
   - Perhitungan persentase bagi hasil bulanan per-cabang
   - Kalkulasi alokasi sisa saldo tidak terpakai
   - Kalkulasi komisi produk per-karyawan berdasarkan item yang dijual
   - Kalkulasi penyesuaian diskon & bundling terhadap pendapatan jasa
-- [ ] Buat validasi otorisasi:
+- [x] Buat validasi otorisasi:
   - Hanya user dengan role `superadmin` / email `ipang@example.com` yang diizinkan mengubah konfigurasi persentase bagi hasil
-- [ ] Buat unit test lengkap untuk skenario:
+- [x] Buat unit test lengkap untuk skenario:
   - Pembagian hasil Klaseman (Januari 10jt, 35%-35%-20%-10%)
   - Pembagian hasil Ledok (Januari 12jt, 40%-30%-20%-10%)
   - Pengecualian produk dari bagi hasil dan akurasi komisi produk
@@ -160,38 +160,38 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 3: Backoffice UI & Navigasi Terpisah
-- [ ] Pisahkan antarmuka Backoffice:
+- [x] Pisahkan antarmuka Backoffice:
   - Buat layout & route terpisah `/backoffice/*` (atau sub-aplikasi terpisah) yang terlindungi middleware khusus Owner
-- [ ] Halaman **Konfigurasi Bagi Hasil Cabang** (`/backoffice/profit-sharing`):
+- [x] Halaman **Konfigurasi Bagi Hasil Cabang** (`/backoffice/profit-sharing`):
   - Selector Cabang (Klaseman / Ledok) & Periode Bulan
   - Form input persentase Owner, Karyawan 1, Karyawan 2, dsb.
   - Indikator real-time kalkulasi sisa saldo tidak terpakai (Total persentase & nominal saldo cadangan)
-- [ ] Halaman **Manajemen Diskon & Bundling** (`/backoffice/discounts`):
+- [x] Halaman **Manajemen Diskon & Bundling** (`/backoffice/discounts`):
   - Input promo diskon & paket bundling
-- [ ] Halaman **Katalog & Komisi Produk** (`/backoffice/products`):
+- [x] Halaman **Katalog & Komisi Produk** (`/backoffice/products`):
   - Pengaturan nilai komisi per produk (Rp 5.000 - Rp 10.000)
 
 ---
 
 ### Milestone 4: Dashboard & Chart Pendapatan Historis (2 Tahun)
-- [ ] Buat query agregasi bulanan untuk 24 bulan ke belakang dari tanggal hari ini (`CURRENT_DATE` trailing window)
-- [ ] Endpoint API `/backoffice/api/analytics/trend-24m`:
+- [x] Buat query agregasi bulanan untuk 24 bulan ke belakang dari tanggal hari ini (`CURRENT_DATE` trailing window)
+- [x] Endpoint API `/backoffice/api/analytics/trend-24m`:
   - Parameter filter: `branch_id` (`all`, `klaseman`, `ledok`)
   - Output JSON: data 24 bulan (omzet kotor, omzet jasa, omzet produk, diskon, sisa saldo cadangan)
-- [ ] Visualisasi Chart di Backoffice Dashboard:
+- [x] Visualisasi Chart di Backoffice Dashboard:
   - Interaktif: beralih tampilan antara Klaseman, Ledok, dan Konsolidasi 2 Cabang
   - Tooltip interaktif rincian omzet jasa vs produk
 
 ---
 
 ### Milestone 5: Ekspor Laporan Finansial (Excel)
-- [ ] Service generator Excel (`excelize` di Go) untuk laporan finansial:
+- [x] Service generator Excel (`excelize` di Go) untuk laporan finansial:
   - Range: Bulan berjalan hingga 24 bulan ke belakang
   - Sheet 1: Rangkuman Konsolidasi 2 Cabang
   - Sheet 2: Rincian Cabang Klaseman (Omzet, Bagi Hasil, Sisa Kas Cadangan)
   - Sheet 3: Rincian Cabang Ledok (Omzet, Bagi Hasil, Sisa Kas Cadangan)
   - Sheet 4: Rincian Penjualan Produk & Komisi
-- [ ] Tombol Download di UI Backoffice:
+- [x] Tombol Download di UI Backoffice:
   - Filter rentang bulan/tahun fleksibel
 
 ---

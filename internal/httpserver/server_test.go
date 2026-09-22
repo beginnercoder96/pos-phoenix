@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +16,10 @@ import (
 	"time"
 
 	"github.com/mekari/pos-phoenix/internal/auth"
+	"github.com/mekari/pos-phoenix/internal/backoffice"
 	"github.com/mekari/pos-phoenix/internal/database"
 	transactionstore "github.com/mekari/pos-phoenix/internal/transaction"
+	"github.com/xuri/excelize/v2"
 )
 
 func testServer(t *testing.T) (*sql.DB, http.Handler, auth.Service) {
@@ -1500,3 +1503,193 @@ func TestCatalogItemLifecycleAndDashboardIntegration(t *testing.T) {
 		t.Fatalf("expected item to be deleted, found count=%d", countAfterDel)
 	}
 }
+
+func TestBackofficeProfitSharingAuthorizationAndSave(t *testing.T) {
+	db, handler, service := testServer(t)
+	operatorID := addUser(t, db, "operator_ps@example.com", "operator")
+	adminID := addUser(t, db, "ipang@example.com", "superadmin")
+
+	// 1. Operator cannot access GET /backoffice/profit-sharing
+	recOpGet := requestAs(t, handler, service, operatorID, http.MethodGet, "/backoffice/profit-sharing", nil)
+	if recOpGet.Code != http.StatusForbidden {
+		t.Fatalf("expected operator GET to be 403, got %d", recOpGet.Code)
+	}
+
+	// 2. Operator cannot POST /backoffice/profit-sharing
+	postForm := url.Values{
+		"branch":           {"KLASEMAN"},
+		"period":           {"2026-01"},
+		"owner_percentage": {"20"},
+	}
+	recOpPost := requestAs(t, handler, service, operatorID, http.MethodPost, "/backoffice/profit-sharing", postForm)
+	if recOpPost.Code != http.StatusForbidden {
+		t.Fatalf("expected operator POST to be 403, got %d", recOpPost.Code)
+	}
+
+	// 3. Superadmin can access GET /backoffice/profit-sharing
+	recAdminGet := requestAs(t, handler, service, adminID, http.MethodGet, "/backoffice/profit-sharing?branch=KLASEMAN&period=2026-01", nil)
+	if recAdminGet.Code != http.StatusOK {
+		t.Fatalf("expected admin GET to be 200, got %d", recAdminGet.Code)
+	}
+
+	// 4. Superadmin cannot save percentage > 100%
+	invalidForm := url.Values{
+		"branch":              {"KLASEMAN"},
+		"period":              {"2026-01"},
+		"owner_percentage":    {"80"},
+		"employee_id":         {"1", "2"},
+		"employee_percentage": {"30", "30"}, // 80 + 30 + 30 = 140% > 100%
+	}
+	recInvalid := requestAs(t, handler, service, adminID, http.MethodPost, "/backoffice/profit-sharing", invalidForm)
+	if recInvalid.Code != http.StatusBadRequest {
+		t.Fatalf("expected >100%% to be 400 Bad Request, got %d", recInvalid.Code)
+	}
+
+	// 5. Superadmin can save valid profit sharing configuration (20% owner, 35% emp 1, 35% emp 2, 10% reserve)
+	validForm := url.Values{
+		"branch":              {"KLASEMAN"},
+		"period":              {"2026-01"},
+		"owner_percentage":    {"20"},
+		"employee_id":         {"1", "2"},
+		"employee_percentage": {"35", "35"},
+	}
+	recValid := requestAs(t, handler, service, adminID, http.MethodPost, "/backoffice/profit-sharing", validForm)
+	if recValid.Code != http.StatusSeeOther && recValid.Code != http.StatusOK {
+		t.Fatalf("expected 303 or 200 on valid save, got %d", recValid.Code)
+	}
+}
+
+func TestBackofficeAnalytics24mAPI(t *testing.T) {
+	db, handler, service := testServer(t)
+	operatorID := addUser(t, db, "operator_trend@example.com", "operator")
+	adminID := addUser(t, db, "ipang_trend@example.com", "superadmin")
+
+	// 1. Operator cannot access analytics API
+	recOp := requestAs(t, handler, service, operatorID, http.MethodGet, "/backoffice/api/analytics/trend-24m", nil)
+	if recOp.Code != http.StatusForbidden {
+		t.Fatalf("expected operator to receive 403, got %d", recOp.Code)
+	}
+
+	// 2. Superadmin accesses all branches
+	recAll := requestAs(t, handler, service, adminID, http.MethodGet, "/backoffice/api/analytics/trend-24m?branch_id=all", nil)
+	if recAll.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", recAll.Code)
+	}
+
+	var allData []backoffice.MonthlyAnalytics
+	if err := json.Unmarshal(recAll.Body.Bytes(), &allData); err != nil {
+		t.Fatalf("failed to parse json response: %v", err)
+	}
+	if len(allData) != 24 {
+		t.Fatalf("expected exactly 24 months, got %d", len(allData))
+	}
+
+	// 3. Superadmin accesses Klaseman branch
+	recKlaseman := requestAs(t, handler, service, adminID, http.MethodGet, "/backoffice/api/analytics/trend-24m?branch_id=KLASEMAN", nil)
+	if recKlaseman.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for Klaseman, got %d", recKlaseman.Code)
+	}
+	var klasemanData []backoffice.MonthlyAnalytics
+	if err := json.Unmarshal(recKlaseman.Body.Bytes(), &klasemanData); err != nil {
+		t.Fatalf("failed to parse json for Klaseman: %v", err)
+	}
+	if len(klasemanData) != 24 {
+		t.Fatalf("expected 24 months for Klaseman, got %d", len(klasemanData))
+	}
+
+	// 4. Superadmin accesses Ledok branch
+	recLedok := requestAs(t, handler, service, adminID, http.MethodGet, "/backoffice/api/analytics/trend-24m?branch_id=LEDOK", nil)
+	if recLedok.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for Ledok, got %d", recLedok.Code)
+	}
+	var ledokData []backoffice.MonthlyAnalytics
+	if err := json.Unmarshal(recLedok.Body.Bytes(), &ledokData); err != nil {
+		t.Fatalf("failed to parse json for Ledok: %v", err)
+	}
+	if len(ledokData) != 24 {
+		t.Fatalf("expected 24 months for Ledok, got %d", len(ledokData))
+	}
+}
+
+func TestBackofficeFinancialReportExcel(t *testing.T) {
+	db, handler, service := testServer(t)
+	operatorID := addUser(t, db, "operator_rep@example.com", "operator")
+	adminID := addUser(t, db, "ipang_rep@example.com", "superadmin")
+
+	// 1. Operator cannot download backoffice financial report
+	recOp := requestAs(t, handler, service, operatorID, http.MethodGet, "/backoffice/reports.xlsx", nil)
+	if recOp.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for operator, got %d", recOp.Code)
+	}
+
+	// 2. Superadmin downloads default financial report Excel (24 months)
+	recAdmin := requestAs(t, handler, service, adminID, http.MethodGet, "/backoffice/reports.xlsx", nil)
+	if recAdmin.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for admin, got %d", recAdmin.Code)
+	}
+
+	contentType := recAdmin.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "spreadsheetml.sheet") {
+		t.Fatalf("expected Excel spreadsheetml.sheet Content-Type, got %s", contentType)
+	}
+
+	// Parse with excelize to verify valid OOXML workbook and sheets
+	body := recAdmin.Body.Bytes()
+	f, err := excelize.OpenReader(bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("failed to open Excel with excelize: %v", err)
+	}
+	defer f.Close()
+
+	sheets := f.GetSheetList()
+	expectedSheets := []string{"Konsolidasi", "Pardis Barbershop Klaseman", "Pardis Barbershop Ledok", "Penjualan Produk"}
+	for _, expected := range expectedSheets {
+		found := false
+		for _, s := range sheets {
+			if s == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected sheet %s not found in %v", expected, sheets)
+		}
+	}
+
+	cellA1, err := f.GetCellValue("Konsolidasi", "A1")
+	if err != nil || cellA1 != "Rangkuman Konsolidasi 2 Cabang" {
+		t.Fatalf("expected title 'Rangkuman Konsolidasi 2 Cabang', got '%s', err: %v", cellA1, err)
+	}
+
+	// 3. Superadmin downloads with flexible date filter (?from=2025-01&to=2025-06)
+	recFiltered := requestAs(t, handler, service, adminID, http.MethodGet, "/backoffice/reports.xlsx?from=2025-01&to=2025-06", nil)
+	if recFiltered.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for filtered report, got %d", recFiltered.Code)
+	}
+
+	disp := recFiltered.Header().Get("Content-Disposition")
+	if !strings.Contains(disp, "laporan-keuangan-2025-01-sd-2025-06.xlsx") {
+		t.Fatalf("expected filename with date range in Content-Disposition, got %s", disp)
+	}
+
+	fFiltered, err := excelize.OpenReader(bytes.NewReader(recFiltered.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("failed to open filtered Excel with excelize: %v", err)
+	}
+	defer fFiltered.Close()
+
+	// Sheet Konsolidasi should contain rows for 6 months (Jan 2025 - Jun 2025)
+	rows, err := fFiltered.GetRows("Konsolidasi")
+	if err != nil {
+		t.Fatalf("failed to get rows: %v", err)
+	}
+	// Row 1: Title, Row 2: Empty, Row 3: Header, Rows 4-9: 6 months, Row 10: Total -> at least 10 rows
+	if len(rows) < 10 {
+		t.Fatalf("expected at least 10 rows for 6-month filtered report, got %d", len(rows))
+	}
+}
+
+
+
+
+

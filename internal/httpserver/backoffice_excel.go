@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mekari/pos-phoenix/internal/backoffice"
+	"github.com/xuri/excelize/v2"
 )
 
 type payrollSlipData struct {
@@ -263,218 +264,202 @@ func generatePayrollSlipAllExcel(slips []payrollSlipData) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// generateFinancialReportExcel creates a multi-sheet financial report.
+// generateFinancialReportExcel creates a multi-sheet financial report using excelize.
 func generateFinancialReportExcel(consolidated []backoffice.MonthlyAnalytics, branchData []branchReportData, productSales []backoffice.ProductSaleRecord) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	zw := zip.NewWriter(buf)
+	f := excelize.NewFile()
+	defer func() {
+		_ = f.Close()
+	}()
 
-	sheetCount := 1 + len(branchData) + 1 // Consolidated + per-branch + Product Sales
-	sheetNames := []string{"Konsolidasi"}
-	for _, bd := range branchData {
-		sheetNames = append(sheetNames, bd.Branch.Name)
-	}
-	sheetNames = append(sheetNames, "Penjualan Produk")
-
-	writeContentTypes(zw, sheetCount)
-	writeRels(zw)
-	writeWorkbookRels(zw, sheetCount)
-	writeWorkbook(zw, sheetNames)
-	writePayrollStyles(zw)
-
-	// Sheet 1: Consolidated
-	w, err := zw.Create("xl/worksheets/sheet1.xml")
-	if err != nil {
+	// Sheet 1: Konsolidasi
+	const sheet1 = "Konsolidasi"
+	f.SetSheetName("Sheet1", sheet1)
+	if err := populateAnalyticsSheetExcelize(f, sheet1, "Rangkuman Konsolidasi 2 Cabang", consolidated); err != nil {
 		return nil, err
 	}
-	io.WriteString(w, buildAnalyticsSheet("Rangkuman Konsolidasi 2 Cabang", consolidated))
 
 	// Per-branch sheets
-	for i, bd := range branchData {
-		w, err := zw.Create(fmt.Sprintf("xl/worksheets/sheet%d.xml", i+2))
-		if err != nil {
+	for _, bd := range branchData {
+		sheetName := bd.Branch.Name
+		f.NewSheet(sheetName)
+		if err := populateAnalyticsSheetExcelize(f, sheetName, "Rincian "+bd.Branch.Name, bd.Analytics); err != nil {
 			return nil, err
 		}
-		io.WriteString(w, buildAnalyticsSheet("Rincian "+bd.Branch.Name, bd.Analytics))
 	}
 
 	// Sheet: Product Sales & Commissions
-	wProd, err := zw.Create(fmt.Sprintf("xl/worksheets/sheet%d.xml", sheetCount))
-	if err != nil {
+	const prodSheet = "Penjualan Produk"
+	f.NewSheet(prodSheet)
+	if err := populateProductSalesSheetExcelize(f, prodSheet, productSales); err != nil {
 		return nil, err
 	}
-	io.WriteString(wProd, buildProductSalesSheet(productSales))
 
-	if err := zw.Close(); err != nil {
+	buf, err := f.WriteToBuffer()
+	if err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
 }
 
-func buildAnalyticsSheet(title string, analytics []backoffice.MonthlyAnalytics) string {
-	var sb strings.Builder
-	sb.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <cols>
-    <col min="1" max="1" width="14" customWidth="1"/>
-    <col min="2" max="2" width="22" customWidth="1"/>
-    <col min="3" max="3" width="22" customWidth="1"/>
-    <col min="4" max="4" width="22" customWidth="1"/>
-    <col min="5" max="5" width="18" customWidth="1"/>
-    <col min="6" max="6" width="22" customWidth="1"/>
-  </cols>
-  <sheetData>`)
+func populateAnalyticsSheetExcelize(f *excelize.File, sheetName, title string, analytics []backoffice.MonthlyAnalytics) error {
+	titleStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Size: 14, Color: "0F172A"},
+	})
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"1E293B"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+	})
+	currencyStyle, _ := f.NewStyle(&excelize.Style{
+		CustomNumFmt: &[]string{`"Rp "#,##0.00`}[0],
+		Alignment:    &excelize.Alignment{Horizontal: "right"},
+	})
+	totalStyle, _ := f.NewStyle(&excelize.Style{
+		Font:         &excelize.Font{Bold: true},
+		CustomNumFmt: &[]string{`"Rp "#,##0.00`}[0],
+		Border: []excelize.Border{
+			{Type: "top", Style: 1, Color: "000000"},
+			{Type: "bottom", Style: 6, Color: "000000"},
+		},
+		Alignment: &excelize.Alignment{Horizontal: "right"},
+	})
+	totalLabelStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Border: []excelize.Border{
+			{Type: "top", Style: 1, Color: "000000"},
+			{Type: "bottom", Style: 6, Color: "000000"},
+		},
+	})
 
-	sb.WriteString(fmt.Sprintf(`
-    <row r="1"><c r="A1" s="1" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="2"></row>
-    <row r="3">
-      <c r="A3" s="1" t="inlineStr"><is><t>Bulan</t></is></c>
-      <c r="B3" s="1" t="inlineStr"><is><t>Omzet Kotor</t></is></c>
-      <c r="C3" s="1" t="inlineStr"><is><t>Omzet Jasa</t></is></c>
-      <c r="D3" s="1" t="inlineStr"><is><t>Omzet Produk</t></is></c>
-      <c r="E3" s="1" t="inlineStr"><is><t>Diskon</t></is></c>
-      <c r="F3" s="1" t="inlineStr"><is><t>Sisa Kas Cadangan</t></is></c>
-    </row>`, xmlEscape(title)))
+	_ = f.SetColWidth(sheetName, "A", "A", 15)
+	_ = f.SetColWidth(sheetName, "B", "D", 22)
+	_ = f.SetColWidth(sheetName, "E", "E", 18)
+	_ = f.SetColWidth(sheetName, "F", "F", 24)
+
+	_ = f.SetCellValue(sheetName, "A1", title)
+	_ = f.SetCellStyle(sheetName, "A1", "A1", titleStyle)
+
+	headers := []any{"Bulan", "Omzet Kotor", "Omzet Jasa", "Omzet Produk", "Diskon", "Sisa Kas Cadangan"}
+	_ = f.SetSheetRow(sheetName, "A3", &headers)
+	_ = f.SetCellStyle(sheetName, "A3", "F3", headerStyle)
 
 	row := 4
-	var totalGross, totalService, totalProduct, totalDiscount, totalReserve int64
+	var totalGross, totalService, totalProduct, totalDiscount, totalReserve float64
 	for _, a := range analytics {
-		sb.WriteString(fmt.Sprintf(`
-    <row r="%d">
-      <c r="A%d" t="inlineStr"><is><t>%s</t></is></c>
-      <c r="B%d" s="2"><v>%.2f</v></c>
-      <c r="C%d" s="2"><v>%.2f</v></c>
-      <c r="D%d" s="2"><v>%.2f</v></c>
-      <c r="E%d" s="2"><v>%.2f</v></c>
-      <c r="F%d" s="2"><v>%.2f</v></c>
-    </row>`,
-			row,
-			row, xmlEscape(a.Month),
-			row, float64(a.GrossRevenueCents)/100.0,
-			row, float64(a.ServiceRevenueCents)/100.0,
-			row, float64(a.ProductRevenueCents)/100.0,
-			row, float64(a.DiscountCents)/100.0,
-			row, float64(a.ReserveCents)/100.0))
-		totalGross += a.GrossRevenueCents
-		totalService += a.ServiceRevenueCents
-		totalProduct += a.ProductRevenueCents
-		totalDiscount += a.DiscountCents
-		totalReserve += a.ReserveCents
+		gross := float64(a.GrossRevenueCents) / 100.0
+		service := float64(a.ServiceRevenueCents) / 100.0
+		product := float64(a.ProductRevenueCents) / 100.0
+		discount := float64(a.DiscountCents) / 100.0
+		reserve := float64(a.ReserveCents) / 100.0
+
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), a.Month)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), gross)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), service)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), product)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), discount)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), reserve)
+
+		_ = f.SetCellStyle(sheetName, fmt.Sprintf("B%d", row), fmt.Sprintf("F%d", row), currencyStyle)
+
+		totalGross += gross
+		totalService += service
+		totalProduct += product
+		totalDiscount += discount
+		totalReserve += reserve
 		row++
 	}
 
-	// Totals row
-	sb.WriteString(fmt.Sprintf(`
-    <row r="%d">
-      <c r="A%d" s="3" t="inlineStr"><is><t>TOTAL</t></is></c>
-      <c r="B%d" s="3"><v>%.2f</v></c>
-      <c r="C%d" s="3"><v>%.2f</v></c>
-      <c r="D%d" s="3"><v>%.2f</v></c>
-      <c r="E%d" s="3"><v>%.2f</v></c>
-      <c r="F%d" s="3"><v>%.2f</v></c>
-    </row>`,
-		row,
-		row,
-		row, float64(totalGross)/100.0,
-		row, float64(totalService)/100.0,
-		row, float64(totalProduct)/100.0,
-		row, float64(totalDiscount)/100.0,
-		row, float64(totalReserve)/100.0))
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), "TOTAL")
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), totalGross)
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), totalService)
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), totalProduct)
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), totalDiscount)
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), totalReserve)
 
-	sb.WriteString(`
-  </sheetData>
-</worksheet>`)
-	return sb.String()
+	_ = f.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("A%d", row), totalLabelStyle)
+	_ = f.SetCellStyle(sheetName, fmt.Sprintf("B%d", row), fmt.Sprintf("F%d", row), totalStyle)
+
+	return nil
 }
 
-func buildProductSalesSheet(sales []backoffice.ProductSaleRecord) string {
-	var sb strings.Builder
-	sb.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <cols>
-    <col min="1" max="1" width="12" customWidth="1"/>
-    <col min="2" max="2" width="25" customWidth="1"/>
-    <col min="3" max="3" width="28" customWidth="1"/>
-    <col min="4" max="4" width="22" customWidth="1"/>
-    <col min="5" max="5" width="10" customWidth="1"/>
-    <col min="6" max="6" width="18" customWidth="1"/>
-    <col min="7" max="7" width="18" customWidth="1"/>
-    <col min="8" max="8" width="22" customWidth="1"/>
-    <col min="9" max="9" width="22" customWidth="1"/>
-  </cols>
-  <sheetData>
-    <row r="1"><c r="A1" s="1" t="inlineStr"><is><t>RINCIAN PENJUALAN PRODUK &amp; KOMISI</t></is></c></row>
-    <row r="2"></row>
-    <row r="3">
-      <c r="A3" s="1" t="inlineStr"><is><t>Bulan</t></is></c>
-      <c r="B3" s="1" t="inlineStr"><is><t>Cabang</t></is></c>
-      <c r="C3" s="1" t="inlineStr"><is><t>Nama Produk</t></is></c>
-      <c r="D3" s="1" t="inlineStr"><is><t>Barberman</t></is></c>
-      <c r="E3" s="1" t="inlineStr"><is><t>Qty</t></is></c>
-      <c r="F3" s="1" t="inlineStr"><is><t>Harga Satuan</t></is></c>
-      <c r="G3" s="1" t="inlineStr"><is><t>Komisi / Pcs</t></is></c>
-      <c r="H3" s="1" t="inlineStr"><is><t>Total Omzet</t></is></c>
-      <c r="I3" s="1" t="inlineStr"><is><t>Total Komisi</t></is></c>
-    </row>`)
+func populateProductSalesSheetExcelize(f *excelize.File, sheetName string, sales []backoffice.ProductSaleRecord) error {
+	titleStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Size: 14, Color: "0F172A"},
+	})
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"1E293B"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+	})
+	currencyStyle, _ := f.NewStyle(&excelize.Style{
+		CustomNumFmt: &[]string{`"Rp "#,##0.00`}[0],
+		Alignment:    &excelize.Alignment{Horizontal: "right"},
+	})
+	totalStyle, _ := f.NewStyle(&excelize.Style{
+		Font:         &excelize.Font{Bold: true},
+		CustomNumFmt: &[]string{`"Rp "#,##0.00`}[0],
+		Border: []excelize.Border{
+			{Type: "top", Style: 1, Color: "000000"},
+			{Type: "bottom", Style: 6, Color: "000000"},
+		},
+		Alignment: &excelize.Alignment{Horizontal: "right"},
+	})
+	totalLabelStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Border: []excelize.Border{
+			{Type: "top", Style: 1, Color: "000000"},
+			{Type: "bottom", Style: 6, Color: "000000"},
+		},
+	})
+
+	_ = f.SetColWidth(sheetName, "A", "A", 14)
+	_ = f.SetColWidth(sheetName, "B", "B", 25)
+	_ = f.SetColWidth(sheetName, "C", "C", 28)
+	_ = f.SetColWidth(sheetName, "D", "D", 22)
+	_ = f.SetColWidth(sheetName, "E", "E", 10)
+	_ = f.SetColWidth(sheetName, "F", "G", 18)
+	_ = f.SetColWidth(sheetName, "H", "I", 22)
+
+	_ = f.SetCellValue(sheetName, "A1", "RINCIAN PENJUALAN PRODUK & KOMISI")
+	_ = f.SetCellStyle(sheetName, "A1", "A1", titleStyle)
+
+	headers := []any{"Bulan", "Cabang", "Nama Produk", "Barberman", "Qty", "Harga Satuan", "Komisi / Pcs", "Total Omzet", "Total Komisi"}
+	_ = f.SetSheetRow(sheetName, "A3", &headers)
+	_ = f.SetCellStyle(sheetName, "A3", "I3", headerStyle)
 
 	row := 4
-	var totalRev, totalComm int64
+	var totalRev, totalComm float64
 	for _, s := range sales {
-		sb.WriteString(fmt.Sprintf(`
-    <row r="%d">
-      <c r="A%d" t="inlineStr"><is><t>%s</t></is></c>
-      <c r="B%d" t="inlineStr"><is><t>%s</t></is></c>
-      <c r="C%d" t="inlineStr"><is><t>%s</t></is></c>
-      <c r="D%d" t="inlineStr"><is><t>%s</t></is></c>
-      <c r="E%d" s="2"><v>%d</v></c>
-      <c r="F%d" s="2"><v>%.2f</v></c>
-      <c r="G%d" s="2"><v>%.2f</v></c>
-      <c r="H%d" s="2"><v>%.2f</v></c>
-      <c r="I%d" s="2"><v>%.2f</v></c>
-    </row>`,
-			row,
-			row, xmlEscape(s.PeriodMonth),
-			row, xmlEscape(s.BranchName),
-			row, xmlEscape(s.ProductName),
-			row, xmlEscape(s.BarberName),
-			row, s.Quantity,
-			row, float64(s.PriceCents)/100.0,
-			row, float64(s.CommissionRate)/100.0,
-			row, float64(s.TotalRevenue)/100.0,
-			row, float64(s.TotalCommission)/100.0))
-		totalRev += s.TotalRevenue
-		totalComm += s.TotalCommission
+		price := float64(s.PriceCents) / 100.0
+		commRate := float64(s.CommissionRate) / 100.0
+		rev := float64(s.TotalRevenue) / 100.0
+		comm := float64(s.TotalCommission) / 100.0
+
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), s.PeriodMonth)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), s.BranchName)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), s.ProductName)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), s.BarberName)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), s.Quantity)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), price)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("G%d", row), commRate)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), rev)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("I%d", row), comm)
+
+		_ = f.SetCellStyle(sheetName, fmt.Sprintf("F%d", row), fmt.Sprintf("I%d", row), currencyStyle)
+
+		totalRev += rev
+		totalComm += comm
 		row++
 	}
 
-	// Totals row
-	sb.WriteString(fmt.Sprintf(`
-    <row r="%d">
-      <c r="A%d" s="3" t="inlineStr"><is><t>TOTAL</t></is></c>
-      <c r="B%d" s="3"/>
-      <c r="C%d" s="3"/>
-      <c r="D%d" s="3"/>
-      <c r="E%d" s="3"/>
-      <c r="F%d" s="3"/>
-      <c r="G%d" s="3"/>
-      <c r="H%d" s="3"><v>%.2f</v></c>
-      <c r="I%d" s="3"><v>%.2f</v></c>
-    </row>`,
-		row,
-		row,
-		row,
-		row,
-		row,
-		row,
-		row,
-		row,
-		row, float64(totalRev)/100.0,
-		row, float64(totalComm)/100.0))
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), "TOTAL")
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), totalRev)
+	_ = f.SetCellValue(sheetName, fmt.Sprintf("I%d", row), totalComm)
 
-	sb.WriteString(`
-  </sheetData>
-</worksheet>`)
-	return sb.String()
+	_ = f.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("G%d", row), totalLabelStyle)
+	_ = f.SetCellStyle(sheetName, fmt.Sprintf("H%d", row), fmt.Sprintf("I%d", row), totalStyle)
+
+	return nil
 }
 
 // OOXML helper functions for multi-sheet Excel

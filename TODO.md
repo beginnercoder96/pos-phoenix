@@ -56,32 +56,32 @@ Dokumen ini merangkum seluruh rencana pengembangan, arsitektur, checklist fitur 
 Lihat spesifikasi lengkap, formula matematis, dan simulasi riil di file [BACKOFFICE_TODO.md](BACKOFFICE_TODO.md).
 
 ### Milestone 1: Arsitektur & Database Modeling
-- [ ] Buat migration tabel `branches` (`id`, `code`, `name`, `address`, `is_active`)
-- [ ] Perbarui tabel `users`: tambah `branch_id` dan `staff_type` (`barberman`, `cashier`, `manager`, `owner`)
-- [ ] Perbarui tabel `catalog_items` / `products`: tambah `item_type` (`SERVICE` vs `PRODUCT`) dan `commission_amount`
-- [ ] Buat tabel `branch_profit_sharing_rules` & `employee_profit_sharing_rules`
-- [ ] Buat tabel `discounts_and_bundles`
-- [ ] Perbarui tabel `transactions` & `transaction_items`: tambah `branch_id`, `barber_id`, `discount_amount`, `bundle_id`, `commission_earned`
+- [x] Buat migration tabel `branches` (`id`, `code`, `name`, `address`, `is_active`)
+- [x] Perbarui tabel `users`: tambah `branch_id` dan `staff_type` (`barberman`, `cashier`, `manager`, `owner`)
+- [x] Perbarui tabel `catalog_items` / `products`: tambah `item_type` (`SERVICE` vs `PRODUCT`) dan `commission_amount`
+- [x] Buat tabel `branch_profit_sharing_rules` & `employee_profit_sharing_rules`
+- [x] Buat tabel `discounts_and_bundles`
+- [x] Perbarui tabel `transactions` & `transaction_items`: tambah `branch_id`, `barber_id`, `discount_amount`, `bundle_id`, `commission_earned`
 
 ### Milestone 2: Core Calculation Engine (Go Backend)
-- [ ] Paket `internal/backoffice/calculator` (Pemisahan Jasa vs Produk, Bagi Hasil, Sisa Cadangan, Komisi)
-- [ ] Validasi otorisasi eksklusif Superadmin / Owner (`ipang`)
-- [ ] Unit test perhitungan skenario riil Klaseman & Ledok
+- [x] Paket `internal/backoffice/calculator` (Pemisahan Jasa vs Produk, Bagi Hasil, Sisa Cadangan, Komisi)
+- [x] Validasi otorisasi eksklusif Superadmin / Owner (`ipang`)
+- [x] Unit test perhitungan skenario riil Klaseman & Ledok
 
 ### Milestone 3: Backoffice UI & Navigasi
-- [ ] Route terpisah `/backoffice/*`
-- [ ] Halaman Bagi Hasil Cabang (`/backoffice/profit-sharing`)
-- [ ] Halaman Diskon & Bundling (`/backoffice/discounts`)
-- [ ] Halaman Produk & Komisi (`/backoffice/products`)
+- [x] Route terpisah `/backoffice/*`
+- [x] Halaman Bagi Hasil Cabang (`/backoffice/profit-sharing`)
+- [x] Halaman Diskon & Bundling (`/backoffice/discounts`)
+- [x] Halaman Produk & Komisi (`/backoffice/products`)
 
 ### Milestone 4: Dashboard & Chart Pendapatan Historis (2 Tahun)
-- [ ] Query agregasi bulanan 24 bulan trailing window
-- [ ] Endpoint API `/backoffice/api/analytics/trend-24m`
-- [ ] Visualisasi Chart interaktif multi-cabang & konsolidasi
+- [x] Query agregasi bulanan 24 bulan trailing window
+- [x] Endpoint API `/backoffice/api/analytics/trend-24m`
+- [x] Visualisasi Chart interaktif multi-cabang & konsolidasi
 
 ### Milestone 5: Ekspor Laporan Finansial (Excel)
-- [ ] Service generator Excel (`excelize`) laporan konsolidasi & per-cabang
-- [ ] Tombol download & filter periode di UI
+- [x] Service generator Excel (`excelize`) laporan konsolidasi & per-cabang
+- [x] Tombol download & filter periode di UI
 
 ### Milestone 6: Generator Slip Gaji Karyawan (Excel Payroll Slip)
 - [ ] Service template resmi Slip Gaji Excel per-karyawan

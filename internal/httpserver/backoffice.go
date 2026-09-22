@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html/template"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -37,7 +39,7 @@ type backofficeData struct {
 	CatalogItems           []backoffice.CatalogItem
 	Discounts              []backoffice.DiscountBundle
 	Analytics              []backoffice.MonthlyAnalytics
-	AnalyticsJSON          string
+	AnalyticsJSON          template.JS
 	TotalGrossRevenue      int64
 	TotalServiceRevenue    int64
 	TotalProductRevenue    int64
@@ -90,7 +92,7 @@ func (s *Server) backofficeDashboard(w http.ResponseWriter, r *http.Request) {
 		Branches:            branches,
 		SelectedBranch:      branchFilter,
 		Analytics:           analytics,
-		AnalyticsJSON:       string(analyticsJSON),
+		AnalyticsJSON:       template.JS(analyticsJSON),
 		TotalGrossRevenue:   totalGross,
 		TotalServiceRevenue: totalService,
 		TotalProductRevenue: totalProduct,
@@ -847,25 +849,47 @@ func (s *Server) backofficeFinancialReport(w http.ResponseWriter, r *http.Reques
 	now := s.now().In(s.location)
 	branches, _ := s.backoffice.ListBranches(r.Context())
 
+	fromMonth := strings.TrimSpace(r.URL.Query().Get("from"))
+	toMonth := strings.TrimSpace(r.URL.Query().Get("to"))
+
+	if fromMonth == "" || toMonth == "" {
+		start := now.AddDate(0, -23, 0)
+		if fromMonth == "" {
+			fromMonth = start.Format("2006-01")
+		}
+		if toMonth == "" {
+			toMonth = now.Format("2006-01")
+		}
+	}
+
 	var branchData []branchReportData
 	for _, b := range branches {
-		analytics, _ := s.backoffice.GetMonthlyAnalytics24(r.Context(), b.Code, now)
+		analytics, err := s.backoffice.GetMonthlyAnalyticsRange(r.Context(), b.Code, fromMonth, toMonth)
+		if err != nil {
+			log.Printf("backofficeFinancialReport: branch %s analytics error: %v", b.Code, err)
+		}
 		branchData = append(branchData, branchReportData{
 			Branch:    b,
 			Analytics: analytics,
 		})
 	}
 
-	allAnalytics, _ := s.backoffice.GetMonthlyAnalytics24(r.Context(), "all", now)
-	productSales, _ := s.backoffice.GetProductSalesSummary(r.Context(), now)
+	allAnalytics, err := s.backoffice.GetMonthlyAnalyticsRange(r.Context(), "all", fromMonth, toMonth)
+	if err != nil {
+		log.Printf("backofficeFinancialReport: consolidated analytics error: %v", err)
+	}
+	productSales, err := s.backoffice.GetProductSalesSummaryRange(r.Context(), fromMonth, toMonth)
+	if err != nil {
+		log.Printf("backofficeFinancialReport: product sales error: %v", err)
+	}
 
 	excelBytes, err := generateFinancialReportExcel(allAnalytics, branchData, productSales)
 	if err != nil {
-		http.Error(w, "unable to generate report", http.StatusInternalServerError)
+		http.Error(w, "unable to generate report: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	filename := fmt.Sprintf("laporan-keuangan-%s.xlsx", now.Format("200601"))
+	filename := fmt.Sprintf("laporan-keuangan-%s-sd-%s.xlsx", fromMonth, toMonth)
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(excelBytes)))

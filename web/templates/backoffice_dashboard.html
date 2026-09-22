@@ -51,7 +51,8 @@
             <p class="text-sm font-bold text-slate-300">{{label .Language "boDashboard"}} · Pardis Backoffice</p>
           </div>
           <div class="flex shrink-0 items-center gap-2">
-            <a class="btn-secondary" href="/backoffice/reports.xlsx" id="btn-download-report">📊 {{label .Language "boDownloadReport"}}</a>
+            <button type="button" class="btn-secondary" id="btn-open-report-modal">📊 {{label .Language "boDownloadReport"}}</button>
+            <noscript><a class="btn-secondary" href="/backoffice/reports.xlsx" id="btn-download-report">📊 {{label .Language "boDownloadReport"}}</a></noscript>
             <form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit>
               <input type="hidden" name="csrf" value="{{.CSRF}}">
               <input type="hidden" name="return_to" value="{{.CurrentURL}}">
@@ -113,8 +114,8 @@
                      data-gross="{{.GrossRevenueCents}}"
                      data-reserve="{{.ReserveCents}}">
                   <div class="w-full flex items-end justify-center gap-0.5" style="height: 210px;">
-                    <div class="w-1/2 rounded-t transition-all duration-300 bar-service" style="height: 2px;" title="{{label $.Language "boServiceRevenue"}}: {{money .ServiceRevenueCents}}"></div>
-                    <div class="w-1/2 rounded-t transition-all duration-300 bar-product" style="height: 2px;" title="{{label $.Language "boProductRevenue"}}: {{money .ProductRevenueCents}}"></div>
+                    <div class="w-1/2 rounded-t transition-all duration-300 bar-service bg-emerald-500" style="height: 2px;" title="{{label $.Language "boServiceRevenue"}}: {{money .ServiceRevenueCents}}"></div>
+                    <div class="w-1/2 rounded-t transition-all duration-300 bar-product bg-blue-400" style="height: 2px;" title="{{label $.Language "boProductRevenue"}}: {{money .ProductRevenueCents}}"></div>
                   </div>
                   <span class="text-[9px] muted truncate w-full text-center">{{.Month}}</span>
                 </div>
@@ -129,8 +130,8 @@
             </div>
           </div>
 
-          <div id="chart-tooltip-banner" class="mt-3 p-3 rounded-xl bg-slate-800/60 border border-white/5 text-xs flex flex-wrap items-center justify-between gap-3">
-            <span class="muted" id="tooltip-text">{{label .Language "boChartHoverHint"}}</span>
+          <div id="chart-tooltip-banner" class="mt-3 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-xs flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <span class="text-slate-600 dark:text-slate-300 font-medium" id="tooltip-text">{{label .Language "boChartHoverHint"}}</span>
           </div>
         </section>
 
@@ -190,6 +191,48 @@
             </table>
           </div>
         </section>
+        <!-- Export Financial Report Modal -->
+        <div id="report-export-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs hidden" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+          <div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 text-slate-800 dark:text-slate-100 space-y-4">
+            <div class="flex items-start justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800/80">
+              <div>
+                <h3 class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white" id="report-modal-title">📊 {{label .Language "boDownloadReportModalTitle"}}</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{label .Language "boDownloadReportModalDesc"}}</p>
+              </div>
+              <button type="button" id="btn-close-report-modal" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-2xl font-bold leading-none p-1 cursor-pointer transition" aria-label="Close">&times;</button>
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="pt-1">
+              <span class="field-label text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2 block">Preset Periode:</span>
+              <div class="grid grid-cols-3 gap-2">
+                <button type="button" class="report-preset-btn text-[11px] sm:text-xs py-2 px-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-center transition cursor-pointer shadow-xs" data-preset="24m">{{label .Language "boPreset24M"}}</button>
+                <button type="button" class="report-preset-btn text-[11px] sm:text-xs py-2 px-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-center transition cursor-pointer shadow-xs" data-preset="12m">{{label .Language "boPreset12M"}}</button>
+                <button type="button" class="report-preset-btn text-[11px] sm:text-xs py-2 px-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-center transition cursor-pointer shadow-xs" data-preset="ytd">{{label .Language "boPresetYTD"}}</button>
+              </div>
+            </div>
+
+            <form method="get" action="/backoffice/reports.xlsx" id="report-export-form" class="space-y-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+              <div class="grid grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="field-label text-xs mb-1 block">{{label .Language "boFromMonth"}}</span>
+                  <input type="month" name="from" id="report-from-input" class="field !h-10 !min-h-10 w-full text-xs sm:text-sm" required>
+                </label>
+                <label class="block">
+                  <span class="field-label text-xs mb-1 block">{{label .Language "boToMonth"}}</span>
+                  <input type="month" name="to" id="report-to-input" class="field !h-10 !min-h-10 w-full text-xs sm:text-sm" required>
+                </label>
+              </div>
+
+              <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                <button type="button" id="btn-cancel-report-modal" class="btn-secondary !min-h-10 !h-10 px-4 text-xs font-semibold cursor-pointer">{{label .Language "boCancel"}}</button>
+                <button type="submit" id="btn-submit-export-excel" class="btn-primary !min-h-10 !h-10 px-5 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-600/25">
+                  <span>📥</span> {{label .Language "boDownloadXLSX"}}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -200,12 +243,117 @@
       sel.addEventListener('change', function() { this.closest('form').submit(); });
     });
 
+    // Modal logic for Excel financial report
+    (function() {
+      var modal = document.getElementById('report-export-modal');
+      var openBtn = document.getElementById('btn-open-report-modal');
+      var closeBtn = document.getElementById('btn-close-report-modal');
+      var cancelBtn = document.getElementById('btn-cancel-report-modal');
+      var fromInput = document.getElementById('report-from-input');
+      var toInput = document.getElementById('report-to-input');
+
+      function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+      var activeClasses = ['bg-blue-600', 'text-white', 'border-blue-600', 'dark:bg-blue-600', 'dark:border-blue-500', 'shadow-md', 'font-bold'];
+      var inactiveClasses = ['bg-slate-100', 'hover:bg-slate-200', 'dark:bg-slate-800', 'dark:hover:bg-slate-700', 'text-slate-700', 'dark:text-slate-200', 'border-slate-300', 'dark:border-slate-700', 'font-semibold'];
+
+      function setActivePreset(activeBtn) {
+        document.querySelectorAll('.report-preset-btn').forEach(function(b) {
+          activeClasses.forEach(function(c) { b.classList.remove(c); });
+          inactiveClasses.forEach(function(c) { b.classList.add(c); });
+          b.setAttribute('aria-pressed', 'false');
+        });
+        if (activeBtn) {
+          inactiveClasses.forEach(function(c) { activeBtn.classList.remove(c); });
+          activeClasses.forEach(function(c) { activeBtn.classList.add(c); });
+          activeBtn.setAttribute('aria-pressed', 'true');
+        }
+      }
+
+      function setPreset(preset) {
+        var d = new Date();
+        var curYear = d.getFullYear();
+        var curMonth = d.getMonth() + 1;
+        var toStr = curYear + '-' + pad(curMonth);
+        var fromStr = '';
+
+        if (preset === '24m') {
+          var dFrom = new Date(d.getFullYear(), d.getMonth() - 23, 1);
+          fromStr = dFrom.getFullYear() + '-' + pad(dFrom.getMonth() + 1);
+        } else if (preset === '12m') {
+          var dFrom = new Date(d.getFullYear(), d.getMonth() - 11, 1);
+          fromStr = dFrom.getFullYear() + '-' + pad(dFrom.getMonth() + 1);
+        } else if (preset === 'ytd') {
+          fromStr = curYear + '-01';
+        }
+        if (fromInput) fromInput.value = fromStr;
+        if (toInput) toInput.value = toStr;
+      }
+
+      function resetModalToDefault() {
+        setPreset('24m');
+        var defaultPresetBtn = document.querySelector('.report-preset-btn[data-preset="24m"]');
+        if (defaultPresetBtn) {
+          setActivePreset(defaultPresetBtn);
+        }
+      }
+
+      // Default to 24 months initially
+      resetModalToDefault();
+
+      if (openBtn && modal) {
+        openBtn.addEventListener('click', function() {
+          resetModalToDefault();
+          modal.classList.remove('hidden');
+        });
+      }
+      function closeModal() {
+        if (modal) modal.classList.add('hidden');
+        resetModalToDefault();
+      }
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+      if (modal) {
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) closeModal();
+        });
+      }
+
+      document.querySelectorAll('.report-preset-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var preset = this.getAttribute('data-preset');
+          setPreset(preset);
+          setActivePreset(this);
+        });
+      });
+
+      if (fromInput) fromInput.addEventListener('change', function() { setActivePreset(null); });
+      if (toInput) toInput.addEventListener('change', function() { setActivePreset(null); });
+
+      var form = document.getElementById('report-export-form');
+      if (form) {
+        form.addEventListener('submit', function() {
+          setTimeout(closeModal, 400);
+        });
+      }
+    })();
+
     // Render bar chart
     (function() {
       try {
         var raw = document.getElementById('analytics-data');
-        var data = raw ? JSON.parse(raw.textContent) : [];
-        if (!data || !data.length) return;
+        var data = [];
+        if (raw && raw.textContent) {
+          try {
+            data = JSON.parse(raw.textContent);
+            if (typeof data === 'string') {
+              data = JSON.parse(data);
+            }
+          } catch(err) {
+            console.error('Analytics chart parse error:', err);
+          }
+        }
+        if (!data || !Array.isArray(data) || !data.length) return;
 
         var fmt = function(cents) {
           var whole = Math.floor(Math.abs(cents) / 100);
@@ -222,7 +370,6 @@
           // Show empty state overlay, hide bars visual
           var overlay = document.getElementById('chart-empty-overlay');
           if (overlay) overlay.classList.remove('hidden');
-          // Still keep months labels by leaving bars at 2px
           return;
         }
 
@@ -240,8 +387,8 @@
           var svcBar = container.querySelector('.bar-service');
           var prdBar = container.querySelector('.bar-product');
 
-          var svcH = Math.max(3, Math.round(((d.ServiceRevenueCents || 0) / maxVal) * 200));
-          var prdH = Math.max(3, Math.round(((d.ProductRevenueCents || 0) / maxVal) * 200));
+          var svcH = Math.max(4, Math.round(((d.ServiceRevenueCents || 0) / maxVal) * 200));
+          var prdH = Math.max(4, Math.round(((d.ProductRevenueCents || 0) / maxVal) * 200));
 
           if (svcBar) {
             svcBar.style.height = svcH + 'px';
@@ -261,9 +408,9 @@
             if (banner) {
               banner.innerHTML =
                 '<strong>' + d.Month + '</strong> &nbsp;|&nbsp; ' +
-                '<span style="color:#10b981">' + fmt(d.ServiceRevenueCents || 0) + '</span> &nbsp;|&nbsp; ' +
-                '<span style="color:#60a5fa">' + fmt(d.ProductRevenueCents || 0) + '</span> &nbsp;|&nbsp; ' +
-                '<span style="color:#fbbf24">' + fmt(d.ReserveCents || 0) + '</span>';
+                '<span style="color:#10b981;font-weight:700;">' + fmt(d.ServiceRevenueCents || 0) + '</span> &nbsp;|&nbsp; ' +
+                '<span style="color:#60a5fa;font-weight:700;">' + fmt(d.ProductRevenueCents || 0) + '</span> &nbsp;|&nbsp; ' +
+                '<span style="color:#f59e0b;font-weight:700;">' + fmt(d.ReserveCents || 0) + '</span>';
             }
           });
         });

@@ -267,12 +267,29 @@ func (r *Repository) GetMonthlyProductRevenue(ctx context.Context, branchID int6
 // GetMonthlyAnalytics24 returns 24 continuous months of analytics data for a branch or all branches.
 func (r *Repository) GetMonthlyAnalytics24(ctx context.Context, branchFilter string, now time.Time) ([]MonthlyAnalytics, error) {
 	start := now.AddDate(0, -23, 0)
-	startMonth := start.Format("2006-01")
-	endMonth := now.Format("2006-01")
+	return r.GetMonthlyAnalyticsRange(ctx, branchFilter, start.Format("2006-01"), now.Format("2006-01"))
+}
+
+// GetMonthlyAnalyticsRange returns continuous months of analytics data between fromMonth and toMonth ("YYYY-MM").
+func (r *Repository) GetMonthlyAnalyticsRange(ctx context.Context, branchFilter, fromMonth, toMonth string) ([]MonthlyAnalytics, error) {
+	start, err := time.Parse("2006-01", fromMonth)
+	if err != nil {
+		start = time.Now().AddDate(0, -23, 0)
+		fromMonth = start.Format("2006-01")
+	}
+	end, err := time.Parse("2006-01", toMonth)
+	if err != nil {
+		end = time.Now()
+		toMonth = end.Format("2006-01")
+	}
+	if start.After(end) {
+		start, end = end, start
+		fromMonth, toMonth = toMonth, fromMonth
+	}
 
 	branchCondition := ""
 	var args []any
-	args = append(args, startMonth+"-01 00:00:00", endMonth+"-31 23:59:59")
+	args = append(args, fromMonth, toMonth)
 
 	if branchFilter != "" && strings.ToLower(branchFilter) != "all" {
 		if _, err := strconv.ParseInt(branchFilter, 10, 64); err == nil {
@@ -285,7 +302,7 @@ func (r *Repository) GetMonthlyAnalytics24(ctx context.Context, branchFilter str
 	}
 
 	query := fmt.Sprintf(`SELECT
-		strftime('%%Y-%%m', t.occurred_at) as month,
+		SUBSTR(t.occurred_at, 1, 7) as month,
 		COALESCE(SUM(t.amount_cents), 0) as gross,
 		COALESCE(SUM(CASE WHEN ti_type.svc_total IS NOT NULL THEN ti_type.svc_total ELSE t.amount_cents END), 0) as service,
 		COALESCE(SUM(CASE WHEN ti_type.prd_total IS NOT NULL THEN ti_type.prd_total ELSE 0 END), 0) as product,
@@ -300,9 +317,9 @@ func (r *Repository) GetMonthlyAnalytics24(ctx context.Context, branchFilter str
 	) ti_type ON ti_type.transaction_id = t.id
 	WHERE t.kind = 'income'
 	AND t.reversal_of_id IS NULL
-	AND t.occurred_at >= ? AND t.occurred_at <= ?
+	AND SUBSTR(t.occurred_at, 1, 7) >= ? AND SUBSTR(t.occurred_at, 1, 7) <= ?
 	%s
-	GROUP BY strftime('%%Y-%%m', t.occurred_at)
+	GROUP BY SUBSTR(t.occurred_at, 1, 7)
 	ORDER BY month`, branchCondition)
 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
@@ -314,16 +331,20 @@ func (r *Repository) GetMonthlyAnalytics24(ctx context.Context, branchFilter str
 	queriedMap := make(map[string]MonthlyAnalytics)
 	for rows.Next() {
 		var a MonthlyAnalytics
-		if err := rows.Scan(&a.Month, &a.GrossRevenueCents, &a.ServiceRevenueCents, &a.ProductRevenueCents, &a.DiscountCents); err != nil {
+		var monthStr sql.NullString
+		if err := rows.Scan(&monthStr, &a.GrossRevenueCents, &a.ServiceRevenueCents, &a.ProductRevenueCents, &a.DiscountCents); err != nil {
 			return nil, err
 		}
-		queriedMap[a.Month] = a
+		if monthStr.Valid {
+			a.Month = monthStr.String
+			queriedMap[a.Month] = a
+		}
 	}
 
 	// Fetch unallocated rules for computing reserve
 	rulesQuery := `SELECT period_month, AVG(unallocated_percentage) FROM branch_profit_sharing_rules WHERE period_month >= ? AND period_month <= ?`
 	var rulesArgs []any
-	rulesArgs = append(rulesArgs, startMonth, endMonth)
+	rulesArgs = append(rulesArgs, fromMonth, toMonth)
 	if branchFilter != "" && strings.ToLower(branchFilter) != "all" {
 		if _, err := strconv.ParseInt(branchFilter, 10, 64); err == nil {
 			rulesQuery += " AND branch_id = ?"
@@ -347,10 +368,15 @@ func (r *Repository) GetMonthlyAnalytics24(ctx context.Context, branchFilter str
 		}
 	}
 
-	// Build continuous 24 months slice
+	// Calculate number of months between start and end
+	totalMonths := (end.Year()-start.Year())*12 + int(end.Month()-start.Month()) + 1
+	if totalMonths < 1 {
+		totalMonths = 1
+	}
+
 	var analytics []MonthlyAnalytics
 	cur := start
-	for i := 0; i < 24; i++ {
+	for i := 0; i < totalMonths; i++ {
 		m := cur.Format("2006-01")
 		item, exists := queriedMap[m]
 		if !exists {
@@ -371,12 +397,14 @@ func (r *Repository) GetMonthlyAnalytics24(ctx context.Context, branchFilter str
 // GetProductSalesSummary retrieves itemized product sales and commissions for Sheet 4.
 func (r *Repository) GetProductSalesSummary(ctx context.Context, now time.Time) ([]ProductSaleRecord, error) {
 	start := now.AddDate(0, -23, 0)
-	startMonth := start.Format("2006-01")
-	endMonth := now.Format("2006-01")
+	return r.GetProductSalesSummaryRange(ctx, start.Format("2006-01"), now.Format("2006-01"))
+}
 
+// GetProductSalesSummaryRange retrieves itemized product sales and commissions for a flexible date range.
+func (r *Repository) GetProductSalesSummaryRange(ctx context.Context, fromMonth, toMonth string) ([]ProductSaleRecord, error) {
 	query := `SELECT
 		COALESCE(b.name, 'Pardis Barbershop'),
-		strftime('%Y-%m', t.occurred_at) as month,
+		SUBSTR(t.occurred_at, 1, 7) as month,
 		ti.item_name,
 		COALESCE(u.display_name, 'Barberman'),
 		COUNT(ti.id) as qty,
@@ -392,11 +420,11 @@ func (r *Repository) GetProductSalesSummary(ctx context.Context, now time.Time) 
 	WHERE ti.item_type = 'PRODUCT'
 	AND t.kind = 'income'
 	AND t.reversal_of_id IS NULL
-	AND t.occurred_at >= ? AND t.occurred_at <= ?
-	GROUP BY b.name, strftime('%Y-%m', t.occurred_at), ti.item_name, u.display_name
+	AND SUBSTR(t.occurred_at, 1, 7) >= ? AND SUBSTR(t.occurred_at, 1, 7) <= ?
+	GROUP BY b.name, SUBSTR(t.occurred_at, 1, 7), ti.item_name, u.display_name
 	ORDER BY month DESC, b.name, ti.item_name`
 
-	rows, err := r.DB.QueryContext(ctx, query, startMonth+"-01 00:00:00", endMonth+"-31 23:59:59")
+	rows, err := r.DB.QueryContext(ctx, query, fromMonth, toMonth)
 	if err != nil {
 		return nil, err
 	}
@@ -405,8 +433,12 @@ func (r *Repository) GetProductSalesSummary(ctx context.Context, now time.Time) 
 	var records []ProductSaleRecord
 	for rows.Next() {
 		var rec ProductSaleRecord
-		if err := rows.Scan(&rec.BranchName, &rec.PeriodMonth, &rec.ProductName, &rec.BarberName, &rec.Quantity, &rec.PriceCents, &rec.CommissionRate, &rec.TotalRevenue, &rec.TotalCommission); err != nil {
+		var monthStr sql.NullString
+		if err := rows.Scan(&rec.BranchName, &monthStr, &rec.ProductName, &rec.BarberName, &rec.Quantity, &rec.PriceCents, &rec.CommissionRate, &rec.TotalRevenue, &rec.TotalCommission); err != nil {
 			return nil, err
+		}
+		if monthStr.Valid {
+			rec.PeriodMonth = monthStr.String
 		}
 		records = append(records, rec)
 	}
