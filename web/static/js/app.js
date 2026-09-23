@@ -1404,6 +1404,10 @@ window.handleChartPeriodChange = function (select) {
         activeLogoutForm = null;
         formToSubmit.dataset.posLogoutConfirmed = "true";
         closeModal();
+        try {
+          sessionStorage.removeItem("pos_admin_selected_branch");
+          localStorage.removeItem("pos_admin_selected_branch");
+        } catch (err) {}
         if (typeof HTMLFormElement.prototype.submit === "function") {
           HTMLFormElement.prototype.submit.call(formToSubmit);
         } else {
@@ -1419,6 +1423,10 @@ window.handleChartPeriodChange = function (select) {
     if (!form) return;
     var action = form.getAttribute("action") || "";
     if (action.indexOf("/logout") === -1) return;
+    try {
+      sessionStorage.removeItem("pos_admin_selected_branch");
+      localStorage.removeItem("pos_admin_selected_branch");
+    } catch (err) {}
     if (form.dataset.posLogoutConfirmed === "true") return;
 
     if (e) {
@@ -2823,5 +2831,72 @@ window.handleChartPeriodChange = function (select) {
 
     showReceiptPreviewModal(txData);
   });
+})();
+
+// Admin Branch Selection Persistence (stays on selected branch across transactions, resets on logout)
+(function initAdminBranchPersistence() {
+  function clearBranchStorage() {
+    try {
+      sessionStorage.removeItem("pos_admin_selected_branch");
+      localStorage.removeItem("pos_admin_selected_branch");
+    } catch (e) {}
+  }
+
+  function setup() {
+    // If on login page, clear any stored branch so fresh login starts fresh
+    if (window.location.pathname.indexOf("/login") !== -1) {
+      clearBranchStorage();
+      return;
+    }
+
+    var branchSelect = document.getElementById("admin-branch-select") || document.querySelector('#transaction-form select[name="branch_id"]');
+    if (!branchSelect) return;
+
+    // Restore previously selected branch
+    try {
+      var saved = sessionStorage.getItem("pos_admin_selected_branch") || localStorage.getItem("pos_admin_selected_branch");
+      if (saved) {
+        var opt = branchSelect.querySelector('option[value="' + saved + '"]');
+        if (opt) {
+          branchSelect.value = saved;
+        }
+      }
+    } catch (e) {}
+
+    // Save on manual user selection
+    branchSelect.addEventListener("change", function () {
+      try {
+        sessionStorage.setItem("pos_admin_selected_branch", this.value);
+        localStorage.setItem("pos_admin_selected_branch", this.value);
+      } catch (e) {}
+    });
+
+    // Also persist on transaction form submission so it stays selected after reload
+    var form = document.getElementById("transaction-form");
+    if (form) {
+      form.addEventListener("submit", function () {
+        try {
+          if (branchSelect.value) {
+            sessionStorage.setItem("pos_admin_selected_branch", branchSelect.value);
+            localStorage.setItem("pos_admin_selected_branch", branchSelect.value);
+          }
+        } catch (e) {}
+      });
+    }
+
+    // Clear when clicking any logout button or submitting any logout form
+    document.addEventListener("submit", function (e) {
+      var f = e.target;
+      if (f && (f.getAttribute("action") || "").indexOf("/logout") !== -1) {
+        clearBranchStorage();
+      }
+    }, true);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setup);
+  } else {
+    setup();
+  }
 })();
 

@@ -392,6 +392,30 @@
             <input type="hidden" name="csrf" value="{{.CSRF}}">
             <input type="hidden" name="date" value="{{.Today}}">
             
+            {{if or (eq .User.Role "superadmin") (eq .User.BranchID 0)}}
+            <div class="grid gap-3 sm:grid-cols-3">
+              <label>
+                <span class="mb-1 block text-sm font-semibold">{{if eq .Language "id"}}Cabang Outlet{{else}}Outlet Branch{{end}}</span>
+                <select id="admin-branch-select" class="field font-medium" name="branch_id" required>
+                  {{range .Branches}}
+                  <option value="{{.ID}}">{{.Name}}</option>
+                  {{end}}
+                </select>
+              </label>
+              <label>
+                <span class="mb-1 block text-sm font-semibold">{{label .Language "type"}}</span>
+                <select class="field" name="kind">
+                  <option value="income">{{label .Language "income"}}</option>
+                  <option value="expense">{{label .Language "expense"}}</option>
+                </select>
+              </label>
+              <label>
+                <span class="mb-1 block text-sm font-semibold">{{label .Language "note"}}</span>
+                <input class="field" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
+              </label>
+            </div>
+            {{else}}
+            <input type="hidden" name="branch_id" value="{{.User.BranchID}}">
             <div class="grid gap-3 sm:grid-cols-2">
               <label>
                 <span class="mb-1 block text-sm font-semibold">{{label .Language "type"}}</span>
@@ -405,6 +429,7 @@
                 <input class="field" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
               </label>
             </div>
+            {{end}}
 
             <div>
               <div class="mb-2 flex items-center justify-between">

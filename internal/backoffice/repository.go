@@ -227,7 +227,7 @@ func (r *Repository) GetMonthlyServiceRevenue(ctx context.Context, branchID int6
 	query := `SELECT COALESCE(SUM(ti.amount_cents - COALESCE(ti.discount_amount, 0)), 0)
 		FROM transaction_items ti
 		JOIN transactions t ON t.id = ti.transaction_id
-		WHERE t.branch_id = ?
+		WHERE COALESCE(t.branch_id, 1) = ?
 		AND t.occurred_at >= ? AND t.occurred_at < ?
 		AND COALESCE(ti.item_type, 'SERVICE') = 'SERVICE'
 		AND t.kind = 'income'
@@ -252,7 +252,7 @@ func (r *Repository) GetMonthlyProductRevenue(ctx context.Context, branchID int6
 	query := `SELECT COALESCE(SUM(ti.amount_cents), 0)
 		FROM transaction_items ti
 		JOIN transactions t ON t.id = ti.transaction_id
-		WHERE t.branch_id = ?
+		WHERE COALESCE(t.branch_id, 1) = ?
 		AND t.occurred_at >= ? AND t.occurred_at < ?
 		AND ti.item_type = 'PRODUCT'
 		AND t.kind = 'income'
@@ -293,10 +293,10 @@ func (r *Repository) GetMonthlyAnalyticsRange(ctx context.Context, branchFilter,
 
 	if branchFilter != "" && strings.ToLower(branchFilter) != "all" {
 		if _, err := strconv.ParseInt(branchFilter, 10, 64); err == nil {
-			branchCondition = " AND t.branch_id = ?"
+			branchCondition = " AND COALESCE(t.branch_id, 1) = ?"
 			args = append(args, branchFilter)
 		} else {
-			branchCondition = " AND t.branch_id = (SELECT id FROM branches WHERE code = ? COLLATE NOCASE)"
+			branchCondition = " AND COALESCE(t.branch_id, 1) = (SELECT id FROM branches WHERE code = ? COLLATE NOCASE)"
 			args = append(args, strings.ToUpper(branchFilter))
 		}
 	}
@@ -576,7 +576,7 @@ func (r *Repository) GetEmployeeProductCommissions(ctx context.Context, branchID
 	query := `SELECT ti.barber_id, COALESCE(SUM(ti.commission_earned), 0)
 		FROM transaction_items ti
 		JOIN transactions t ON t.id = ti.transaction_id
-		WHERE t.branch_id = ?
+		WHERE COALESCE(t.branch_id, 1) = ?
 		AND t.occurred_at >= ? AND t.occurred_at < ?
 		AND ti.item_type = 'PRODUCT'
 		AND ti.barber_id IS NOT NULL
@@ -627,7 +627,7 @@ func (r *Repository) GetEmployeeItemizedProductSales(ctx context.Context, branch
 	FROM transaction_items ti
 	JOIN transactions t ON t.id = ti.transaction_id
 	LEFT JOIN catalog_items ci ON ci.name = ti.item_name AND ci.item_type = 'PRODUCT'
-	WHERE t.branch_id = ?
+	WHERE COALESCE(t.branch_id, 1) = ?
 	AND ti.barber_id = ?
 	AND t.occurred_at >= ? AND t.occurred_at < ?
 	AND ti.item_type = 'PRODUCT'

@@ -447,6 +447,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	catalogItems, _ := s.backoffice.ListCatalogItems(r.Context(), "")
 	dynamicCatalog := BuildCatalog(catalogItems, activeBundles)
 	activeDiscJSON, _ := json.Marshal(activeDiscounts)
+	branches, _ := s.backoffice.ListBranches(r.Context())
 
 	data := localizedData(r, pageData{
 		User: u, Entries: result.Entries, Summary: result.Summary, Trend: trend, CSRF: s.csrf(w, r),
@@ -465,7 +466,8 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		CatalogJS:           DynamicCatalogJS(dynamicCatalog),
 		ActiveDiscounts:     activeDiscounts,
 		ActiveDiscountsJSON: template.HTML(activeDiscJSON),
-		Greeting: greeting,
+		Greeting:            greeting,
+		Branches:            branches,
 	})
 	if result.Page > 1 {
 		data.PrevURL = pageURL(baseURL, result.Page-1)
@@ -745,6 +747,11 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 	if branchID <= 0 && u.BranchID > 0 {
 		branchID = u.BranchID
+	}
+	if branchID <= 0 {
+		if branches, err := s.backoffice.ListBranches(r.Context()); err == nil && len(branches) > 0 {
+			branchID = branches[0].ID
+		}
 	}
 
 	var totalDiscountCents int64
