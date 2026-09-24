@@ -128,6 +128,13 @@ func translate(language, key string) string {
 		"notePlaceholder": "Optional note / customer name", "pricelistTitle": "Barbershop Pricelist",
 		"otherCustom": "Other / Custom", "customItemPlaceholder": "Custom Item...",
 		"of": "of",
+		"transactionsMenu": "Transactions",
+		"openTransactionsCTA": "Open Cashier / Transactions",
+		"viewReportsCTA": "Full Financial Reports",
+		"shiftStatus": "Shift & Active Cashier",
+		"activeCashier": "Active Cashier",
+		"activeBranch": "Active Branch",
+		"reserveBalance": "Reserve Balance",
 		// Backoffice keys
 		"boBackoffice": "Backoffice", "boMainPOS": "← Main POS", "boSignOut": "Sign Out",
 		"boDashboard": "Dashboard", "boProfitSharing": "Profit Sharing", "boDiscounts": "Discounts & Bundling",
@@ -221,6 +228,12 @@ func translate(language, key string) string {
 		"confirmDeleteDisc": "Delete Discount", "confirmDeleteDiscDesc": "Are you sure you want to delete this discount or bundling package?",
 		"yesDeleteDiscount": "Yes, Delete Discount", "deleting": "Deleting...",
 		"noDiscount": "No Discount (Normal Price)", "subtotal": "Subtotal", "discount": "Discount",
+		"shiftTransactions": "Shift Transactions", "cashierIncome": "Shift Income", "cashierExpense": "Shift Expense", "cashDrawerBalance": "Drawer Cash Balance",
+		"cashierSopTitle": "Cashier SOP & Guidelines",
+		"cashierSop1Title": "Verify QRIS & Transfers", "cashierSop1Desc": "Ensure successful payment status is verified before releasing customer receipt.",
+		"cashierSop2Title": "Real-time Recording", "cashierSop2Desc": "Record every haircut service, treatment, and grooming product immediately upon payment.",
+		"cashierSop3Title": "Shift Handover & Reconciliation", "cashierSop3Desc": "Physically count drawer cash to ensure exact match with recorded balance before end of shift.",
+		"printerStatusTitle": "Thermal Receipt Hardware", "printerStatusDesc": "Connect Okay 58D thermal printer via Bluetooth or use standard system print dialog.",
 	}
 	if language == "id" {
 		id := map[string]string{
@@ -250,6 +263,13 @@ func translate(language, key string) string {
 			"notePlaceholder": "Catatan opsional / nama pelanggan", "pricelistTitle": "Daftar Harga Barbershop",
 			"otherCustom": "Lainnya / Kustom", "customItemPlaceholder": "Item Lainnya...",
 			"of": "dari",
+			"transactionsMenu": "Transaksi / Kasir",
+			"openTransactionsCTA": "Buka Menu Transaksi Kasir",
+			"viewReportsCTA": "Laporan Lengkap",
+			"shiftStatus": "Status Shift & Kasir",
+			"activeCashier": "Kasir Bertugas",
+			"activeBranch": "Cabang Aktif",
+			"reserveBalance": "Kas Cadangan",
 			// Backoffice keys (ID)
 			"boBackoffice": "Backoffice", "boMainPOS": "← Kasir Utama", "boSignOut": "Keluar",
 			"boDashboard": "Dasbor", "boProfitSharing": "Bagi Hasil", "boDiscounts": "Diskon & Bundling",
@@ -344,6 +364,12 @@ func translate(language, key string) string {
 			"confirmDeleteDisc": "Hapus Diskon", "confirmDeleteDiscDesc": "Apakah Anda yakin ingin menghapus diskon atau paket bundling ini?",
 			"yesDeleteDiscount": "Ya, Hapus Diskon", "deleting": "Menghapus...",
 			"noDiscount": "Tanpa Diskon (Harga Normal)", "subtotal": "Subtotal", "discount": "Diskon",
+			"shiftTransactions": "Transaksi Shift", "cashierIncome": "Pemasukan Shift", "cashierExpense": "Pengeluaran Shift", "cashDrawerBalance": "Saldo Kas Laci",
+			"cashierSopTitle": "SOP & Panduan Kasir Bertugas",
+			"cashierSop1Title": "Verifikasi QRIS & Transfer", "cashierSop1Desc": "Pastikan notifikasi dana masuk m-Banking telah dicek sebelum mencetak dan menyerahkan struk.",
+			"cashierSop2Title": "Pencatatan Real-time", "cashierSop2Desc": "Catat setiap jasa pangkas rambut, treatment, dan produk grooming segera setelah pembayaran.",
+			"cashierSop3Title": "Serah Terima & Hitung Laci", "cashierSop3Desc": "Hitung fisik uang tunai di laci kasir agar sesuai dengan saldo tercatat sebelum pergantian shift.",
+			"printerStatusTitle": "Perangkat Printer Struk", "printerStatusDesc": "Koneksikan printer thermal Okay 58D via Bluetooth atau gunakan dialog cetak browser bawaan.",
 		}
 		if value, ok := id[key]; ok {
 			return value

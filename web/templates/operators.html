@@ -16,6 +16,7 @@
       </div>
       <nav class="mt-10 flex-1 space-y-1.5">
         <a class="pos-sidebar-link" href="/">🏠 <span class="ml-3">{{label .Language "dashboard"}}</span></a>
+        <a class="pos-sidebar-link" href="/transactions">💳 <span class="ml-3">{{label .Language "transactionsMenu"}}</span></a>
         <a class="pos-sidebar-link active" href="/operators">♙ <span class="ml-3">{{label .Language "operators"}}</span></a>
         {{if eq .User.Role "superadmin"}}
         <a class="pos-sidebar-link" href="/backoffice/">⚙ <span class="ml-3">Backoffice</span></a>

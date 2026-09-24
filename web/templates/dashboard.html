@@ -36,6 +36,7 @@
       </div>
       <nav class="mt-10 space-y-1.5" aria-label="Primary">
         <a class="pos-sidebar-link active" href="/">🏠 <span class="ml-3">{{label .Language "dashboard"}}</span></a>
+        <a class="pos-sidebar-link" href="/transactions">💳 <span class="ml-3">{{label .Language "transactionsMenu"}}</span></a>
         {{if eq .User.Role "superadmin"}}
         <a class="pos-sidebar-link" href="/operators">♙ <span class="ml-3">{{label .Language "operators"}}</span></a>
         <a class="pos-sidebar-link" href="/backoffice/">⚙ <span class="ml-3">Backoffice</span></a>
@@ -122,23 +123,75 @@
           </form>
           <a class="btn-secondary mt-2 flex h-11 min-h-0 sm:w-max items-center gap-2" href="{{.ExportURL}}">📊 {{label .Language "downloadExcel"}}</a>
         </section>
-        {{else}}
-        <p class="text-xs text-slate-500" data-live-clock>{{.CurrentDateTime}}</p>
-        {{end}}
 
-        <section class="grid grid-cols-1 gap-3 min-[380px]:grid-cols-3">
-          <article class="stat-card border-emerald-200 bg-emerald-50 text-emerald-950">
-            <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">{{label .Language "income"}}</p>
-            <p class="mt-1 text-lg font-black font-mono tabular-nums">{{money .Summary.IncomeCents}}</p>
+        <!-- Executive KPI Grid (4 Cards untuk Superadmin) -->
+        <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <article class="stat-card border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-500/20 text-emerald-950 dark:text-emerald-300">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">{{label .Language "income"}}</p>
+              <span class="text-xs">↗</span>
+            </div>
+            <p class="mt-2 text-xl font-black font-mono tabular-nums">{{money .Summary.IncomeCents}}</p>
           </article>
-          <article class="stat-card border-rose-200 bg-rose-50 text-rose-950">
-            <p class="text-xs font-bold uppercase tracking-wide text-rose-700">{{label .Language "expense"}}</p>
-            <p class="mt-1 text-lg font-black font-mono tabular-nums">{{money .Summary.ExpenseCents}}</p>
+          <article class="stat-card border-rose-200 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-500/20 text-rose-950 dark:text-rose-300">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400">{{label .Language "expense"}}</p>
+              <span class="text-xs">↘</span>
+            </div>
+            <p class="mt-2 text-xl font-black font-mono tabular-nums">{{money .Summary.ExpenseCents}}</p>
           </article>
-          <article class="stat-card border-slate-200 bg-white text-slate-950">
-            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">{{label .Language "balance"}}</p>
-            <p class="mt-1 text-lg font-black font-mono tabular-nums">{{money (sub .Summary.IncomeCents .Summary.ExpenseCents)}}</p>
+          <article class="stat-card border-slate-200 bg-white dark:bg-[#010521] dark:border-white/10 text-slate-950 dark:text-white">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{label .Language "balance"}}</p>
+              <span class="text-xs">⚖</span>
+            </div>
+            <p class="mt-2 text-xl font-black font-mono tabular-nums">{{money (sub .Summary.IncomeCents .Summary.ExpenseCents)}}</p>
           </article>
+          <article class="stat-card border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-500/20 text-amber-950 dark:text-amber-300">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">{{label .Language "reserveBalance"}}</p>
+              <span class="text-xs">🛡</span>
+            </div>
+            <p class="mt-2 text-xl font-black font-mono tabular-nums">{{money .ReserveCents}}</p>
+          </article>
+        </section>
+
+        <!-- Shift & Welcome Section Superadmin -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="surface p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between md:col-span-2 shadow-sm">
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{label .Language "shiftStatus"}}</span>
+              </div>
+              <h3 class="text-lg font-black tracking-tight">{{label .Language "welcome"}}, {{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Email}}{{end}}</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                {{label .Language "secureCashflow"}}
+              </p>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-3">
+              <a href="/transactions" class="btn-primary flex items-center justify-center gap-2 font-bold px-5 !min-h-12 text-sm shadow-lg shadow-emerald-500/10 cursor-pointer active:scale-95">
+                <span class="text-lg">💳</span>
+                <span>{{label .Language "openTransactionsCTA"}}</span>
+              </a>
+              <a href="/backoffice/" class="btn-secondary flex items-center justify-center gap-2 font-bold px-4 !min-h-12 text-sm cursor-pointer active:scale-95">
+                <span>⚙</span>
+                <span>{{label .Language "viewReportsCTA"}}</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="surface p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-sm">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-400">{{label .Language "activeCashier"}}</p>
+              <p class="mt-2 text-base font-black text-slate-800 dark:text-slate-100">{{.User.DisplayName}}</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Role: <span class="capitalize font-semibold text-emerald-600 dark:text-emerald-400">{{.User.Role}}</span></p>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span>Shift Waktu</span>
+              <span class="font-mono tabular-nums" data-live-clock>{{.CurrentDateTime}}</span>
+            </div>
+          </div>
         </section>
 
         <section class="surface p-5 shadow-sm sm:p-6">
@@ -383,238 +436,132 @@
           </div>
         </section>
 
-        <section class="surface p-5 shadow-sm sm:p-6">
-          <div class="mb-2 flex min-h-11 w-full items-center justify-between text-left text-lg font-black tracking-tight">
-            <span>{{label .Language "newTransaction"}}</span>
-            <span aria-hidden="true">＋</span>
-          </div>
-          <form id="transaction-form" method="post" action="/transactions" class="mt-4 space-y-4">
-            <input type="hidden" name="csrf" value="{{.CSRF}}">
-            <input type="hidden" name="date" value="{{.Today}}">
-            
-            {{if or (eq .User.Role "superadmin") (eq .User.BranchID 0)}}
-            <div class="grid gap-3 sm:grid-cols-3">
-              <label>
-                <span class="mb-1 block text-sm font-semibold">{{if eq .Language "id"}}Cabang Outlet{{else}}Outlet Branch{{end}}</span>
-                <select id="admin-branch-select" class="field font-medium" name="branch_id" required>
-                  {{range .Branches}}
-                  <option value="{{.ID}}">{{.Name}}</option>
-                  {{end}}
-                </select>
-              </label>
-              <label>
-                <span class="mb-1 block text-sm font-semibold">{{label .Language "type"}}</span>
-                <select class="field" name="kind">
-                  <option value="income">{{label .Language "income"}}</option>
-                  <option value="expense">{{label .Language "expense"}}</option>
-                </select>
-              </label>
-              <label>
-                <span class="mb-1 block text-sm font-semibold">{{label .Language "note"}}</span>
-                <input class="field" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
-              </label>
-            </div>
-            {{else}}
-            <input type="hidden" name="branch_id" value="{{.User.BranchID}}">
-            <div class="grid gap-3 sm:grid-cols-2">
-              <label>
-                <span class="mb-1 block text-sm font-semibold">{{label .Language "type"}}</span>
-                <select class="field" name="kind">
-                  <option value="income">{{label .Language "income"}}</option>
-                  <option value="expense">{{label .Language "expense"}}</option>
-                </select>
-              </label>
-              <label>
-                <span class="mb-1 block text-sm font-semibold">{{label .Language "note"}}</span>
-                <input class="field" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
-              </label>
-            </div>
-            {{end}}
-
+        {{else}}
+        <!-- ================= OPERATOR / CASHIER SHIFT DASHBOARD ================= -->
+        <!-- Shift Welcome Banner & Active Cashier Status -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="surface p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between md:col-span-2 shadow-sm">
             <div>
-              <div class="mb-2 flex items-center justify-between">
-                <span class="text-sm font-bold text-slate-700 dark:text-slate-200">{{label .Language "items"}} &amp; {{label .Language "category"}}</span>
-                <span class="muted text-xs">{{label .Language "pricelistTitle"}}</span>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{label .Language "shiftStatus"}} · {{label .Language "active"}}</span>
               </div>
-
-              <div id="category-rows-container" class="space-y-2.5">
-                <div class="category-row rounded-xl border border-slate-200 dark:border-slate-700 p-3 surface-soft space-y-2 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1fr_130px_auto] sm:gap-2 items-center">
-                  <div>
-                    <label class="sr-only">{{label .Language "category"}}</label>
-                    <select name="category[]" class="field h-11 min-h-11 category-select" required>
-                      <option value="">-- {{label .Language "selectCategory"}} --</option>
-                      {{range .Catalog}}
-                      <option value="{{.Name}}">{{.Name}}</option>
-                      {{end}}
-                      <option value="Other">{{label .Language "otherCustom"}}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="sr-only">{{label .Language "item"}}</label>
-                    <select name="item_name[]" class="field h-11 min-h-11 font-semibold text-xs sm:text-sm item-select">
-                      <option value="">-- {{label .Language "selectItem"}} --</option>
-                    </select>
-                    <input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">
-                  </div>
-                  <div>
-                    <label class="sr-only">{{label .Language "amount"}}</label>
-                    <input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">
-                  </div>
-                  <div class="flex justify-end sm:justify-center">
-                    <button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="{{label .Language "remove"}}" aria-label="{{label .Language "remove"}}">✕</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <button type="button" id="add-category-btn" class="btn-secondary min-h-11 font-bold">
-                  ＋ {{label .Language "addCategory"}}
-                </button>
-              </div>
+              <h1 class="text-xl font-black tracking-tight">{{.Greeting}}, {{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Email}}{{end}}!</h1>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                {{label .Language "secureCashflow"}}
+              </p>
             </div>
-
-            <!-- Discount / Promo Section (Income Only) -->
-            <div id="transaction-discount-section" class="rounded-2xl p-4 surface-soft border border-slate-200/80 dark:border-slate-800 space-y-2.5 transition-all">
-              <div class="flex items-center justify-between">
-                <label for="transaction-discount-select" class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer">
-                  <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                  <span>{{label .Language "boDiscounts"}}</span>
-                </label>
-                <span id="discount-applied-badge" class="hidden text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
-                  -Rp 0,00
-                </span>
-              </div>
-              <select id="transaction-discount-select" name="selected_discount_id" class="field h-11 min-h-11 font-semibold text-xs sm:text-sm">
-                <option value="">-- {{label .Language "noDiscount"}} --</option>
-                {{range .ActiveDiscounts}}
-                <option value="{{.ID}}" data-type="{{.Type}}" data-value="{{.Value}}" data-code="{{.Code}}" data-name="{{.Name}}">
-                  {{.Name}} {{if eq .Type "PERCENTAGE"}}(-{{.Value}}%){{else}}(-{{money .Value}}){{end}}
-                </option>
-                {{end}}
-              </select>
-              <input type="hidden" id="order-discount-amount-input" name="order_discount_amount" value="0">
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span>Waktu Operasional Shift</span>
+              <span class="font-mono tabular-nums font-semibold text-slate-700 dark:text-slate-200" data-live-clock>{{.CurrentDateTime}}</span>
             </div>
+          </div>
 
-            <!-- Price Breakdown Summary -->
-            <div id="transaction-summary-card" class="rounded-2xl p-4 surface-soft border border-slate-200/80 dark:border-slate-800 space-y-2">
-              <div id="summary-subtotal-row" class="hidden flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                <span>{{label .Language "subtotal"}}:</span>
-                <span id="transaction-subtotal-display" class="font-semibold text-slate-700 dark:text-slate-300">Rp 0,00</span>
-              </div>
-              <div id="summary-discount-row" class="hidden flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                <span id="summary-discount-label">{{label .Language "discount"}}:</span>
-                <span id="transaction-discount-display" class="font-bold">-Rp 0,00</span>
-              </div>
-              <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                <span class="text-sm font-bold text-slate-700 dark:text-slate-300">{{label .Language "total"}}:</span>
-                <span id="transaction-total-display" class="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">Rp 0,00</span>
-              </div>
+          <div class="surface p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-sm">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-400">{{label .Language "activeCashier"}}</p>
+              <p class="mt-2 text-base font-black text-slate-800 dark:text-slate-100">{{.User.DisplayName}}</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Role: <span class="capitalize font-semibold text-emerald-600 dark:text-emerald-400">{{.User.Role}}</span></p>
             </div>
-
-            <button class="btn-primary min-h-12 w-full font-bold text-base shadow-lg" type="submit">{{label .Language "saveTransaction"}}</button>
-          </form>
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span>Status Bertugas</span>
+              <span class="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span> Siap Melayani
+              </span>
+            </div>
+          </div>
         </section>
 
-        <section class="min-w-0">
-          <div class="mb-3">
-            <h2 class="text-xl font-black">{{label .Language "transactions"}}</h2>
-            <p class="text-xs text-slate-500">{{.Total}} {{label .Language "records"}} · {{label .Language "page"}} {{.Page}} {{label .Language "of"}} {{.Pages}}</p>
-          </div>
-          <div class="space-y-2">
-            {{range .Entries}}
-            <article class="surface p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-              <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                <div class="min-w-0">
-                  <div class="flex flex-wrap items-center gap-1.5 font-bold">
-                    {{if .Items}}
-                      {{range .Items}}
-                        <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                          {{.Category}}{{if .ItemName}}: {{.ItemName}}{{end}} ({{money .AmountCents}})
-                        </span>
-                      {{end}}
-                    {{else}}
-                      <span class="truncate font-bold">{{.Category}}</span>
-                    {{end}}
-                    {{if gt .TotalDiscountCents 0}}
-                      <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                        <svg class="w-3 h-3 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
-                        <span>{{label $.Language "discount"}} -{{money .TotalDiscountCents}}</span>
-                      </span>
-                    {{end}}
-                    {{if .ReversalOfID.Valid}}
-                      <span class="rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-400">{{label $.Language "reversal"}} #{{.ReversalOfID.Int64}}</span>
-                    {{end}}
-                  </div>
-                  <p class="mt-1.5 break-words text-xs font-medium text-slate-600 dark:text-slate-400">
-                    {{.OperatorName}} · {{date .OccurredAt}}{{if .Note}} · {{.Note}}{{end}}
-                  </p>
-                </div>
-                <div class="text-right">
-                  <p class="max-w-[42vw] break-words text-right font-black sm:max-w-none {{if eq .Kind "income"}}text-emerald-700{{else}}text-rose-700{{end}}">
-                    {{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountCents}}
-                  </p>
-                  {{if not .ReversalOfID.Valid}}
-                    {{if not .ReversedByID.Valid}}
-                      <div class="mt-1.5 flex justify-end">
-                        <button type="button" class="btn-print-receipt btn-secondary !min-h-9 !px-3 !py-1 text-xs font-bold gap-1.5 shadow-sm transition active:scale-95 flex items-center cursor-pointer"
-                          data-tx-id="{{.ID}}"
-                          data-tx-kind="{{.Kind}}"
-                          data-tx-amount="{{money .AmountCents}}"
-                          data-tx-operator="{{.OperatorName}}"
-                          data-tx-date="{{date .OccurredAt}}"
-                          data-tx-note="{{.Note}}"
-                          {{if gt .TotalDiscountCents 0}}
-                          data-tx-subtotal="{{money .GrossSubtotalCents}}"
-                          data-tx-discount="{{money .TotalDiscountCents}}"
-                          {{end}}
-                          data-tx-items='{{if .Items}}[{{range $i, $it := .Items}}{{if $i}},{{end}}{"name":"{{if $it.ItemName}}{{$it.ItemName}}{{else}}{{$it.Category}}{{end}}","category":"{{$it.Category}}","amount":"{{money $it.AmountCents}}"}{{end}}]{{else}}[{"name":"{{.Category}}","category":"{{.Category}}","amount":"{{money .AmountCents}}" }]{{end}}'
-                          title="{{label $.Language "printReceipt"}}"
-                        >
-                          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                          <span>{{label $.Language "printReceipt"}}</span>
-                        </button>
-                      </div>
-                    {{end}}
-                  {{end}}
+        <!-- 3 Kartu KPI Khusus Shift Kasir Bertugas -->
+        <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <article class="stat-card border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-500/20 text-indigo-950 dark:text-indigo-300">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-wide text-indigo-700 dark:text-indigo-400">{{label .Language "shiftTransactions"}}</p>
+              <span class="text-sm">📋</span>
+            </div>
+            <p class="mt-2 text-xl font-black font-mono tabular-nums">{{.Total}} <span class="text-xs font-normal text-indigo-600/80 dark:text-indigo-400/80">nota</span></p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Total nota diproses shift ini</p>
+          </article>
+          <article class="stat-card border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-500/20 text-emerald-950 dark:text-emerald-300">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">{{label .Language "cashierIncome"}}</p>
+              <span class="text-xs">↗</span>
+            </div>
+            <p class="mt-2 text-xl font-black font-mono tabular-nums">{{money .Summary.IncomeCents}}</p>
+            <p class="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1">Omzet kasir shift ini</p>
+          </article>
+          <article class="stat-card border-rose-200 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-500/20 text-rose-950 dark:text-rose-300">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400">{{label .Language "cashierExpense"}}</p>
+              <span class="text-xs">↘</span>
+            </div>
+            <p class="mt-2 text-xl font-black font-mono tabular-nums">{{money .Summary.ExpenseCents}}</p>
+            <p class="text-[11px] text-rose-700/80 dark:text-rose-400/80 mt-1">Pengeluaran kasir shift ini</p>
+          </article>
+        </section>
+
+        <!-- SOP & Panduan Operasional Kasir (Anti-slop taste-skill compliant) -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="surface p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+            <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <span class="text-base">📌</span>
+              <h2 class="text-sm font-black tracking-tight text-slate-900 dark:text-slate-100">{{label .Language "cashierSopTitle"}}</h2>
+            </div>
+            <div class="space-y-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+              <div class="flex items-start gap-2.5">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 font-mono text-[11px] font-black text-emerald-700 dark:text-emerald-400">1</span>
+                <div>
+                  <strong class="text-slate-800 dark:text-slate-100">{{label .Language "cashierSop1Title"}}:</strong> {{label .Language "cashierSop1Desc"}}
                 </div>
               </div>
-              {{if not .ReversalOfID.Valid}}
-                {{if .ReversedByID.Valid}}
-                  <div class="mt-3 border-t border-slate-100 dark:border-slate-800/80 pt-3">
-                    <div class="inline-flex items-center gap-2 rounded-xl bg-rose-50/80 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 shadow-sm">
-                      <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                      <span>{{label $.Language "reversedBy"}} <strong>#{{.ReversedByID.Int64}}</strong></span>
-                    </div>
-                  </div>
-                {{else if eq $.User.Role "superadmin"}}
-                  <form class="transaction-reverse-form mt-3 grid gap-2 border-t pt-3 sm:grid-cols-[1fr_auto]" method="post" action="/transactions/{{.ID}}/reverse" data-tx-id="{{.ID}}">
-                    <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                    <input type="hidden" name="return_to" value="{{$.CurrentURL}}">
-                    <label class="sr-only" for="reason-{{.ID}}">{{label $.Language "reverseReason"}}</label>
-                    <input id="reason-{{.ID}}" name="reason" required minlength="5" maxlength="250" class="field h-11 min-h-11 min-w-0" placeholder="{{label $.Language "reverseReason"}}">
-                    <button class="h-11 min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-700 shadow-sm shadow-rose-600/20 transition cursor-pointer active:scale-95" type="submit">{{label $.Language "reverse"}}</button>
-                  </form>
-                {{end}}
-              {{end}}
-            </article>
-            {{else}}
-            <div class="rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center text-slate-500">{{label .Language "noTransactions"}}</div>
-            {{end}}
+              <div class="flex items-start gap-2.5">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 font-mono text-[11px] font-black text-emerald-700 dark:text-emerald-400">2</span>
+                <div>
+                  <strong class="text-slate-800 dark:text-slate-100">{{label .Language "cashierSop2Title"}}:</strong> {{label .Language "cashierSop2Desc"}}
+                </div>
+              </div>
+              <div class="flex items-start gap-2.5">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 font-mono text-[11px] font-black text-emerald-700 dark:text-emerald-400">3</span>
+                <div>
+                  <strong class="text-slate-800 dark:text-slate-100">{{label .Language "cashierSop3Title"}}:</strong> {{label .Language "cashierSop3Desc"}}
+                </div>
+              </div>
+            </div>
           </div>
-          {{if or .PrevURL .NextURL}}
-          <nav aria-label="Transaction pages" class="mt-4 grid grid-cols-2 gap-2">
-            <div>{{if .PrevURL}}<a class="btn-secondary w-full" href="{{.PrevURL}}">← {{label .Language "previous"}}</a>{{end}}</div>
-            <div>{{if .NextURL}}<a class="btn-secondary w-full" href="{{.NextURL}}">{{label .Language "next"}} →</a>{{end}}</div>
-          </nav>
-          {{end}}
+
+          <div class="surface p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <span class="text-base">🖨</span>
+                <h2 class="text-sm font-black tracking-tight text-slate-900 dark:text-slate-100">{{label .Language "printerStatusTitle"}}</h2>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                {{label .Language "printerStatusDesc"}}
+              </p>
+              <div class="mt-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium text-slate-600 dark:text-slate-400">Model Kompatibel:</span>
+                  <span class="font-bold text-slate-800 dark:text-slate-200">Okay 58D / ESC/POS (58mm)</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-medium text-slate-600 dark:text-slate-400">Jalur Koneksi:</span>
+                  <span class="font-bold text-slate-800 dark:text-slate-200">Web Bluetooth API / Browser Print</span>
+                </div>
+              </div>
+            </div>
+            <div class="pt-2">
+              <button type="button" onclick="document.getElementById('btn-thermal-printer-settings')?.click()" class="btn-secondary w-full flex items-center justify-center gap-2 text-xs font-bold !min-h-11 shadow-sm cursor-pointer active:scale-95">
+                <span>⚙</span>
+                <span>{{label .Language "printerModalTitle"}}</span>
+              </button>
+            </div>
+          </div>
         </section>
+        {{end}}
+
       </main>
     </div>
   </div>
-  <!-- Hidden thermal receipt container for browser window.print() -->
-  <div id="thermal-print-container" aria-hidden="true" style="display:none;"></div>
 </body>
 </html>
 {{end}}

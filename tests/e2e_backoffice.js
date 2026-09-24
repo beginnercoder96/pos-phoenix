@@ -204,8 +204,71 @@ async function run() {
     console.log('Verified Slip Gaji header, branch branding, and salary details successfully');
     console.log('🎉 PASSED: Scenario 3 (Payroll Slips & HTML Preview)');
 
+    // ========================================================
+    // --- [Scenario 4: Dedicated Cashier / Transactions Page] ---
+    // ========================================================
+    console.log('\n--- [Scenario 4: Dedicated Cashier / Transactions Page] ---');
+    await page.goto(`${baseURL}/transactions`, { waitUntil: 'domcontentloaded' });
+    console.log('Navigated to Dedicated Transactions page (/transactions)');
+
+    // Verify cashier form is visible
+    const txForm = page.locator('#transaction-form');
+    await txForm.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Verify sidebar active link
+    const activeNav = await page.locator('.pos-sidebar-link.active').textContent();
+    console.log(`Active sidebar navigation item: ${activeNav.trim()}`);
+
+    // Fill new transaction
+    const catSelect = page.locator('select[name="category[]"]').first();
+    await catSelect.waitFor({ state: 'visible', timeout: 3000 });
+    await catSelect.selectOption('Other');
+    await catSelect.dispatchEvent('change');
+
+    // Set amount
+    const amountInput = page.locator('input[name="amount[]"]').first();
+    await amountInput.fill('75000');
+    await amountInput.dispatchEvent('input');
+    await amountInput.dispatchEvent('change');
+
+    // Set note
+    const noteInput = page.locator('input[name="note"]').first();
+    const testNote = `E2E Test Kasir ${Date.now()}`;
+    await noteInput.fill(testNote);
+
+    // Submit transaction
+    console.log(`Submitting new transaction with note: "${testNote}"...`);
+    const submitBtn = page.locator('#transaction-form button[type="submit"]');
+    await submitBtn.click();
+
+    // Handle payment confirmation modal
+    const confirmModal = page.locator('#pos-save-tx-modal');
+    await confirmModal.waitFor({ state: 'visible', timeout: 5000 });
+    console.log('Payment confirmation modal appeared. Confirming transaction...');
+
+    const saveOnlyBtn = page.locator('#pos-tx-save-only');
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+      saveOnlyBtn.click(),
+    ]);
+
+    // Verify redirected back to /transactions
+    const currentUrl = page.url();
+    console.log(`Redirected to: ${currentUrl}`);
+    if (!currentUrl.includes('/transactions')) {
+      throw new Error(`Expected redirect to /transactions, got: ${currentUrl}`);
+    }
+
+    // Verify newly submitted transaction is present in the feed
+    const pageContent = await page.content();
+    if (!pageContent.includes(testNote)) {
+      throw new Error(`Transaction entry with note "${testNote}" not found in feed`);
+    }
+    console.log(`Successfully verified new transaction "${testNote}" in feed table`);
+    console.log('🎉 PASSED: Scenario 4 (Dedicated Cashier / Transactions Page)');
+
     console.log('\n======================================================');
-    console.log('🏆 ALL 3 BACKOFFICE E2E SCENARIOS PASSED SUCCESSFULLY!');
+    console.log('🏆 ALL 4 E2E SCENARIOS PASSED SUCCESSFULLY!');
     console.log('======================================================');
 
   } catch (err) {

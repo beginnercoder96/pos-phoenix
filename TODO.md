@@ -99,11 +99,11 @@ Lihat spesifikasi lengkap, formula matematis, dan simulasi riil di file [BACKOFF
 - [x] Audit aksesibilitas rasio kontras warna (WCAG compliance)
 
 ### Milestone 9: Pemisahan Menu Transaksi dari Dashboard Utama
-- [ ] Buat route `GET /transactions` dan template `web/templates/transactions.html`
-- [ ] Pindahkan form entri kasir, kalkulator, dan riwayat mutasi dari dashboard ke menu transaksi
-- [ ] Sederhanakan `dashboard.html` khusus untuk metrik eksekutif, status shift, dan tren
-- [ ] Update navigasi sidebar dan mobile header: Dashboard, Transaksi / Kasir, Operator, Backoffice
-- [ ] Tambahkan unit test HTTP untuk `/transactions` dan update Playwright product tour script
+- [x] Buat route `GET /transactions` dan template `web/templates/transactions.html`
+- [x] Pindahkan form entri kasir, kalkulator, dan riwayat mutasi dari dashboard ke menu transaksi
+- [x] Sederhanakan `dashboard.html` khusus untuk metrik eksekutif, status shift, dan tren
+- [x] Update navigasi sidebar dan mobile header: Dashboard, Transaksi / Kasir, Operator, Backoffice
+- [x] Tambahkan unit test HTTP untuk `/transactions` dan update Playwright product tour script
 
 ### Milestone 10: Simplifikasi Login & 2FA Google Authenticator (TOTP RFC 6238)
 - [ ] Database migration: tambahkan `totp_secret` (TEXT, Base32) dan `totp_enabled` (INTEGER DEFAULT 0) pada tabel `users`

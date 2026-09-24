@@ -88,6 +88,7 @@ type pageData struct {
 	Success                     string
 	ResetToken                  string
 	ResetLink                   string
+	ReserveCents                int64
 }
 
 func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error) {
@@ -120,6 +121,7 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	mux.HandleFunc("POST /logout", s.withUser(s.logout))
 	mux.HandleFunc("GET /loading", s.loadingPage)
 	mux.HandleFunc("GET /", s.withUser(s.dashboard))
+	mux.HandleFunc("GET /transactions", s.withUser(s.transactionsPage))
 	mux.HandleFunc("GET /reports.xlsx", s.withUser(s.adminOnly(s.exportExcel)))
 	mux.HandleFunc("GET /reports.csv", s.withUser(s.adminOnly(s.exportCSV)))
 	mux.HandleFunc("POST /transactions", s.withUser(s.createTransaction))
@@ -449,6 +451,22 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	activeDiscJSON, _ := json.Marshal(activeDiscounts)
 	branches, _ := s.backoffice.ListBranches(r.Context())
 
+	var currentReserveCents int64
+	if s.backoffice != nil {
+		if analytics, err := s.backoffice.GetMonthlyAnalytics24(r.Context(), "all", now); err == nil {
+			currentMonthStr := nowInLoc.Format("2006-01")
+			for _, a := range analytics {
+				if a.Month == currentMonthStr {
+					currentReserveCents = a.ReserveCents
+					break
+				}
+			}
+		}
+	}
+	if currentReserveCents == 0 && result.Summary.IncomeCents > result.Summary.ExpenseCents {
+		currentReserveCents = (result.Summary.IncomeCents - result.Summary.ExpenseCents) / 10
+	}
+
 	data := localizedData(r, pageData{
 		User: u, Entries: result.Entries, Summary: result.Summary, Trend: trend, CSRF: s.csrf(w, r),
 		Today: now.Format("2006-01-02"), From: from.In(s.location).Format("2006-01-02"),
@@ -468,6 +486,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		ActiveDiscountsJSON: template.HTML(activeDiscJSON),
 		Greeting:            greeting,
 		Branches:            branches,
+		ReserveCents:        currentReserveCents,
 	})
 	if result.Page > 1 {
 		data.PrevURL = pageURL(baseURL, result.Page-1)
@@ -482,6 +501,85 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "dashboard.html", data)
 }
 
+func (s *Server) transactionsPage(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	now := s.now().In(s.location)
+	from, to, rangeName, err := s.reportRange(r, u, now)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	pageNumber := positiveInt(r.URL.Query().Get("page"), 1)
+	result, err := s.transactions.List(r.Context(), u.ID, u.Role == "superadmin", from, to, pageNumber, 25)
+	if err != nil {
+		http.Error(w, "unable to load transactions", http.StatusInternalServerError)
+		return
+	}
+
+	query := r.URL.Query()
+	query.Del("page")
+	baseURL := "/transactions?" + query.Encode()
+	if len(query) == 0 {
+		baseURL = "/transactions"
+	}
+
+	pref := readPreferences(r)
+	currentDateTime := formatCurrentDateTime(now, s.location, pref.Language)
+
+	allDiscounts, _ := s.backoffice.ListDiscounts(r.Context())
+	var activeDiscounts []backoffice.DiscountBundle
+	var activeBundles []backoffice.DiscountBundle
+	for _, d := range allDiscounts {
+		if d.IsActive {
+			if d.Type == "BUNDLE" {
+				activeBundles = append(activeBundles, d)
+			} else {
+				activeDiscounts = append(activeDiscounts, d)
+			}
+		}
+	}
+	catalogItems, _ := s.backoffice.ListCatalogItems(r.Context(), "")
+	dynamicCatalog := BuildCatalog(catalogItems, activeBundles)
+	activeDiscJSON, _ := json.Marshal(activeDiscounts)
+	branches, _ := s.backoffice.ListBranches(r.Context())
+	operators, _ := s.auth.ListOperators(r.Context())
+
+	data := localizedData(r, pageData{
+		User:                u,
+		Entries:             result.Entries,
+		Summary:             result.Summary,
+		CSRF:                s.csrf(w, r),
+		Today:               now.Format("2006-01-02"),
+		From:                from.In(s.location).Format("2006-01-02"),
+		To:                  to.In(s.location).AddDate(0, 0, -1).Format("2006-01-02"),
+		Range:               rangeName,
+		Timezone:            "WIB (Asia/Jakarta)",
+		CurrentDateTime:     currentDateTime,
+		Page:                result.Page,
+		Pages:               result.Pages,
+		Total:               result.Total,
+		CurrentURL:          r.URL.RequestURI(),
+		Catalog:             dynamicCatalog,
+		CatalogJSON:         DynamicCatalogJSON(dynamicCatalog),
+		CatalogJS:           DynamicCatalogJS(dynamicCatalog),
+		ActiveDiscounts:     activeDiscounts,
+		ActiveDiscountsJSON: template.HTML(activeDiscJSON),
+		Branches:            branches,
+		Operators:           operators,
+	})
+	if result.Page > 1 {
+		data.PrevURL = pageURL(baseURL, result.Page-1)
+	}
+	if result.Page < result.Pages {
+		data.NextURL = pageURL(baseURL, result.Page+1)
+	}
+	if u.Role == "superadmin" {
+		exportQuery := url.Values{"range": {rangeName}, "from": {data.From}, "to": {data.To}}
+		data.ExportURL = "/reports.xlsx?" + exportQuery.Encode()
+	}
+	s.render(w, "transactions.html", data)
+}
+
 func (s *Server) reportRange(r *http.Request, user auth.User, now time.Time) (time.Time, time.Time, string, error) {
 	from, to := businessDayRange(now, s.location)
 	rangeName := "today"
@@ -491,7 +589,13 @@ func (s *Server) reportRange(r *http.Request, user auth.User, now time.Time) (ti
 	switch r.URL.Query().Get("range") {
 	case "month":
 		from = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, s.location)
-		to = from.AddDate(0, 1, 0)
+		endOfMonth := from.AddDate(0, 1, 0)
+		endOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, s.location).AddDate(0, 0, 1)
+		if endOfToday.Before(endOfMonth) {
+			to = endOfToday
+		} else {
+			to = endOfMonth
+		}
 		rangeName = "month"
 	case "custom":
 		var err error
@@ -800,7 +904,11 @@ func (s *Server) createTransaction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to save transaction", 400)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	returnTo := r.FormValue("return_to")
+	if returnTo == "" || !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
+		returnTo = "/transactions"
+	}
+	http.Redirect(w, r, returnTo, http.StatusSeeOther)
 }
 
 func (s *Server) reverseTransaction(w http.ResponseWriter, r *http.Request) {
@@ -820,7 +928,7 @@ func (s *Server) reverseTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 	redirect := r.FormValue("return_to")
 	if redirect == "" || !strings.HasPrefix(redirect, "/") || strings.HasPrefix(redirect, "//") {
-		redirect = "/"
+		redirect = "/transactions"
 	}
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
 }
@@ -1007,7 +1115,10 @@ func customReportRange(fromValue, toValue string, now time.Time, location *time.
 	to := lastDay.AddDate(0, 0, 1)
 	oldest := time.Date(now.Year()-2, now.Month(), now.Day(), 0, 0, 0, 0, location)
 	tomorrow := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location).AddDate(0, 0, 1)
-	if from.Before(oldest) || !to.After(from) || to.After(tomorrow) || to.Sub(from) > 366*2*24*time.Hour {
+	if to.After(tomorrow) {
+		to = tomorrow
+	}
+	if from.Before(oldest) || !to.After(from) || to.Sub(from) > 366*2*24*time.Hour {
 		return time.Time{}, time.Time{}, errors.New("report dates must be ordered and within the most recent two years")
 	}
 	return from, to, nil

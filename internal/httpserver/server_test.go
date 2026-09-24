@@ -126,7 +126,7 @@ func TestOperatorListsOnlyOwnTransactions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	rr := requestAs(t, handler, service, first, http.MethodGet, "/", nil)
+	rr := requestAs(t, handler, service, first, http.MethodGet, "/transactions", nil)
 	body := rr.Body.String()
 	if !strings.Contains(body, "Mine") {
 		t.Fatal("own transaction missing")
@@ -412,7 +412,7 @@ func TestDashboardChartAndExcelLink(t *testing.T) {
 		t.Fatalf("missing daily labels in custom chart: %s", bodyCustom)
 	}
 
-	// 5. Check live clock rendered on operator dashboard
+	// 5. Check live clock rendered on operator dashboard, and trend chart is safely hidden from operator
 	operatorID := addUser(t, db, "clock-operator@example.com", "operator")
 	rrOp := requestAs(t, handler, service, operatorID, http.MethodGet, "/", nil)
 	if rrOp.Code != http.StatusOK {
@@ -425,27 +425,27 @@ func TestDashboardChartAndExcelLink(t *testing.T) {
 	if strings.Contains(bodyOp, "Business day: WIB (Asia/Jakarta)") {
 		t.Fatalf("old 'Business day: WIB (Asia/Jakarta)' still found on operator dashboard: %s", bodyOp)
 	}
-	if !strings.Contains(bodyOp, "chart-calendar-toggle-btn") {
-		t.Fatalf("missing chart-calendar-toggle-btn on operator dashboard: %s", bodyOp)
+	if strings.Contains(bodyOp, "chart-calendar-toggle-btn") {
+		t.Fatalf("chart-calendar-toggle-btn should NOT be visible on operator dashboard: %s", bodyOp)
 	}
-	if !strings.Contains(bodyOp, "chart-inline-calendar-panel") {
-		t.Fatalf("missing chart-inline-calendar-panel on operator dashboard: %s", bodyOp)
-	}
-	if !strings.Contains(bodyOp, "Custom Date") && !strings.Contains(bodyOp, "value=\"custom\"") {
-		t.Fatalf("missing Custom Date option on operator dashboard: %s", bodyOp)
+	if strings.Contains(bodyOp, "chart-inline-calendar-panel") {
+		t.Fatalf("chart-inline-calendar-panel should NOT be visible on operator dashboard: %s", bodyOp)
 	}
 
-	// 6. Check operator custom chart period works properly
-	rrOpCustom := requestAs(t, handler, service, operatorID, http.MethodGet, "/?chart_period=custom&chart_from=2026-09-01&chart_to=2026-09-13", nil)
-	if rrOpCustom.Code != http.StatusOK {
-		t.Fatalf("status=%d", rrOpCustom.Code)
+	// 6. Check admin custom chart period and calendar button
+	rrAdmin := requestAs(t, handler, service, adminID, http.MethodGet, "/", nil)
+	if rrAdmin.Code != http.StatusOK {
+		t.Fatalf("status=%d", rrAdmin.Code)
 	}
-	bodyOpCustom := rrOpCustom.Body.String()
-	if !strings.Contains(bodyOpCustom, "01 Sep") || !strings.Contains(bodyOpCustom, "13 Sep") {
-		t.Fatalf("missing daily labels in operator custom chart: %s", bodyOpCustom)
+	bodyAdmin := rrAdmin.Body.String()
+	if !strings.Contains(bodyAdmin, "chart-calendar-toggle-btn") {
+		t.Fatalf("missing chart-calendar-toggle-btn on admin dashboard: %s", bodyAdmin)
 	}
-	if !strings.Contains(bodyOpCustom, "chart-inline-calendar-panel") {
-		t.Fatalf("missing calendar panel in operator custom chart: %s", bodyOpCustom)
+	if !strings.Contains(bodyAdmin, "chart-inline-calendar-panel") {
+		t.Fatalf("missing chart-inline-calendar-panel on admin dashboard: %s", bodyAdmin)
+	}
+	if !strings.Contains(bodyAdmin, "Custom Date") && !strings.Contains(bodyAdmin, "value=\"custom\"") {
+		t.Fatalf("missing Custom Date option on admin dashboard: %s", bodyAdmin)
 	}
 }
 
@@ -560,11 +560,11 @@ func TestDashboardPagination(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	rr := requestAs(t, handler, service, operatorID, http.MethodGet, "/?page=1", nil)
+	rr := requestAs(t, handler, service, operatorID, http.MethodGet, "/transactions?page=1", nil)
 	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "26 records · page 1 of 2") || !strings.Contains(rr.Body.String(), "Next") {
 		t.Fatalf("first page missing pagination: status=%d body=%s", rr.Code, rr.Body.String())
 	}
-	rr = requestAs(t, handler, service, operatorID, http.MethodGet, "/?page=2", nil)
+	rr = requestAs(t, handler, service, operatorID, http.MethodGet, "/transactions?page=2", nil)
 	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "page 2 of 2") || !strings.Contains(rr.Body.String(), "Previous") {
 		t.Fatalf("second page missing pagination: status=%d body=%s", rr.Code, rr.Body.String())
 	}
@@ -746,10 +746,10 @@ func TestCreateTransactionWithMultipleCategories(t *testing.T) {
 		t.Fatalf("unexpected item 2: %+v", items[2])
 	}
 
-	// Verify dashboard renders the items and total
-	rr = requestAs(t, handler, service, operatorID, http.MethodGet, "/", nil)
+	// Verify transactions page renders the items and total
+	rr = requestAs(t, handler, service, operatorID, http.MethodGet, "/transactions", nil)
 	if rr.Code != http.StatusOK {
-		t.Fatalf("dashboard status=%d", rr.Code)
+		t.Fatalf("transactions page status=%d", rr.Code)
 	}
 	body := rr.Body.String()
 	if !strings.Contains(body, "HAIRCUT SERVICE: Haircut") {
@@ -942,7 +942,17 @@ func TestIndonesianDashboardCardLabels(t *testing.T) {
 		}
 	}
 
-	// 4. New transaction card
+	// 4. New transaction card & feed in Dedicated Transactions page (/transactions)
+	reqTx := httptest.NewRequest(http.MethodGet, "/transactions", nil)
+	reqTx.AddCookie(&http.Cookie{Name: "session", Value: token})
+	reqTx.AddCookie(&http.Cookie{Name: "language", Value: "id"})
+	rrTx := httptest.NewRecorder()
+	handler.ServeHTTP(rrTx, reqTx)
+	if rrTx.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rrTx.Code, rrTx.Body.String())
+	}
+	bodyTx := rrTx.Body.String()
+
 	expectedTxFormLabels := []string{
 		"Transaksi baru",
 		"Catatan opsional / nama pelanggan",
@@ -954,12 +964,12 @@ func TestIndonesianDashboardCardLabels(t *testing.T) {
 		"Simpan transaksi",
 	}
 	for _, label := range expectedTxFormLabels {
-		if !strings.Contains(body, label) {
-			t.Errorf("missing Indonesian transaction form label %q in body", label)
+		if !strings.Contains(bodyTx, label) {
+			t.Errorf("missing Indonesian transaction form label %q in /transactions body", label)
 		}
 	}
 
-	// 5. Transactions feed card
+	// 5. Transactions feed card in /transactions
 	expectedTxFeedLabels := []string{
 		"Transaksi",
 		"catatan",
@@ -967,9 +977,56 @@ func TestIndonesianDashboardCardLabels(t *testing.T) {
 		"dari",
 	}
 	for _, label := range expectedTxFeedLabels {
-		if !strings.Contains(body, label) {
-			t.Errorf("missing Indonesian transactions feed label %q in body", label)
+		if !strings.Contains(bodyTx, label) {
+			t.Errorf("missing Indonesian transactions feed label %q in /transactions body", label)
 		}
+	}
+}
+
+func TestTransactionsPage(t *testing.T) {
+	db, handler, service := testServer(t)
+	adminID := addUser(t, db, "admin-tx@example.com", "superadmin")
+	operatorID := addUser(t, db, "operator-tx@example.com", "operator")
+
+	// 1. Unauthenticated request redirects to /login
+	rrUnauth := httptest.NewRecorder()
+	reqUnauth := httptest.NewRequest(http.MethodGet, "/transactions", nil)
+	handler.ServeHTTP(rrUnauth, reqUnauth)
+	if rrUnauth.Code != http.StatusSeeOther || rrUnauth.Header().Get("Location") != "/login" {
+		t.Fatalf("unauth status=%d location=%s", rrUnauth.Code, rrUnauth.Header().Get("Location"))
+	}
+
+	// 2. Operator can open /transactions
+	rrOp := requestAs(t, handler, service, operatorID, http.MethodGet, "/transactions", nil)
+	if rrOp.Code != http.StatusOK {
+		t.Fatalf("operator status=%d body=%s", rrOp.Code, rrOp.Body.String())
+	}
+	bodyOp := rrOp.Body.String()
+	if !strings.Contains(bodyOp, "transaction-form") || !strings.Contains(bodyOp, "category-rows-container") {
+		t.Fatalf("missing transaction form in /transactions: %s", bodyOp)
+	}
+
+	// 3. Superadmin can open /transactions and see admin branch selector
+	rrAdmin := requestAs(t, handler, service, adminID, http.MethodGet, "/transactions", nil)
+	if rrAdmin.Code != http.StatusOK {
+		t.Fatalf("admin status=%d body=%s", rrAdmin.Code, rrAdmin.Body.String())
+	}
+	bodyAdmin := rrAdmin.Body.String()
+	if !strings.Contains(bodyAdmin, "admin-branch-select") {
+		t.Fatalf("missing admin-branch-select in /transactions: %s", bodyAdmin)
+	}
+
+	// 4. Create transaction from /transactions and verify redirect back to /transactions
+	txForm := url.Values{
+		"date":       {time.Now().Format("2006-01-02")},
+		"kind":       {"income"},
+		"category[]": {"Haircut"},
+		"amount[]":   {"50000"},
+		"note":       {"Test customer"},
+	}
+	rrCreate := requestAs(t, handler, service, operatorID, http.MethodPost, "/transactions", txForm)
+	if rrCreate.Code != http.StatusSeeOther || rrCreate.Header().Get("Location") != "/transactions" {
+		t.Fatalf("status=%d location=%s, want /transactions", rrCreate.Code, rrCreate.Header().Get("Location"))
 	}
 }
 
@@ -1693,7 +1750,28 @@ func TestBackofficeFinancialReportExcel(t *testing.T) {
 	}
 }
 
+func TestMonthRangeCappedToTodayAndCustomRangeClamp(t *testing.T) {
+	db, handler, service := testServer(t)
+	adminID := addUser(t, db, "range-admin@example.com", "superadmin")
 
+	// 1. Request with range=month on transactions page
+	rrMonth := requestAs(t, handler, service, adminID, http.MethodGet, "/transactions?range=month", nil)
+	if rrMonth.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for range=month, got %d", rrMonth.Code)
+	}
+	bodyMonth := rrMonth.Body.String()
+	now := time.Now()
+	todayStr := now.Format("2006-01-02")
+	// The "to" input should not exceed today
+	if strings.Contains(bodyMonth, `name="to" value="`+now.Format("2006-01")+`-31"`) ||
+		(now.Day() < 30 && strings.Contains(bodyMonth, `name="to" value="`+now.Format("2006-01")+`-30"`)) {
+		t.Fatalf("to date input in range=month was not capped at today: %s", todayStr)
+	}
 
-
-
+	// 2. Request with custom range where 'to' is future (e.g. 2026-09-30 when today is 2026-09-24)
+	rrFuture := requestAs(t, handler, service, adminID, http.MethodGet, "/transactions?range=custom&from=2026-09-01&to=2099-01-01", nil)
+	// Should gracefully clamp and return 200 OK instead of 400 Bad Request
+	if rrFuture.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK after clamping future to date, got %d: %s", rrFuture.Code, rrFuture.Body.String())
+	}
+}

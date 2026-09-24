@@ -1803,8 +1803,9 @@ window.handleChartPeriodChange = function (select) {
     var form = e.target;
     if (!form) return;
 
-    // A. Intercept new transaction creation form
-    if (form.id === "transaction-form" || form.getAttribute("action") === "/transactions") {
+    // A. Intercept new transaction creation form (POST only, not GET filter forms)
+    var formMethod = (form.getAttribute("method") || form.method || "get").toLowerCase();
+    if (form.id === "transaction-form" && formMethod === "post") {
       if (form.dataset.posTxConfirmed === "true") return;
 
       // Check native validation first

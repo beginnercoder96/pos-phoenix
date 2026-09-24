@@ -240,27 +240,27 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 9: Pemisahan Menu Transaksi dari Dashboard Utama (Dedicated Transaction View)
-- [ ] **Pembuatan Route & Template Transaksi Baru**:
+- [x] **Pembuatan Route & Template Transaksi Baru**:
   - Daftarkan route baru di `internal/httpserver/server.go`: `GET /transactions` (handler `s.transactionsPage`) dan `POST /transactions`.
   - Buat template baru `web/templates/transactions.html` khusus untuk alur kasir dan transaksi.
-- [ ] **Migrasi Form Kasir & Riwayat Transaksi**:
+- [x] **Migrasi Form Kasir & Riwayat Transaksi**:
   - Pindahkan form input transaksi (kategori jasa/produk, pilih barberman, diskon/bundling, catatan, total real-time) dari `dashboard.html` ke `transactions.html`.
   - Pindahkan tabel mutasi transaksi harian, filter tanggal, dan tombol reversal dari dashboard ke halaman transaksi.
-- [ ] **Refactor & Penyederhanaan Dashboard (`/`)**:
+- [x] **Refactor & Penyederhanaan Dashboard (`/`)**:
   - Bersihkan `dashboard.html` agar fokus pada metrik eksekutif:
     - Kartu KPI Utama: Total Pemasukan, Pengeluaran, Saldo Bersih, Saldo Cadangan.
     - Jam shift harian dan status kasir bertugas.
     - Grafik tren pendapatan (visualisasi ringkas).
     - Tombol aksi cepat: "Buka Menu Transaksi Baru" (`/transactions`) dan "Laporan Lengkap".
-- [ ] **Pembaruan Navigasi & Sidebar**:
+- [x] **Pembaruan Navigasi & Sidebar**:
   - Tambahkan link menu navigasi yang jelas di desktop sidebar dan mobile navigation bar:
     - 📊 **Dashboard** (`/`)
     - 💳 **Transaksi / Kasir** (`/transactions`)
     - 👥 **Operator** (`/operators` - role superadmin)
     - 🏢 **Backoffice** (`/backoffice` - role superadmin)
-- [ ] **Regression Testing & Update Otomasi E2E**:
+- [x] **Regression Testing & Update Otomasi E2E**:
   - Tambahkan unit test HTTP di `internal/httpserver/server_test.go` untuk route `GET /transactions`.
-  - Perbarui script tur Playwright (`record_product_tour.js` dan `record_ipad_intro.js`) agar menavigasi ke menu Transaksi terpisah saat mendemonstrasikan proses kasir.
+  - Perbarui script tur Playwright (`tests/e2e_backoffice.js`) agar menavigasi ke menu Transaksi terpisah saat mendemonstrasikan proses kasir.
 
 ---
 

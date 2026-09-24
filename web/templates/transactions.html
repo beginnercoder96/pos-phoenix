@@ -1,0 +1,389 @@
+{{define "transactions.html"}}<!doctype html>
+<html lang="{{.Language}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{label .Language "transactionsMenu"}} · POS Phoenix</title>
+  <link rel="stylesheet" href="/static/css/app.css?v=20260919-v5">
+  <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script id="catalog-data" type="application/json">{{.CatalogJSON}}</script>
+  <script id="active-discounts-data" type="application/json">{{.ActiveDiscountsJSON}}</script>
+  <script>
+    try {
+      var cDataEl = document.getElementById("catalog-data");
+      window.POS_CATALOG = cDataEl ? JSON.parse(cDataEl.textContent) : [];
+    } catch (e) {
+      window.POS_CATALOG = [];
+    }
+    try {
+      var dDataEl = document.getElementById("active-discounts-data");
+      window.POS_ACTIVE_DISCOUNTS = dDataEl ? JSON.parse(dDataEl.textContent) : [];
+    } catch (e) {
+      window.POS_ACTIVE_DISCOUNTS = [];
+    }
+  </script>
+  <script defer src="/static/js/app.js?v=20260919-v5"></script>
+</head>
+<body class="app-body">
+  <div class="min-h-screen lg:flex">
+    <aside class="pos-sidebar">
+      <div class="flex items-center gap-3">
+        <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-crisp border border-white/10">
+        <div>
+          <p class="font-black tracking-tight text-white">Pardis Barber Shop</p>
+          <p class="text-xs text-slate-300">{{.User.DisplayName}}</p>
+        </div>
+      </div>
+      <nav class="mt-10 space-y-1.5" aria-label="Primary">
+        <a class="pos-sidebar-link" href="/">🏠 <span class="ml-3">{{label .Language "dashboard"}}</span></a>
+        <a class="pos-sidebar-link active" href="/transactions">💳 <span class="ml-3">{{label .Language "transactionsMenu"}}</span></a>
+        {{if eq .User.Role "superadmin"}}
+        <a class="pos-sidebar-link" href="/operators">♙ <span class="ml-3">{{label .Language "operators"}}</span></a>
+        <a class="pos-sidebar-link" href="/backoffice/">⚙ <span class="ml-3">Backoffice</span></a>
+        {{end}}
+      </nav>
+      <div class="mt-auto border-t border-white/10 pt-4">
+        <p class="mb-3 text-xs text-slate-300 font-mono tabular-nums" data-live-clock>{{.CurrentDateTime}}</p>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button class="pos-sidebar-link w-full text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 cursor-pointer" type="submit">↪ <span class="ml-3">{{label .Language "signOut"}}</span></button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="min-w-0 flex-1">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+            <div class="min-w-0">
+              <p class="truncate text-lg font-black tracking-tight">Pardis Barber Shop</p>
+              <p class="muted truncate text-xs">{{.User.DisplayName}} · {{.User.Role}}</p>
+            </div>
+          </div>
+          <div class="hidden lg:block">
+            <p class="text-sm font-bold text-slate-300">{{label .Language "transactionsMenu"}} | {{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Email}}{{end}}</p>
+          </div>
+          <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <button type="button" id="btn-thermal-printer-settings" class="preference-select flex items-center gap-2 !min-h-11 !bg-white !text-slate-900 !border-slate-300 px-3 font-bold text-xs shadow-sm cursor-pointer active:scale-95" title="{{label .Language "thermalPrinter"}}">
+              <span class="relative flex h-2.5 w-2.5 shrink-0">
+                <span id="printer-status-ping" class="hidden animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span id="printer-status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-400"></span>
+              </span>
+              <svg class="w-4 h-4 text-slate-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              <span id="printer-btn-label" class="hidden sm:inline font-bold text-slate-900">{{label .Language "thermalPrinter"}}</span>
+            </button>
+            <form method="post" action="/preferences" class="flex items-center gap-2 text-xs" data-auto-submit>
+              <input type="hidden" name="csrf" value="{{.CSRF}}">
+              <input type="hidden" name="return_to" value="{{.CurrentURL}}">
+              <label class="sr-only" for="language">{{label .Language "language"}}</label>
+              <select id="language" name="language" class="preference-select" aria-label="{{label .Language "language"}}">
+                <option value="en" {{if eq .Language "en"}}selected{{end}}>EN</option>
+                <option value="id" {{if eq .Language "id"}}selected{{end}}>ID</option>
+              </select>
+              <label class="sr-only" for="theme">{{label .Language "theme"}}</label>
+              <select id="theme" name="theme" class="preference-select" aria-label="{{label .Language "theme"}}">
+                <option value="light" {{if eq .Theme "light"}}selected{{end}}>☀</option>
+                <option value="dark" {{if eq .Theme "dark"}}selected{{end}}>☾</option>
+              </select>
+              <noscript><button type="submit" class="btn-secondary">{{label .Language "save"}}</button></noscript>
+            </form>
+            <form method="post" action="/logout">
+              <input type="hidden" name="csrf" value="{{.CSRF}}">
+              <button class="btn-secondary" type="submit">{{label .Language "signOut"}}</button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <!-- Cashier Operational Banner -->
+        <section class="surface rounded-2xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="inline-flex h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
+              <h1 class="text-xl sm:text-2xl font-black tracking-tight">{{label .Language "transactionsMenu"}}</h1>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {{label .Language "activeCashier"}}: <strong class="text-slate-800 dark:text-slate-200">{{.User.DisplayName}}</strong> · <span class="font-mono tabular-nums" data-live-clock>{{.CurrentDateTime}}</span>
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a class="btn-secondary flex items-center gap-2 !min-h-11" href="/">
+              <span>🏠 {{label .Language "dashboard"}}</span>
+            </a>
+            {{if eq .User.Role "superadmin"}}
+            <a class="btn-secondary flex items-center gap-2 !min-h-11" href="{{.ExportURL}}">
+              <span>📊 {{label .Language "downloadExcel"}}</span>
+            </a>
+            {{end}}
+          </div>
+        </section>
+
+        <!-- New Transaction Entry Form -->
+        <section class="surface p-5 shadow-sm sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+          <div class="mb-4 flex min-h-11 w-full items-center justify-between text-left text-lg font-black tracking-tight border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">＋</span>
+              <span>{{label .Language "newTransaction"}}</span>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              {{.Today}}
+            </span>
+          </div>
+
+          <form id="transaction-form" method="post" action="/transactions" class="space-y-4">
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <input type="hidden" name="date" value="{{.Today}}">
+            <input type="hidden" name="return_to" value="/transactions">
+            
+            {{if or (eq .User.Role "superadmin") (eq .User.BranchID 0)}}
+            <div class="grid gap-3 sm:grid-cols-3">
+              <label>
+                <span class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{label .Language "activeBranch"}}</span>
+                <select id="admin-branch-select" class="field font-medium h-11 min-h-11" name="branch_id" required>
+                  {{range .Branches}}
+                  <option value="{{.ID}}">{{.Name}}</option>
+                  {{end}}
+                </select>
+              </label>
+              <label>
+                <span class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{label .Language "type"}}</span>
+                <select class="field h-11 min-h-11 font-medium" name="kind">
+                  <option value="income">{{label .Language "income"}}</option>
+                  <option value="expense">{{label .Language "expense"}}</option>
+                </select>
+              </label>
+              <label>
+                <span class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{label .Language "note"}}</span>
+                <input class="field h-11 min-h-11" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
+              </label>
+            </div>
+            {{else}}
+            <input type="hidden" name="branch_id" value="{{.User.BranchID}}">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label>
+                <span class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{label .Language "type"}}</span>
+                <select class="field h-11 min-h-11 font-medium" name="kind">
+                  <option value="income">{{label .Language "income"}}</option>
+                  <option value="expense">{{label .Language "expense"}}</option>
+                </select>
+              </label>
+              <label>
+                <span class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{label .Language "note"}}</span>
+                <input class="field h-11 min-h-11" name="note" placeholder="{{label .Language "notePlaceholder"}}" maxlength="250">
+              </label>
+            </div>
+            {{end}}
+
+            <div>
+              <div class="mb-2 flex items-center justify-between">
+                <span class="text-sm font-bold text-slate-700 dark:text-slate-200">{{label .Language "items"}} &amp; {{label .Language "category"}}</span>
+                <span class="muted text-xs">{{label .Language "pricelistTitle"}}</span>
+              </div>
+
+              <div id="category-rows-container" class="space-y-2.5">
+                <div class="category-row rounded-xl border border-slate-200 dark:border-slate-700 p-3 surface-soft space-y-2 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1fr_130px_auto] sm:gap-2 items-center">
+                  <div>
+                    <label class="sr-only">{{label .Language "category"}}</label>
+                    <select name="category[]" class="field h-11 min-h-11 category-select" required>
+                      <option value="">-- {{label .Language "selectCategory"}} --</option>
+                      {{range .Catalog}}
+                      <option value="{{.Name}}">{{.Name}}</option>
+                      {{end}}
+                      <option value="Other">{{label .Language "otherCustom"}}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="sr-only">{{label .Language "item"}}</label>
+                    <select name="item_name[]" class="field h-11 min-h-11 font-semibold text-xs sm:text-sm item-select">
+                      <option value="">-- {{label .Language "selectItem"}} --</option>
+                    </select>
+                    <input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">
+                  </div>
+                  <div>
+                    <label class="sr-only">{{label .Language "amount"}}</label>
+                    <input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input font-mono tabular-nums" placeholder="0" required inputmode="numeric">
+                  </div>
+                  <div class="flex justify-end sm:justify-center">
+                    <button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn cursor-pointer active:scale-95" title="{{label .Language "remove"}}" aria-label="{{label .Language "remove"}}">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <button type="button" id="add-category-btn" class="btn-secondary min-h-11 font-bold cursor-pointer active:scale-95">
+                  ＋ {{label .Language "addCategory"}}
+                </button>
+              </div>
+            </div>
+
+            <!-- Discount / Promo Section (Income Only) -->
+            <div id="transaction-discount-section" class="rounded-2xl p-4 surface-soft border border-slate-200/80 dark:border-slate-800 space-y-2.5 transition-all">
+              <div class="flex items-center justify-between">
+                <label for="transaction-discount-select" class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer">
+                  <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  <span>{{label .Language "boDiscounts"}}</span>
+                </label>
+                <span id="discount-applied-badge" class="hidden text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-mono tabular-nums">
+                  -Rp 0,00
+                </span>
+              </div>
+              <select id="transaction-discount-select" name="selected_discount_id" class="field h-11 min-h-11 font-semibold text-xs sm:text-sm">
+                <option value="">-- {{label .Language "noDiscount"}} --</option>
+                {{range .ActiveDiscounts}}
+                <option value="{{.ID}}" data-type="{{.Type}}" data-value="{{.Value}}" data-code="{{.Code}}" data-name="{{.Name}}">
+                  {{.Name}} {{if eq .Type "PERCENTAGE"}}(-{{.Value}}%){{else}}(-{{money .Value}}){{end}}
+                </option>
+                {{end}}
+              </select>
+              <input type="hidden" id="order-discount-amount-input" name="order_discount_amount" value="0">
+            </div>
+
+            <!-- Price Breakdown Summary -->
+            <div id="transaction-summary-card" class="rounded-2xl p-4 surface-soft border border-slate-200/80 dark:border-slate-800 space-y-2">
+              <div id="summary-subtotal-row" class="hidden flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{{label .Language "subtotal"}}:</span>
+                <span id="transaction-subtotal-display" class="font-semibold text-slate-700 dark:text-slate-300 font-mono tabular-nums">Rp 0,00</span>
+              </div>
+              <div id="summary-discount-row" class="hidden flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                <span id="summary-discount-label">{{label .Language "discount"}}:</span>
+                <span id="transaction-discount-display" class="font-bold font-mono tabular-nums">-Rp 0,00</span>
+              </div>
+              <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                <span class="text-sm font-bold text-slate-700 dark:text-slate-300">{{label .Language "total"}}:</span>
+                <span id="transaction-total-display" class="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">Rp 0,00</span>
+              </div>
+            </div>
+
+            <button class="btn-primary min-h-12 w-full font-bold text-base shadow-lg cursor-pointer active:scale-95" type="submit">{{label .Language "saveTransaction"}}</button>
+          </form>
+        </section>
+
+        <!-- Transaction Mutations & History Table -->
+        <section class="min-w-0">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-xl font-black tracking-tight">{{label .Language "transactions"}}</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">{{.Total}} {{label .Language "records"}} · {{label .Language "page"}} {{.Page}} {{label .Language "of"}} {{.Pages}}</p>
+            </div>
+            {{if eq .User.Role "superadmin"}}
+            <nav class="flex gap-2 text-sm">
+              <a class="btn-secondary !min-h-9 text-xs" href="/transactions">{{label .Language "today"}}</a>
+              <a class="btn-secondary !min-h-9 text-xs" href="/transactions?range=month">{{label .Language "thisMonth"}}</a>
+            </nav>
+            {{end}}
+          </div>
+
+          {{if eq .User.Role "superadmin"}}
+          <form method="get" action="/transactions" class="mb-4 grid gap-3 surface p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 sm:grid-cols-2">
+            <input type="hidden" name="range" value="custom">
+            <label class="min-w-0">
+              <span class="field-label">{{label .Language "from"}}</span>
+              <input class="field h-11 min-h-11 px-2" type="date" name="from" value="{{.From}}" max="{{.Today}}" onchange="this.form.submit()" required>
+            </label>
+            <label class="min-w-0">
+              <span class="field-label">{{label .Language "to"}}</span>
+              <input class="field h-11 min-h-11 px-2" type="date" name="to" value="{{.To}}" max="{{.Today}}" onchange="this.form.submit()" required>
+            </label>
+          </form>
+          {{end}}
+
+          <div class="space-y-2">
+            {{range .Entries}}
+            <article class="surface p-4 transition hover:-translate-y-0.5 hover:shadow-md rounded-2xl border border-slate-200/80 dark:border-slate-800">
+              <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-1.5 font-bold">
+                    {{if .Items}}
+                      {{range .Items}}
+                        <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                          {{.Category}}{{if .ItemName}}: {{.ItemName}}{{end}} (<span class="font-mono tabular-nums">{{money .AmountCents}}</span>)
+                        </span>
+                      {{end}}
+                    {{else}}
+                      <span class="truncate font-bold">{{.Category}}</span>
+                    {{end}}
+                    {{if gt .TotalDiscountCents 0}}
+                      <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                        <svg class="w-3 h-3 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                        <span>{{label $.Language "discount"}} <span class="font-mono tabular-nums">-{{money .TotalDiscountCents}}</span></span>
+                      </span>
+                    {{end}}
+                    {{if .ReversalOfID.Valid}}
+                      <span class="rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-400 font-mono tabular-nums">{{label $.Language "reversal"}} #{{.ReversalOfID.Int64}}</span>
+                    {{end}}
+                  </div>
+                  <p class="mt-1.5 break-words text-xs font-medium text-slate-600 dark:text-slate-400">
+                    {{.OperatorName}} · {{date .OccurredAt}}{{if .Note}} · {{.Note}}{{end}}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <p class="max-w-[42vw] break-words text-right font-black sm:max-w-none font-mono tabular-nums {{if eq .Kind "income"}}text-emerald-600 dark:text-emerald-400{{else}}text-rose-600 dark:text-rose-400{{end}}">
+                    {{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountCents}}
+                  </p>
+                  {{if not .ReversalOfID.Valid}}
+                    {{if not .ReversedByID.Valid}}
+                      <div class="mt-1.5 flex justify-end">
+                        <button type="button" class="btn-print-receipt btn-secondary !min-h-9 !px-3 !py-1 text-xs font-bold gap-1.5 shadow-sm transition active:scale-95 flex items-center cursor-pointer"
+                          data-tx-id="{{.ID}}"
+                          data-tx-kind="{{.Kind}}"
+                          data-tx-amount="{{money .AmountCents}}"
+                          data-tx-operator="{{.OperatorName}}"
+                          data-tx-date="{{date .OccurredAt}}"
+                          data-tx-note="{{.Note}}"
+                          {{if gt .TotalDiscountCents 0}}
+                          data-tx-subtotal="{{money .GrossSubtotalCents}}"
+                          data-tx-discount="{{money .TotalDiscountCents}}"
+                          {{end}}
+                          data-tx-items='{{if .Items}}[{{range $i, $it := .Items}}{{if $i}},{{end}}{"name":"{{if $it.ItemName}}{{$it.ItemName}}{{else}}{{$it.Category}}{{end}}","category":"{{$it.Category}}","amount":"{{money $it.AmountCents}}"}{{end}}]{{else}}[{"name":"{{.Category}}","category":"{{.Category}}","amount":"{{money .AmountCents}}" }]{{end}}'
+                          title="{{label $.Language "printReceipt"}}"
+                        >
+                          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                          <span>{{label $.Language "printReceipt"}}</span>
+                        </button>
+                      </div>
+                    {{end}}
+                  {{end}}
+                </div>
+              </div>
+              {{if not .ReversalOfID.Valid}}
+                {{if .ReversedByID.Valid}}
+                  <div class="mt-3 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                    <div class="inline-flex items-center gap-2 rounded-xl bg-rose-50/80 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 shadow-sm">
+                      <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                      <span>{{label $.Language "reversedBy"}} <strong class="font-mono tabular-nums">#{{.ReversedByID.Int64}}</strong></span>
+                    </div>
+                  </div>
+                {{else if eq $.User.Role "superadmin"}}
+                  <form class="transaction-reverse-form mt-3 grid gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 sm:grid-cols-[1fr_auto]" method="post" action="/transactions/{{.ID}}/reverse" data-tx-id="{{.ID}}">
+                    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                    <input type="hidden" name="return_to" value="{{$.CurrentURL}}">
+                    <label class="sr-only" for="reason-{{.ID}}">{{label $.Language "reverseReason"}}</label>
+                    <input id="reason-{{.ID}}" name="reason" required minlength="5" maxlength="250" class="field h-11 min-h-11 min-w-0" placeholder="{{label $.Language "reverseReason"}}">
+                    <button class="h-11 min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-700 shadow-sm shadow-rose-600/20 transition cursor-pointer active:scale-95" type="submit">{{label $.Language "reverse"}}</button>
+                  </form>
+                {{end}}
+              {{end}}
+            </article>
+            {{else}}
+            <div class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 p-8 text-center text-slate-500">{{label .Language "noTransactions"}}</div>
+            {{end}}
+          </div>
+          {{if or .PrevURL .NextURL}}
+          <nav aria-label="Transaction pages" class="mt-4 grid grid-cols-2 gap-2">
+            <div>{{if .PrevURL}}<a class="btn-secondary w-full !min-h-11 flex items-center justify-center font-bold" href="{{.PrevURL}}">← {{label .Language "previous"}}</a>{{end}}</div>
+            <div>{{if .NextURL}}<a class="btn-secondary w-full !min-h-11 flex items-center justify-center font-bold" href="{{.NextURL}}">{{label .Language "next"}} →</a>{{end}}</div>
+          </nav>
+          {{end}}
+        </section>
+      </main>
+    </div>
+  </div>
+  <!-- Hidden thermal receipt container for browser window.print() -->
+  <div id="thermal-print-container" aria-hidden="true" style="display:none;"></div>
+</body>
+</html>
+{{end}}
