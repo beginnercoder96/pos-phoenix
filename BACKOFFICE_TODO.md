@@ -211,15 +211,15 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 7: Verifikasi, Pengujian E2E & Dokumentasi
-- [ ] Unit Test Go:
+- [x] Unit Test Go:
   - Pengujian kalkulasi bagi hasil, sisa saldo, dan komisi produk
   - Pengujian validasi otorisasi eksklusif Ipang
   - Pengujian pembuatan file Excel laporan dan slip gaji
-- [ ] Automated E2E Test (Playwright):
+- [x] Automated E2E Test (Playwright):
   - Skenario login Owner -> masuk Backoffice -> ubah persentase bagi hasil Klaseman & Ledok
   - Skenario download laporan Excel 24 bulan
   - Skenario generate slip gaji karyawan
-- [ ] Pembaruan panduan deployment dan dokumentasi API Backoffice
+- [x] Pembaruan panduan deployment dan dokumentasi API Backoffice
 
 ---
 

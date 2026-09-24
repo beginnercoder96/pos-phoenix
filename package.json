@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "css:build": "tailwindcss -i ./web/static/css/input.css -o ./web/static/css/app.css --minify",
-    "css:watch": "tailwindcss -i ./web/static/css/input.css -o ./web/static/css/app.css --watch"
+    "css:watch": "tailwindcss -i ./web/static/css/input.css -o ./web/static/css/app.css --watch",
+    "test:e2e": "node tests/e2e_backoffice.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

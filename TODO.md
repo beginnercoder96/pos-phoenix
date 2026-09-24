@@ -88,8 +88,8 @@ Lihat spesifikasi lengkap, formula matematis, dan simulasi riil di file [BACKOFF
 - [x] Halaman UI `/backoffice/payroll` & download single/bulk ZIP
 
 ### Milestone 7: Verifikasi & Testing
-- [ ] Unit Test Go & E2E Playwright test
-- [ ] Dokumentasi panduan operasional
+- [x] Unit Test Go & E2E Playwright test
+- [x] Dokumentasi panduan operasional
 
 ### Milestone 8: UI Revamp Menggunakan Taste-Skill & Anti-Slop (Adopsi dari `posv2`)
 - [ ] Audit & sinkronisasi pedoman `taste-skill` dan `antislop` dari `posv2` (`.agents/skills/taste-skill`, `.agents/rules/antislop.md`)
