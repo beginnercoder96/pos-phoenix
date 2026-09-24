@@ -84,8 +84,8 @@ Lihat spesifikasi lengkap, formula matematis, dan simulasi riil di file [BACKOFF
 - [x] Tombol download & filter periode di UI
 
 ### Milestone 6: Generator Slip Gaji Karyawan (Excel Payroll Slip)
-- [ ] Service template resmi Slip Gaji Excel per-karyawan
-- [ ] Halaman UI `/backoffice/payroll` & download single/bulk ZIP
+- [x] Service template resmi Slip Gaji Excel per-karyawan
+- [x] Halaman UI `/backoffice/payroll` & download single/bulk ZIP
 
 ### Milestone 7: Verifikasi & Testing
 - [ ] Unit Test Go & E2E Playwright test

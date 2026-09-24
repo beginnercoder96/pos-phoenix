@@ -820,18 +820,31 @@ func (s *Server) backofficePayrollSlipAll(w http.ResponseWriter, r *http.Request
 		})
 	}
 
-	if r.URL.Query().Get("format") == "excel" {
-		excelBytes, err := generatePayrollSlipAllExcel(slips)
+	if r.URL.Query().Get("format") == "zip" {
+		zipBytes, err := generatePayrollSlipsZip(slips)
 		if err != nil {
-			http.Error(w, "unable to generate payroll slips", http.StatusInternalServerError)
+			http.Error(w, "unable to generate payroll slips zip", http.StatusInternalServerError)
 			return
 		}
 
-		filename := fmt.Sprintf("slip-gaji-semua-%s-%s.xlsx", branchCode, periodMonth)
-		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		safeBranch := strings.Map(func(r rune) rune {
+			if r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' || r == ' ' {
+				return '_'
+			}
+			return r
+		}, branchCode)
+		safePeriod := strings.Map(func(r rune) rune {
+			if r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' || r == ' ' {
+				return '_'
+			}
+			return r
+		}, periodMonth)
+
+		filename := fmt.Sprintf("Slip_Gaji_Semua_%s_%s.zip", safeBranch, safePeriod)
+		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(excelBytes)))
-		w.Write(excelBytes)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipBytes)))
+		w.Write(zipBytes)
 		return
 	}
 
@@ -840,7 +853,7 @@ func (s *Server) backofficePayrollSlipAll(w http.ResponseWriter, r *http.Request
 		IsBulk:         true,
 		SelectedBranch: branchCode,
 		SelectedPeriod: periodMonth,
-		ExcelURL:       fmt.Sprintf("/backoffice/payroll/slip-all?branch=%s&period=%s&format=excel", branchCode, periodMonth),
+		ZipURL:         fmt.Sprintf("/backoffice/payroll/slip-all?branch=%s&period=%s&format=zip", branchCode, periodMonth),
 	}
 	s.renderTemplate(w, "payroll_slip.html", viewData)
 }
@@ -902,6 +915,7 @@ type payrollSlipViewData struct {
 	SelectedBranch string
 	SelectedPeriod string
 	ExcelURL       string
+	ZipURL         string
 }
 
 func formatPeriodIndo(p string) string {

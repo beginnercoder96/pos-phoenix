@@ -52,6 +52,21 @@ func formatRupiahExcel(cents int64) string {
 	return result
 }
 
+func formatBankInfo(bankName, bankAccountNumber string) string {
+	bankName = strings.TrimSpace(bankName)
+	bankAccountNumber = strings.TrimSpace(bankAccountNumber)
+	if bankName != "" && bankAccountNumber != "" {
+		return fmt.Sprintf("%s - %s", bankName, bankAccountNumber)
+	}
+	if bankAccountNumber != "" {
+		return bankAccountNumber
+	}
+	if bankName != "" {
+		return bankName
+	}
+	return "-"
+}
+
 // generatePayrollSlipExcel creates a single-sheet payroll slip Excel file.
 func generatePayrollSlipExcel(data payrollSlipData) ([]byte, error) {
 	buf := new(bytes.Buffer)
@@ -72,31 +87,34 @@ func generatePayrollSlipExcel(data payrollSlipData) ([]byte, error) {
 	sb.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <cols>
-    <col min="1" max="1" width="32" customWidth="1"/>
-    <col min="2" max="2" width="25" customWidth="1"/>
+    <col min="1" max="1" width="34" customWidth="1"/>
+    <col min="2" max="2" width="28" customWidth="1"/>
     <col min="3" max="3" width="22" customWidth="1"/>
-    <col min="4" max="4" width="22" customWidth="1"/>
+    <col min="4" max="4" width="24" customWidth="1"/>
   </cols>
   <sheetData>`)
 
 	// Header
 	sb.WriteString(fmt.Sprintf(`
-    <row r="1"><c r="A1" s="1" t="inlineStr"><is><t>SLIP GAJI KARYAWAN</t></is></c></row>
-    <row r="2"><c r="A2" s="1" t="inlineStr"><is><t>PARDIS BARBERSHOP</t></is></c></row>
-    <row r="3"><c r="A3" t="inlineStr"><is><t>Cabang</t></is></c><c r="B3" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="4"><c r="A4" t="inlineStr"><is><t>Nama Karyawan</t></is></c><c r="B4" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="5"><c r="A5" t="inlineStr"><is><t>Periode</t></is></c><c r="B5" t="inlineStr"><is><t>%s</t></is></c></row>
+    <row r="1"><c r="A1" s="1" t="inlineStr"><is><t>SLIP GAJI KARYAWAN</t></is></c><c r="B1" s="1" t="inlineStr"><is><t></t></is></c><c r="C1" s="1" t="inlineStr"><is><t></t></is></c><c r="D1" s="1" t="inlineStr"><is><t></t></is></c></row>
+    <row r="2"><c r="A2" s="1" t="inlineStr"><is><t>PARDIS BARBERSHOP</t></is></c><c r="B2" s="1" t="inlineStr"><is><t></t></is></c><c r="C2" s="1" t="inlineStr"><is><t></t></is></c><c r="D2" s="1" t="inlineStr"><is><t></t></is></c></row>
+    <row r="3"><c r="A3" s="6" t="inlineStr"><is><t>Cabang</t></is></c><c r="B3" s="5" t="inlineStr"><is><t>%s</t></is></c><c r="C3" s="6" t="inlineStr"><is><t>Tanggal Cetak</t></is></c><c r="D3" s="5" t="inlineStr"><is><t>%s</t></is></c></row>
+    <row r="4"><c r="A4" s="6" t="inlineStr"><is><t>Nama Karyawan</t></is></c><c r="B4" s="5" t="inlineStr"><is><t>%s</t></is></c><c r="C4" s="6" t="inlineStr"><is><t>Jabatan / Peran</t></is></c><c r="D4" s="5" t="inlineStr"><is><t>%s</t></is></c></row>
+    <row r="5"><c r="A5" s="6" t="inlineStr"><is><t>Periode Gaji</t></is></c><c r="B5" s="5" t="inlineStr"><is><t>%s</t></is></c><c r="C5" s="6" t="inlineStr"><is><t>Rekening Pembayaran</t></is></c><c r="D5" s="5" t="inlineStr"><is><t>%s</t></is></c></row>
     <row r="6"></row>`,
 		xmlEscape(data.BranchName),
+		xmlEscape(data.PrintDate),
 		xmlEscape(data.EmployeeName),
-		xmlEscape(data.Period)))
+		xmlEscape(strings.ToUpper(data.StaffType)),
+		xmlEscape(data.Period),
+		xmlEscape(formatBankInfo(data.BankName, data.BankAccountNumber))))
 
 	// Profit Sharing Section
 	sb.WriteString(fmt.Sprintf(`
-    <row r="7"><c r="A7" s="1" t="inlineStr"><is><t>RINCIAN BAGI HASIL JASA</t></is></c></row>
-    <row r="8"><c r="A8" t="inlineStr"><is><t>Omzet Jasa Cabang</t></is></c><c r="B8" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="9"><c r="A9" t="inlineStr"><is><t>Persentase Bagi Hasil</t></is></c><c r="B9" t="inlineStr"><is><t>%.1f%%</t></is></c></row>
-    <row r="10"><c r="A10" s="3" t="inlineStr"><is><t>Nominal Bagi Hasil</t></is></c><c r="B10" s="3" t="inlineStr"><is><t>%s</t></is></c></row>
+    <row r="7"><c r="A7" s="2" t="inlineStr"><is><t>RINCIAN BAGI HASIL JASA</t></is></c><c r="B7" s="2" t="inlineStr"><is><t></t></is></c><c r="C7" s="2" t="inlineStr"><is><t></t></is></c><c r="D7" s="2" t="inlineStr"><is><t></t></is></c></row>
+    <row r="8"><c r="A8" s="5" t="inlineStr"><is><t>Omzet Jasa Cabang</t></is></c><c r="B8" s="7" t="inlineStr"><is><t>%s</t></is></c><c r="C8" s="5" t="inlineStr"><is><t></t></is></c><c r="D8" s="5" t="inlineStr"><is><t></t></is></c></row>
+    <row r="9"><c r="A9" s="5" t="inlineStr"><is><t>Persentase Bagi Hasil</t></is></c><c r="B9" s="7" t="inlineStr"><is><t>%.1f%%</t></is></c><c r="C9" s="5" t="inlineStr"><is><t></t></is></c><c r="D9" s="5" t="inlineStr"><is><t></t></is></c></row>
+    <row r="10"><c r="A10" s="6" t="inlineStr"><is><t>Nominal Bagi Hasil Jasa</t></is></c><c r="B10" s="8" t="inlineStr"><is><t>%s</t></is></c><c r="C10" s="5" t="inlineStr"><is><t></t></is></c><c r="D10" s="5" t="inlineStr"><is><t></t></is></c></row>
     <row r="11"></row>`,
 		formatRupiahExcel(data.NetServiceRev),
 		data.SharePercentage,
@@ -105,61 +123,61 @@ func generatePayrollSlipExcel(data payrollSlipData) ([]byte, error) {
 	// Product Commission Section with Itemized details
 	row := 12
 	sb.WriteString(fmt.Sprintf(`
-    <row r="%d"><c r="A%d" s="1" t="inlineStr"><is><t>RINCIAN KOMISI PENJUALAN PRODUK</t></is></c></row>`, row, row))
+    <row r="%d"><c r="A%d" s="2" t="inlineStr"><is><t>RINCIAN KOMISI PENJUALAN PRODUK</t></is></c><c r="B%d" s="2" t="inlineStr"><is><t></t></is></c><c r="C%d" s="2" t="inlineStr"><is><t></t></is></c><c r="D%d" s="2" t="inlineStr"><is><t></t></is></c></row>`, row, row, row, row, row))
 	row++
 
 	if len(data.ProductSales) > 0 {
 		sb.WriteString(fmt.Sprintf(`
     <row r="%d">
-      <c r="A%d" s="1" t="inlineStr"><is><t>Nama Produk</t></is></c>
-      <c r="B%d" s="1" t="inlineStr"><is><t>Qty Terjual</t></is></c>
-      <c r="C%d" s="1" t="inlineStr"><is><t>Komisi / Pcs</t></is></c>
-      <c r="D%d" s="1" t="inlineStr"><is><t>Subtotal Komisi</t></is></c>
+      <c r="A%d" s="3" t="inlineStr"><is><t>Nama Produk</t></is></c>
+      <c r="B%d" s="3" t="inlineStr"><is><t>Qty Terjual</t></is></c>
+      <c r="C%d" s="3" t="inlineStr"><is><t>Komisi / Pcs</t></is></c>
+      <c r="D%d" s="3" t="inlineStr"><is><t>Subtotal Komisi</t></is></c>
     </row>`, row, row, row, row, row))
 		row++
 		for _, ps := range data.ProductSales {
 			sb.WriteString(fmt.Sprintf(`
     <row r="%d">
-      <c r="A%d" t="inlineStr"><is><t>%s</t></is></c>
-      <c r="B%d" s="2"><v>%d</v></c>
-      <c r="C%d" t="inlineStr"><is><t>%s</t></is></c>
-      <c r="D%d" s="2"><v>%.2f</v></c>
-    </row>`, row, row, xmlEscape(ps.ProductName), row, ps.Quantity, row, formatRupiahExcel(ps.CommissionRate), row, float64(ps.TotalCommission)/100.0))
+      <c r="A%d" s="5" t="inlineStr"><is><t>%s</t></is></c>
+      <c r="B%d" s="7" t="inlineStr"><is><t>%d pcs</t></is></c>
+      <c r="C%d" s="7" t="inlineStr"><is><t>%s</t></is></c>
+      <c r="D%d" s="7" t="inlineStr"><is><t>%s</t></is></c>
+    </row>`, row, row, xmlEscape(ps.ProductName), row, ps.Quantity, row, formatRupiahExcel(ps.CommissionRate), row, formatRupiahExcel(ps.TotalCommission)))
 			row++
 		}
 	} else {
 		sb.WriteString(fmt.Sprintf(`
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>(Tidak ada penjualan produk pada periode ini)</t></is></c></row>`, row, row))
+    <row r="%d"><c r="A%d" s="5" t="inlineStr"><is><t>(Tidak ada penjualan produk pada periode ini)</t></is></c><c r="B%d" s="5" t="inlineStr"><is><t>-</t></is></c><c r="C%d" s="5" t="inlineStr"><is><t>-</t></is></c><c r="D%d" s="5" t="inlineStr"><is><t>-</t></is></c></row>`, row, row, row, row, row))
 		row++
 	}
 
 	sb.WriteString(fmt.Sprintf(`
-    <row r="%d"><c r="A%d" s="3" t="inlineStr"><is><t>Total Komisi Produk</t></is></c><c r="B%d" s="3" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="%d"></row>`, row, row, row, formatRupiahExcel(data.ProductComm), row+1))
+    <row r="%d"><c r="A%d" s="6" t="inlineStr"><is><t>Total Komisi Produk</t></is></c><c r="B%d" s="8" t="inlineStr"><is><t>%s</t></is></c><c r="C%d" s="5" t="inlineStr"><is><t></t></is></c><c r="D%d" s="5" t="inlineStr"><is><t></t></is></c></row>
+    <row r="%d"></row>`, row, row, row, formatRupiahExcel(data.ProductComm), row, row, row+1))
 	row += 2
 
 	// Take Home Pay Summary & Signature Block
 	sb.WriteString(fmt.Sprintf(`
-    <row r="%d"><c r="A%d" s="1" t="inlineStr"><is><t>RINGKASAN GAJI BERSIH (TAKE HOME PAY)</t></is></c></row>
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>Bagi Hasil Jasa</t></is></c><c r="B%d" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>Komisi Penjualan Produk</t></is></c><c r="B%d" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="%d"><c r="A%d" s="3" t="inlineStr"><is><t>TOTAL GAJI BERSIH</t></is></c><c r="B%d" s="3" t="inlineStr"><is><t>%s</t></is></c></row>
+    <row r="%d"><c r="A%d" s="2" t="inlineStr"><is><t>RINGKASAN GAJI BERSIH (TAKE HOME PAY)</t></is></c><c r="B%d" s="2" t="inlineStr"><is><t></t></is></c><c r="C%d" s="2" t="inlineStr"><is><t></t></is></c><c r="D%d" s="2" t="inlineStr"><is><t></t></is></c></row>
+    <row r="%d"><c r="A%d" s="5" t="inlineStr"><is><t>Bagi Hasil Jasa</t></is></c><c r="B%d" s="7" t="inlineStr"><is><t>%s</t></is></c><c r="C%d" s="5" t="inlineStr"><is><t></t></is></c><c r="D%d" s="5" t="inlineStr"><is><t></t></is></c></row>
+    <row r="%d"><c r="A%d" s="5" t="inlineStr"><is><t>Komisi Penjualan Produk</t></is></c><c r="B%d" s="7" t="inlineStr"><is><t>%s</t></is></c><c r="C%d" s="5" t="inlineStr"><is><t></t></is></c><c r="D%d" s="5" t="inlineStr"><is><t></t></is></c></row>
+    <row r="%d"><c r="A%d" s="4" t="inlineStr"><is><t>TOTAL GAJI BERSIH</t></is></c><c r="B%d" s="4" t="inlineStr"><is><t>%s</t></is></c><c r="C%d" s="4" t="inlineStr"><is><t></t></is></c><c r="D%d" s="4" t="inlineStr"><is><t></t></is></c></row>
     <row r="%d"></row>
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>Tanda Tangan:</t></is></c></row>
+    <row r="%d"><c r="A%d" s="0" t="inlineStr"><is><t>Tanda Tangan Penerima:</t></is></c><c r="C%d" s="0" t="inlineStr"><is><t>Tanda Tangan Pengelola:</t></is></c></row>
     <row r="%d"></row>
     <row r="%d"></row>
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>_________________</t></is></c><c r="B%d" t="inlineStr"><is><t>_________________</t></is></c></row>
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>Karyawan</t></is></c><c r="B%d" t="inlineStr"><is><t>Owner (Ipang)</t></is></c></row>`,
-		row, row,
-		row+1, row+1, row+1, formatRupiahExcel(data.ServiceShare),
-		row+2, row+2, row+2, formatRupiahExcel(data.ProductComm),
-		row+3, row+3, row+3, formatRupiahExcel(data.TakeHomePay),
+    <row r="%d"><c r="A%d" s="0" t="inlineStr"><is><t>________________________</t></is></c><c r="C%d" s="0" t="inlineStr"><is><t>________________________</t></is></c></row>
+    <row r="%d"><c r="A%d" s="6" t="inlineStr"><is><t>%s</t></is></c><c r="C%d" s="6" t="inlineStr"><is><t>Ipang (Owner)</t></is></c></row>`,
+		row, row, row, row, row,
+		row+1, row+1, row+1, formatRupiahExcel(data.ServiceShare), row+1, row+1,
+		row+2, row+2, row+2, formatRupiahExcel(data.ProductComm), row+2, row+2,
+		row+3, row+3, row+3, formatRupiahExcel(data.TakeHomePay), row+3, row+3,
 		row+4,
-		row+5, row+5,
+		row+5, row+5, row+5,
 		row+6,
 		row+7,
 		row+8, row+8, row+8,
-		row+9, row+9, row+9))
+		row+9, row+9, xmlEscape(data.EmployeeName), row+9))
 
 	sb.WriteString(`
   </sheetData>
@@ -173,89 +191,39 @@ func generatePayrollSlipExcel(data payrollSlipData) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// generatePayrollSlipAllExcel creates a multi-sheet Excel with one sheet per employee.
+// generatePayrollSlipAllExcel deprecated, use generatePayrollSlipsZip instead.
 func generatePayrollSlipAllExcel(slips []payrollSlipData) ([]byte, error) {
+	return generatePayrollSlipsZip(slips)
+}
+
+// generatePayrollSlipsZip packages individual Excel files for each employee into a single ZIP archive.
+func generatePayrollSlipsZip(slips []payrollSlipData) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	zw := zip.NewWriter(buf)
 
-	seenNames := make(map[string]int)
-	sheetNames := make([]string, len(slips))
-	for i, s := range slips {
-		name := strings.TrimSpace(s.EmployeeName)
-		if name == "" {
-			name = fmt.Sprintf("Karyawan %d", i+1)
-		}
-		for _, ch := range []string{"\\", "/", "?", "*", ":", "[", "]"} {
-			name = strings.ReplaceAll(name, ch, "_")
-		}
-		if len(name) > 25 {
-			name = name[:25]
-		}
-		seenNames[name]++
-		if seenNames[name] > 1 {
-			name = fmt.Sprintf("%s (%d)", name, seenNames[name])
-		}
-		sheetNames[i] = name
-	}
-
-	writeContentTypes(zw, len(slips))
-	writeRels(zw)
-	writeWorkbookRels(zw, len(slips))
-	writeWorkbook(zw, sheetNames)
-	writePayrollStyles(zw)
-
-	for i, data := range slips {
-		w, err := zw.Create(fmt.Sprintf("xl/worksheets/sheet%d.xml", i+1))
+	for _, slip := range slips {
+		excelBytes, err := generatePayrollSlipExcel(slip)
 		if err != nil {
 			return nil, err
 		}
 
-		var sb strings.Builder
-		sb.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <cols>
-    <col min="1" max="1" width="32" customWidth="1"/>
-    <col min="2" max="2" width="25" customWidth="1"/>
-    <col min="3" max="3" width="22" customWidth="1"/>
-    <col min="4" max="4" width="22" customWidth="1"/>
-  </cols>
-  <sheetData>`)
-
-		sb.WriteString(fmt.Sprintf(`
-    <row r="1"><c r="A1" s="1" t="inlineStr"><is><t>SLIP GAJI - %s</t></is></c></row>
-    <row r="2"><c r="A2" t="inlineStr"><is><t>Cabang: %s</t></is></c></row>
-    <row r="3"><c r="A3" t="inlineStr"><is><t>Periode: %s</t></is></c></row>
-    <row r="4"></row>
-    <row r="5"><c r="A5" t="inlineStr"><is><t>Bagi Hasil Jasa (%.1f%%)</t></is></c><c r="B5" t="inlineStr"><is><t>%s</t></is></c></row>`,
-			xmlEscape(data.EmployeeName),
-			xmlEscape(data.BranchName),
-			xmlEscape(data.Period),
-			data.SharePercentage,
-			formatRupiahExcel(data.ServiceShare)))
-
-		row := 6
-		if len(data.ProductSales) > 0 {
-			sb.WriteString(fmt.Sprintf(`
-    <row r="%d"><c r="A%d" s="1" t="inlineStr"><is><t>Rincian Penjualan Produk</t></is></c></row>`, row, row))
-			row++
-			for _, ps := range data.ProductSales {
-				sb.WriteString(fmt.Sprintf(`
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>%s (x%d)</t></is></c><c r="B%d" t="inlineStr"><is><t>%s</t></is></c></row>`,
-					row, row, xmlEscape(ps.ProductName), ps.Quantity, row, formatRupiahExcel(ps.TotalCommission)))
-				row++
+		empName := strings.ReplaceAll(slip.EmployeeName, " ", "_")
+		branchName := strings.ReplaceAll(slip.BranchName, " ", "_")
+		filename := fmt.Sprintf("Slip_Gaji_%s_%s_%s.xlsx", branchName, empName, slip.Period)
+		filename = strings.Map(func(r rune) rune {
+			if r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' {
+				return '_'
 			}
+			return r
+		}, filename)
+
+		w, err := zw.Create(filename)
+		if err != nil {
+			return nil, err
 		}
-
-		sb.WriteString(fmt.Sprintf(`
-    <row r="%d"><c r="A%d" t="inlineStr"><is><t>Total Komisi Produk</t></is></c><c r="B%d" t="inlineStr"><is><t>%s</t></is></c></row>
-    <row r="%d"><c r="A%d" s="3" t="inlineStr"><is><t>TOTAL GAJI BERSIH</t></is></c><c r="B%d" s="3" t="inlineStr"><is><t>%s</t></is></c></row>`,
-			row, row, row, formatRupiahExcel(data.ProductComm),
-			row+1, row+1, row+1, formatRupiahExcel(data.TakeHomePay)))
-
-		sb.WriteString(`
-  </sheetData>
-</worksheet>`)
-		io.WriteString(w, sb.String())
+		if _, err := w.Write(excelBytes); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := zw.Close(); err != nil {
@@ -520,27 +488,71 @@ func writePayrollStyles(zw *zip.Writer) {
 	w, _ := zw.Create("xl/styles.xml")
 	io.WriteString(w, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="3">
+  <fonts count="7">
+    <!-- 0: Regular 11 -->
     <font><name val="Calibri"/><sz val="11"/></font>
+    <!-- 1: Bold White 12 (Main Title) -->
+    <font><b/><color rgb="FFFFFFFF"/><name val="Calibri"/><sz val="12"/></font>
+    <!-- 2: Bold White 11 (Section Header) -->
     <font><b/><color rgb="FFFFFFFF"/><name val="Calibri"/><sz val="11"/></font>
+    <!-- 3: Bold Dark Slate 10 (Table Column Header) -->
+    <font><b/><color rgb="FF0F172A"/><name val="Calibri"/><sz val="10"/></font>
+    <!-- 4: Bold Dark Green 12 (Take Home Pay) -->
+    <font><b/><color rgb="FF064E3B"/><name val="Calibri"/><sz val="12"/></font>
+    <!-- 5: Bold Regular 11 -->
     <font><b/><name val="Calibri"/><sz val="11"/></font>
+    <!-- 6: Muted Gray 10 -->
+    <font><color rgb="FF64748B"/><name val="Calibri"/><sz val="10"/></font>
   </fonts>
-  <fills count="3">
+  <fills count="7">
+    <!-- 0: none -->
     <fill><patternFill patternType="none"/></fill>
+    <!-- 1: gray125 -->
     <fill><patternFill patternType="gray125"/></fill>
-    <fill><patternFill patternType="solid"><fgColor rgb="FF172033"/></patternFill></fill>
+    <!-- 2: Pardis Brand Red (FFDC2626) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFDC2626"/></patternFill></fill>
+    <!-- 3: Dark Slate (FF1E293B) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1E293B"/></patternFill></fill>
+    <!-- 4: Table Header Soft Gray (FFF1F5F9) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF1F5F9"/></patternFill></fill>
+    <!-- 5: Pastel Green Highlight (FF86EFAC) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FF86EFAC"/></patternFill></fill>
+    <!-- 6: Soft Ice Blue/Gray (FFF8FAFC) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/></patternFill></fill>
   </fills>
-  <borders count="1">
+  <borders count="2">
+    <!-- 0: None -->
     <border><left/><right/><top/><bottom/></border>
+    <!-- 1: Light Gray Thin Border -->
+    <border>
+      <left style="thin"><color rgb="FFE2E8F0"/></left>
+      <right style="thin"><color rgb="FFE2E8F0"/></right>
+      <top style="thin"><color rgb="FFE2E8F0"/></top>
+      <bottom style="thin"><color rgb="FFE2E8F0"/></bottom>
+    </border>
   </borders>
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="4">
+  <cellXfs count="9">
+    <!-- 0: Default Normal (no border) -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-    <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
-    <xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
-    <xf numFmtId="3" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+    <!-- 1: Brand Title Header (Red, Bold White 12, thin border) -->
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <!-- 2: Section Header (Dark Slate, Bold White 11, thin border) -->
+    <xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <!-- 3: Table Column Header (Soft Gray, Bold Dark 10, thin border) -->
+    <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <!-- 4: Take Home Pay Highlight (Pastel Green, Dark Green Bold 12, thin border) -->
+    <xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <!-- 5: Regular Cell with Thin Border -->
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
+    <!-- 6: Bold Cell with Thin Border -->
+    <xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>
+    <!-- 7: Number/Currency Cell with Thin Border (Right Aligned) -->
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="right"/></xf>
+    <!-- 8: Bold Currency Cell with Thin Border (Right Aligned) -->
+    <xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="right"/></xf>
   </cellXfs>
 </styleSheet>`)
 }

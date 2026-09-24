@@ -1037,17 +1037,21 @@ func TestPayrollSlipViewAndDownload(t *testing.T) {
 		t.Errorf("expected slip-all HTML to contain 'SLIP GAJI'")
 	}
 
-	// 4. Bulk Slip-All Excel Download
-	reqAllExcel := httptest.NewRequest("GET", "/backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-01&format=excel", nil)
-	reqAllExcel.AddCookie(cookie)
-	recAllExcel := httptest.NewRecorder()
-	handler.ServeHTTP(recAllExcel, reqAllExcel)
 
-	if recAllExcel.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for slip-all excel, got %d", recAllExcel.Code)
+	// 4. Bulk Slip-All ZIP Download (contains individual .xlsx for each employee)
+	reqAllZip := httptest.NewRequest("GET", "/backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-01&format=zip", nil)
+	reqAllZip.AddCookie(cookie)
+	recAllZip := httptest.NewRecorder()
+	handler.ServeHTTP(recAllZip, reqAllZip)
+
+	if recAllZip.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for slip-all zip, got %d", recAllZip.Code)
 	}
-	if !strings.Contains(recAllExcel.Header().Get("Content-Type"), "spreadsheetml") {
-		t.Errorf("expected spreadsheetml content type, got %s", recAllExcel.Header().Get("Content-Type"))
+	if !strings.Contains(recAllZip.Header().Get("Content-Type"), "zip") {
+		t.Errorf("expected zip content type, got %s", recAllZip.Header().Get("Content-Type"))
+	}
+	if recAllZip.Body.Len() == 0 {
+		t.Errorf("expected non-empty zip body")
 	}
 }
 

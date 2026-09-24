@@ -197,12 +197,12 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 6: Generator Slip Gaji Karyawan (Excel Payroll Slip)
-- [ ] Service generator Slip Gaji individual format Excel (`.xlsx`):
+- [x] Service generator Slip Gaji individual format Excel (`.xlsx`):
   - Template resmi Pardis Barbershop (Logo, Nama Cabang, Nama Karyawan, Periode)
   - Bagian Rincian Bagi Hasil Jasa (Omzet Cabang, Persentase, Nominal)
   - Bagian Rincian Komisi Produk (Daftar produk terjual, Qty, Rate komisi, Subtotal)
   - Bagian Ringkasan Gaji Bersih (Take Home Pay) & Tanda Tangan
-- [ ] Halaman UI Slip Gaji (`/backoffice/payroll`):
+- [x] Halaman UI Slip Gaji (`/backoffice/payroll`):
   - Filter Cabang & Bulan
   - Tabel rekap karyawan beserta nominal gaji bersih
   - Tombol **"Download Slip Gaji Excel"** per-karyawan
