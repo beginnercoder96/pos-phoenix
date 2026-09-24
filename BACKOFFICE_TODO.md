@@ -224,16 +224,16 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 8: UI Revamp Menggunakan Taste-Skill & Anti-Slop (Adopsi dari `posv2`)
-- [ ] **Audit & Sinkronisasi Pedoman dari `posv2`**:
+- [x] **Audit & Sinkronisasi Pedoman dari `posv2`**:
   - Salin/integrasikan rules dan skills dari `/Users/mekari/Documents/newlearn/posv2/.agents` (`antislop.md`, `taste-skill`, `antislop-ui`, `antislop-layoutmobile`, `antislop-human`, `antislop-copywriting`, `antislop-code`).
   - Tambahkan panduan anti-slop ke project instructions / `AGENTS.md`.
-- [ ] **Modernisasi Desain & Token Tailwind**:
+- [x] **Modernisasi Desain & Token Tailwind**:
   - Sinkronkan `tailwind.config.js` dan `web/static/css/input.css` dengan token desain dari `posv2` (palet warna tajam, shadow tipis, border crisp `border-white/10`, aksen emerald).
   - Terapkan `font-mono` / `tabular-nums` untuk seluruh tampilan nilai uang (Rupiah), nomor invoice, dan persentase.
-- [ ] **Penyempurnaan Komponen UI & Layout**:
+- [x] **Penyempurnaan Komponen UI & Layout**:
   - Terapkan layout sidebar desktop `pos-sidebar` (lebar 288px / `lg:w-72`), badge status kontras tinggi, card surfaces dengan elevasi halus, dan hover states yang responsif.
   - Perbaiki responsivitas tablet/iPad Pro (1920x1080 & 1024x768) serta target sentuh mobile (minimal 44x44px untuk Android Chrome).
-- [ ] **Audit Aksesibilitas & Anti-Slop (Quality Gate)**:
+- [x] **Audit Aksesibilitas & Anti-Slop (Quality Gate)**:
   - Jalankan pengecekan rasio kontras warna (WCAG compliance) pada teks dan tombol di mode terang & gelap.
   - Pastikan tidak ada copy boilerplate atau elemen dekoratif berlebih yang tidak fungsional.
 

@@ -92,11 +92,11 @@ Lihat spesifikasi lengkap, formula matematis, dan simulasi riil di file [BACKOFF
 - [x] Dokumentasi panduan operasional
 
 ### Milestone 8: UI Revamp Menggunakan Taste-Skill & Anti-Slop (Adopsi dari `posv2`)
-- [ ] Audit & sinkronisasi pedoman `taste-skill` dan `antislop` dari `posv2` (`.agents/skills/taste-skill`, `.agents/rules/antislop.md`)
-- [ ] Sinkronisasi styling `tailwind.config.js` dan `web/static/css/input.css` dengan token desain `posv2`
-- [ ] Perbarui sidebar desktop `pos-sidebar`, header, card surfaces, dan badge status
-- [ ] Optimasi responsivitas iPad Pro dan touch target mobile (min 44x44px)
-- [ ] Audit aksesibilitas rasio kontras warna (WCAG compliance)
+- [x] Audit & sinkronisasi pedoman `taste-skill` dan `antislop` dari `posv2` (`.agents/skills/taste-skill`, `.agents/rules/antislop.md`)
+- [x] Sinkronisasi styling `tailwind.config.js` dan `web/static/css/input.css` dengan token desain `posv2`
+- [x] Perbarui sidebar desktop `pos-sidebar`, header, card surfaces, dan badge status
+- [x] Optimasi responsivitas iPad Pro dan touch target mobile (min 44x44px)
+- [x] Audit aksesibilitas rasio kontras warna (WCAG compliance)
 
 ### Milestone 9: Pemisahan Menu Transaksi dari Dashboard Utama
 - [ ] Buat route `GET /transactions` dan template `web/templates/transactions.html`

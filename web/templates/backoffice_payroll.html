@@ -10,28 +10,28 @@
 </head>
 <body class="app-body">
   <div class="min-h-screen lg:flex">
-    <aside class="hidden w-64 shrink-0 flex-col bg-[#172033] p-5 text-white lg:flex">
+    <aside class="pos-sidebar">
       <div class="flex items-center gap-3">
-        <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-lg">
+        <img src="/static/img/logopardis.jpg" alt="Pardis Barber Shop" class="h-11 w-11 rounded-xl object-cover shadow-crisp border border-white/10">
         <div>
-          <p class="font-black tracking-tight">Pardis {{label .Language "boBackoffice"}}</p>
+          <p class="font-black tracking-tight text-white">Pardis {{label .Language "boBackoffice"}}</p>
           <p class="text-xs text-slate-300">{{.User.DisplayName}}</p>
         </div>
       </div>
-      <nav class="mt-12 space-y-2" aria-label="Backoffice navigation">
-        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/">📊 <span class="ml-3">{{label .Language "boDashboard"}}</span></a>
-        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/profit-sharing">💰 <span class="ml-3">{{label .Language "boProfitSharing"}}</span></a>
-        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/discounts">🏷️ <span class="ml-3">{{label .Language "boDiscounts"}}</span></a>
-        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/backoffice/products">📦 <span class="ml-3">{{label .Language "boProducts"}}</span></a>
-        <a class="flex min-h-11 items-center rounded-xl bg-emerald-500/15 px-4 font-bold text-emerald-300" href="/backoffice/payroll">📋 <span class="ml-3">{{label .Language "boPayroll"}}</span></a>
+      <nav class="mt-10 space-y-1.5" aria-label="Backoffice navigation">
+        <a class="pos-sidebar-link" href="/backoffice/">📊 <span class="ml-3">{{label .Language "boDashboard"}}</span></a>
+        <a class="pos-sidebar-link" href="/backoffice/profit-sharing">💰 <span class="ml-3">{{label .Language "boProfitSharing"}}</span></a>
+        <a class="pos-sidebar-link" href="/backoffice/discounts">🏷️ <span class="ml-3">{{label .Language "boDiscounts"}}</span></a>
+        <a class="pos-sidebar-link" href="/backoffice/products">📦 <span class="ml-3">{{label .Language "boProducts"}}</span></a>
+        <a class="pos-sidebar-link active" href="/backoffice/payroll">📋 <span class="ml-3">{{label .Language "boPayroll"}}</span></a>
         <hr class="border-white/10 my-4">
-        <a class="flex min-h-11 items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" href="/">{{label .Language "boMainPOS"}}</a>
+        <a class="pos-sidebar-link" href="/">🏠 <span class="ml-3">{{label .Language "boMainPOS"}}</span></a>
       </nav>
       <div class="mt-auto border-t border-white/10 pt-4">
-        <p class="mb-3 text-xs text-slate-400">{{.CurrentDateTime}}</p>
+        <p class="mb-3 text-xs text-slate-300 font-mono tabular-nums">{{.CurrentDateTime}}</p>
         <form method="post" action="/logout">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <button class="flex min-h-11 w-full items-center rounded-xl px-4 font-semibold text-slate-300 hover:bg-white/10 hover:text-white" type="submit">↪ <span class="ml-3">{{label .Language "boSignOut"}}</span></button>
+          <button class="pos-sidebar-link w-full text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 cursor-pointer" type="submit">↪ <span class="ml-3">{{label .Language "boSignOut"}}</span></button>
         </form>
       </div>
     </aside>
@@ -125,17 +125,17 @@
                 {{range .PayrollSummaries}}
                 <tr class="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-100/90 dark:hover:bg-slate-800/50 transition">
                   <td class="py-3 px-3 font-medium">{{.DisplayName}}</td>
-                  <td class="py-3 px-3 text-right">{{printf "%.1f" .ServiceSharePercent}}%</td>
-                  <td class="py-3 px-3 text-right text-emerald-500">{{money .ServiceShareCents}}</td>
-                  <td class="py-3 px-3 text-right text-blue-400">{{money .ProductCommission}}</td>
-                  <td class="py-3 px-3 text-right font-black text-lg">{{money .TotalPayCents}}</td>
+                  <td class="py-3 px-3 text-right font-mono tabular-nums font-semibold">{{printf "%.1f" .ServiceSharePercent}}%</td>
+                  <td class="py-3 px-3 text-right font-mono tabular-nums text-emerald-500 font-semibold">{{money .ServiceShareCents}}</td>
+                  <td class="py-3 px-3 text-right font-mono tabular-nums text-blue-400 font-semibold">{{money .ProductCommission}}</td>
+                  <td class="py-3 px-3 text-right font-mono tabular-nums font-black text-lg">{{money .TotalPayCents}}</td>
                   <td class="py-3 px-3 text-center">
                     <div class="flex items-center justify-center gap-1.5">
-                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}" class="btn-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1.5" id="btn-slip-{{.UserID}}" target="_blank" title="{{label $.Language "boDownloadSlip"}}">
+                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}" class="btn-secondary min-h-11 text-xs px-3 py-1 inline-flex items-center gap-1.5" id="btn-slip-{{.UserID}}" target="_blank" title="{{label $.Language "boDownloadSlip"}}">
                         <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                         <span>{{label $.Language "boDownloadSlip"}}</span>
                       </a>
-                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}&format=excel" class="btn-secondary text-xs px-2 py-1 text-slate-400 hover:text-white inline-flex items-center" title="Download Excel">
+                      <a href="/backoffice/payroll/slip?branch={{$.SelectedBranch}}&period={{$.SelectedPeriod}}&employee_id={{.UserID}}&format=excel" class="btn-secondary min-h-11 text-xs px-2.5 py-1 text-slate-300 hover:text-white inline-flex items-center" title="Download Excel">
                         <svg class="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                       </a>
                     </div>
