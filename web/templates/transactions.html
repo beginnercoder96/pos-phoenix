@@ -326,6 +326,7 @@
                   </p>
                   {{if not .ReversalOfID.Valid}}
                     {{if not .ReversedByID.Valid}}
+                      {{if eq .Kind "income"}}
                       <div class="mt-1.5 flex justify-end">
                         <button type="button" class="btn-print-receipt btn-secondary !min-h-9 !px-3 !py-1 text-xs font-bold gap-1.5 shadow-sm transition active:scale-95 flex items-center cursor-pointer"
                           data-tx-id="{{.ID}}"
@@ -345,6 +346,7 @@
                           <span>{{label $.Language "printReceipt"}}</span>
                         </button>
                       </div>
+                      {{end}}
                     {{end}}
                   {{end}}
                 </div>

@@ -12,9 +12,9 @@
     var badgeBg = isWarning ? 'bg-amber-500 shadow-amber-500/30' : (isError ? 'bg-rose-600 shadow-rose-500/30' : 'bg-blue-600 shadow-blue-500/30');
     var progressBg = isWarning ? 'bg-amber-500' : (isError ? 'bg-rose-600' : 'bg-blue-600');
     var borderColor = isWarning ? 'border-amber-200/90 dark:border-amber-900' : (isError ? 'border-rose-200/90 dark:border-rose-900' : 'border-blue-200/90 dark:border-blue-900');
-    var iconSvg = isWarning 
+    var iconSvg = isWarning
       ? '<svg style="width:18px;height:18px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
-      : (isError 
+      : (isError
         ? '<svg style="width:18px;height:18px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>'
         : '<svg style="width:18px;height:18px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>');
 
@@ -32,19 +32,19 @@
 
     toast.innerHTML =
       '<div class="flex items-start gap-3">' +
-        '<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' + badgeBg + ' text-white shadow-md font-black text-sm">' +
-          iconSvg +
-        '</div>' +
-        '<div class="min-w-0 flex-1 pr-1">' +
-          '<p class="font-black text-sm tracking-tight text-slate-900 dark:text-white">' + (title || 'Informasi') + '</p>' +
-          '<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed break-words">' + (message || '') + '</p>' +
-        '</div>' +
-        '<button type="button" id="global-pos-toast-close" class="shrink-0 rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition" aria-label="Tutup">' +
-          '<svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
-        '</button>' +
+      '<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ' + badgeBg + ' text-white shadow-md font-black text-sm">' +
+      iconSvg +
+      '</div>' +
+      '<div class="min-w-0 flex-1 pr-1">' +
+      '<p class="font-black text-sm tracking-tight text-slate-900 dark:text-white">' + (title || 'Informasi') + '</p>' +
+      '<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed break-words">' + (message || '') + '</p>' +
+      '</div>' +
+      '<button type="button" id="global-pos-toast-close" class="shrink-0 rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition" aria-label="Tutup">' +
+      '<svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+      '</button>' +
       '</div>' +
       '<div class="mt-3 h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">' +
-        '<div id="global-pos-toast-progress" class="h-full ' + progressBg + ' transition-all ease-linear" style="width:100%"></div>' +
+      '<div id="global-pos-toast-progress" class="h-full ' + progressBg + ' transition-all ease-linear" style="width:100%"></div>' +
       '</div>';
 
     document.body.appendChild(toast);
@@ -95,7 +95,7 @@
         duration: d,
         type: type || 'info'
       }));
-    } catch (e) {}
+    } catch (e) { }
     renderToast(title, message, d, d, type);
   };
 
@@ -109,7 +109,7 @@
         duration: d,
         type: type || 'info'
       }));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   function checkToastOnLoad() {
@@ -179,7 +179,7 @@
       } else {
         sessionStorage.removeItem(TOAST_KEY);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   if (document.readyState === "loading") {
@@ -516,23 +516,23 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
     newRow.className = "category-row rounded-xl border border-slate-200 dark:border-slate-700 p-3 surface-soft space-y-2 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1fr_130px_auto] sm:gap-2 items-center";
     newRow.innerHTML =
       '<div>' +
-        '<label class="sr-only">' + (isId ? 'Kategori' : 'Category') + '</label>' +
-        '<select name="category[]" class="field h-11 min-h-11 category-select" required>' +
-        '</select>' +
+      '<label class="sr-only">' + (isId ? 'Kategori' : 'Category') + '</label>' +
+      '<select name="category[]" class="field h-11 min-h-11 category-select" required>' +
+      '</select>' +
       '</div>' +
       '<div>' +
-        '<label class="sr-only">' + (isId ? 'Item / Layanan' : 'Item / Service') + '</label>' +
-        '<select name="item_name[]" class="field h-11 min-h-11 item-select">' +
-          '<option value="">-- ' + (isId ? 'Pilih layanan / item' : 'Select service / item') + ' --</option>' +
-        '</select>' +
-        '<input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">' +
+      '<label class="sr-only">' + (isId ? 'Item / Layanan' : 'Item / Service') + '</label>' +
+      '<select name="item_name[]" class="field h-11 min-h-11 item-select">' +
+      '<option value="">-- ' + (isId ? 'Pilih layanan / item' : 'Select service / item') + ' --</option>' +
+      '</select>' +
+      '<input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">' +
       '</div>' +
       '<div>' +
-        '<label class="sr-only">' + (isId ? 'Jumlah' : 'Amount') + '</label>' +
-        '<input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">' +
+      '<label class="sr-only">' + (isId ? 'Jumlah' : 'Amount') + '</label>' +
+      '<input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">' +
       '</div>' +
       '<div class="flex justify-end sm:justify-center">' +
-        '<button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
+      '<button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
       '</div>';
 
     container.appendChild(newRow);
@@ -1356,27 +1356,27 @@ window.handleChartPeriodChange = function (select) {
 
     modal.innerHTML =
       '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
-        '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
-          '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">' +
-            '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
-          '</div>' +
-          '<div class="min-w-0">' +
-            '<h3 id="pos-logout-title" class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + title + '</h3>' +
-            '<p id="pos-logout-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + subtitle + '</p>' +
-          '</div>' +
-        '</div>' +
-        '<div class="mt-5 mb-6">' +
-          '<p id="pos-logout-message" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">' + message + '</p>' +
-        '</div>' +
-        '<div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
-          '<button id="pos-logout-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
-            cancelText +
-          '</button>' +
-          '<button id="pos-logout-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
-            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
-            confirmText +
-          '</button>' +
-        '</div>' +
+      '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+      '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">' +
+      '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
+      '</div>' +
+      '<div class="min-w-0">' +
+      '<h3 id="pos-logout-title" class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + title + '</h3>' +
+      '<p id="pos-logout-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + subtitle + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="mt-5 mb-6">' +
+      '<p id="pos-logout-message" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">' + message + '</p>' +
+      '</div>' +
+      '<div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
+      '<button id="pos-logout-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+      cancelText +
+      '</button>' +
+      '<button id="pos-logout-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
+      '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
+      confirmText +
+      '</button>' +
+      '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -1407,7 +1407,7 @@ window.handleChartPeriodChange = function (select) {
         try {
           sessionStorage.removeItem("pos_admin_selected_branch");
           localStorage.removeItem("pos_admin_selected_branch");
-        } catch (err) {}
+        } catch (err) { }
         if (typeof HTMLFormElement.prototype.submit === "function") {
           HTMLFormElement.prototype.submit.call(formToSubmit);
         } else {
@@ -1426,7 +1426,7 @@ window.handleChartPeriodChange = function (select) {
     try {
       sessionStorage.removeItem("pos_admin_selected_branch");
       localStorage.removeItem("pos_admin_selected_branch");
-    } catch (err) {}
+    } catch (err) { }
     if (form.dataset.posLogoutConfirmed === "true") return;
 
     if (e) {
@@ -1499,7 +1499,7 @@ window.handleChartPeriodChange = function (select) {
     var kindSelect = form.querySelector('select[name="kind"]');
     var isIncome = !kindSelect || kindSelect.value === "income";
     var kindLabel = isIncome ? (isId ? "Pemasukan" : "Income") : (isId ? "Pengeluaran" : "Expense");
-    var kindBadgeClass = isIncome 
+    var kindBadgeClass = isIncome
       ? "bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-400"
       : "bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400";
 
@@ -1568,7 +1568,7 @@ window.handleChartPeriodChange = function (select) {
         itemsHtml += '<div class="flex items-center justify-between gap-2">' +
           '<span class="truncate font-medium text-slate-700 dark:text-slate-300">• ' + it.title + '</span>' +
           '<span class="shrink-0 font-bold text-slate-900 dark:text-white">' + it.amountStr + '</span>' +
-        '</div>';
+          '</div>';
       });
       itemsHtml += '</div>';
     }
@@ -1577,49 +1577,58 @@ window.handleChartPeriodChange = function (select) {
     if (noteVal) {
       noteHtml = '<div class="mt-2.5 text-xs text-slate-500 dark:text-slate-400 italic break-words">' +
         (isId ? 'Catatan: "' : 'Note: "') + noteVal + '"' +
-      '</div>';
+        '</div>';
     }
 
     modal.innerHTML =
       '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
-        '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
-          '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 shadow-sm">' +
-            '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
-          '</div>' +
-          '<div class="min-w-0">' +
-            '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Konfirmasi Simpan Transaksi" : "Confirm Save Transaction") + '</h3>' +
-            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + (isId ? "Pastikan rincian transaksi sudah benar." : "Please review the transaction details.") + '</p>' +
-          '</div>' +
-        '</div>' +
-        '<div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-center">' +
-          '<span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">' + (isId ? "Total Pembayaran" : "Total Amount") + '</span>' +
-          '<p class="text-2xl sm:text-3xl font-black ' + (isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') + ' mt-1 tracking-tight">' + totalFormatted + '</p>' +
-          (discountVal > 0 ? (
-            '<div class="mt-2.5 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs px-1">' +
-              '<span class="text-slate-500 dark:text-slate-400">' + (isId ? "Subtotal: " : "Subtotal: ") + '<b class="text-slate-700 dark:text-slate-300">' + getFormatIDR(calculatedTotal) + '</b></span>' +
-              '<span class="font-bold text-emerald-600 dark:text-emerald-400">-' + getFormatIDR(discountVal) + '</span>' +
-            '</div>'
-          ) : '') +
-          '<div class="mt-2 flex justify-center">' +
-            '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ' + kindBadgeClass + '">' + kindLabel + '</span>' +
-          '</div>' +
-        '</div>' +
-        itemsHtml +
-        noteHtml +
-        '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">' +
-          '<button id="pos-tx-save-print" class="w-full inline-flex min-h-12 items-center justify-center text-center rounded-xl px-5 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-sm cursor-pointer" type="button">' +
-            '<svg class="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
-            '<span>' + (isId ? "Simpan & Cetak Struk" : "Save & Print Receipt") + '</span>' +
-          '</button>' +
-          '<div class="grid grid-cols-2 gap-2.5">' +
-            '<button id="pos-tx-cancel" class="btn-secondary !min-h-11 w-full px-4 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
-              (isId ? "Batal" : "Cancel") +
-            '</button>' +
-            '<button id="pos-tx-save-only" class="btn-secondary !min-h-11 w-full px-4 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
-              (isId ? "💾 Simpan Saja" : "💾 Save Only") +
-            '</button>' +
-          '</div>' +
-        '</div>' +
+      '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+      '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 shadow-sm">' +
+      '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
+      '</div>' +
+      '<div class="min-w-0">' +
+      '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Konfirmasi Simpan Transaksi" : "Confirm Save Transaction") + '</h3>' +
+      '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + (isId ? "Pastikan rincian transaksi sudah benar." : "Please review the transaction details.") + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-center">' +
+      '<span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">' + (isId ? "Total Pembayaran" : "Total Amount") + '</span>' +
+      '<p class="text-2xl sm:text-3xl font-black ' + (isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') + ' mt-1 tracking-tight">' + totalFormatted + '</p>' +
+      (discountVal > 0 ? (
+        '<div class="mt-2.5 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs px-1">' +
+        '<span class="text-slate-500 dark:text-slate-400">' + (isId ? "Subtotal: " : "Subtotal: ") + '<b class="text-slate-700 dark:text-slate-300">' + getFormatIDR(calculatedTotal) + '</b></span>' +
+        '<span class="font-bold text-emerald-600 dark:text-emerald-400">-' + getFormatIDR(discountVal) + '</span>' +
+        '</div>'
+      ) : '') +
+      '<div class="mt-2 flex justify-center">' +
+      '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ' + kindBadgeClass + '">' + kindLabel + '</span>' +
+      '</div>' +
+      '</div>' +
+      itemsHtml +
+      noteHtml +
+      '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">' +
+      (isIncome ? (
+        '<button id="pos-tx-save-print" class="w-full inline-flex min-h-12 items-center justify-center text-center rounded-xl px-5 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-sm cursor-pointer" type="button">' +
+        '<svg class="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+        '<span>' + (isId ? "Simpan & Cetak Struk" : "Save & Print Receipt") + '</span>' +
+        '</button>' +
+        '<div class="grid grid-cols-2 gap-2.5">' +
+        '<button id="pos-tx-cancel" class="btn-secondary !min-h-11 w-full px-4 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+        (isId ? "Batal" : "Cancel") +
+        '</button>' +
+        '<button id="pos-tx-save-only" class="btn-secondary !min-h-11 w-full px-4 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+        (isId ? "💾 Simpan Saja" : "💾 Save Only") +
+        '</button>' +
+        '</div>'
+      ) : (
+        '<button id="pos-tx-save-only" class="w-full inline-flex min-h-12 items-center justify-center text-center rounded-xl px-5 font-bold shadow-lg transition active:scale-95 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 text-sm cursor-pointer" type="button">' +
+        '<span>' + (isId ? "💾 Simpan Pengeluaran" : "💾 Save Expense") + '</span>' +
+        '</button>' +
+        '<button id="pos-tx-cancel" class="btn-secondary !min-h-11 w-full px-4 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+        (isId ? "Batal" : "Cancel") +
+        '</button>'
+      )) +
+      '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -1662,7 +1671,7 @@ window.handleChartPeriodChange = function (select) {
           note: noteVal,
           operator: opName,
           date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) + " " +
-                new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+            new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
         };
         if (shouldPrint) {
           sessionStorage.setItem("pendingTxPrintPrompt", JSON.stringify(txDetails));
@@ -1678,7 +1687,7 @@ window.handleChartPeriodChange = function (select) {
             type: "success"
           }));
         }
-      } catch (e) {}
+      } catch (e) { }
 
       closeModal();
       if (typeof HTMLFormElement.prototype.submit === "function") {
@@ -1688,13 +1697,19 @@ window.handleChartPeriodChange = function (select) {
       }
     }
 
-    document.getElementById("pos-tx-save-only").addEventListener("click", function () {
-      submitTransaction(false);
-    });
+    var saveOnlyBtn = document.getElementById("pos-tx-save-only");
+    if (saveOnlyBtn) {
+      saveOnlyBtn.addEventListener("click", function () {
+        submitTransaction(false);
+      });
+    }
 
-    document.getElementById("pos-tx-save-print").addEventListener("click", function () {
-      submitTransaction(true);
-    });
+    var savePrintBtn = document.getElementById("pos-tx-save-print");
+    if (savePrintBtn) {
+      savePrintBtn.addEventListener("click", function () {
+        submitTransaction(true);
+      });
+    }
   }
 
   // --- 2. MODAL BATALKAN TRANSAKSI ---
@@ -1729,31 +1744,31 @@ window.handleChartPeriodChange = function (select) {
 
     modal.innerHTML =
       '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
-        '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
-          '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">' +
-            '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
-          '</div>' +
-          '<div class="min-w-0">' +
-            '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Konfirmasi Batalkan Transaksi" : "Confirm Transaction Reversal") + '</h3>' +
-            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + (isId ? ("Transaksi #" + (txId ? txId : "") + " akan dibatalkan.") : ("Transaction #" + (txId ? txId : "") + " will be reversed.")) + '</p>' +
-          '</div>' +
-        '</div>' +
-        '<div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">' +
-          '<span class="text-xs font-bold text-slate-500 dark:text-slate-400">' + (isId ? "Alasan Pembatalan:" : "Reversal Reason:") + '</span>' +
-          '<p class="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-1 italic break-words">"' + reason + '"</p>' +
-        '</div>' +
-        '<p class="mt-3 text-xs text-rose-600 dark:text-rose-400 leading-relaxed font-medium">' +
-          (isId ? "Tindakan ini akan membuat transaksi pembalik dan tercatat secara permanen di riwayat audit." : "This action will create a reversal transaction and be permanently recorded in the audit log.") +
-        '</p>' +
-        '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
-          '<button id="pos-reverse-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
-            (isId ? "Batal" : "Cancel") +
-          '</button>' +
-          '<button id="pos-reverse-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
-            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
-            (isId ? "Ya, Batalkan" : "Yes, Reverse") +
-          '</button>' +
-        '</div>' +
+      '<div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+      '<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-100 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 shadow-sm">' +
+      '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
+      '</div>' +
+      '<div class="min-w-0">' +
+      '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Konfirmasi Batalkan Transaksi" : "Confirm Transaction Reversal") + '</h3>' +
+      '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + (isId ? ("Transaksi #" + (txId ? txId : "") + " akan dibatalkan.") : ("Transaction #" + (txId ? txId : "") + " will be reversed.")) + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">' +
+      '<span class="text-xs font-bold text-slate-500 dark:text-slate-400">' + (isId ? "Alasan Pembatalan:" : "Reversal Reason:") + '</span>' +
+      '<p class="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-1 italic break-words">"' + reason + '"</p>' +
+      '</div>' +
+      '<p class="mt-3 text-xs text-rose-600 dark:text-rose-400 leading-relaxed font-medium">' +
+      (isId ? "Tindakan ini akan membuat transaksi pembalik dan tercatat secara permanen di riwayat audit." : "This action will create a reversal transaction and be permanently recorded in the audit log.") +
+      '</p>' +
+      '<div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-3">' +
+      '<button id="pos-reverse-cancel" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+      (isId ? "Batal" : "Cancel") +
+      '</button>' +
+      '<button id="pos-reverse-confirm" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
+      '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
+      (isId ? "Ya, Batalkan" : "Yes, Reverse") +
+      '</button>' +
+      '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -2035,7 +2050,7 @@ window.handleChartPeriodChange = function (select) {
         itemsHtml = '<div class="flex justify-between items-start text-[11px] leading-snug w-full py-0.5">' +
           '<span class="text-left">' + cat + '</span>' +
           '<span class="font-bold text-right shrink-0 ml-2">' + totalAmt + '</span>' +
-        '</div>';
+          '</div>';
       } else {
         for (var i = 0; i < items.length; i++) {
           var it = items[i];
@@ -2044,7 +2059,7 @@ window.handleChartPeriodChange = function (select) {
           itemsHtml += '<div class="flex justify-between items-start text-[11px] leading-snug w-full py-0.5">' +
             '<span class="text-left pr-2">' + itName + '</span>' +
             '<span class="font-bold text-right shrink-0">' + itAmt + '</span>' +
-          '</div>';
+            '</div>';
         }
       }
 
@@ -2052,86 +2067,86 @@ window.handleChartPeriodChange = function (select) {
       if (txData.note) {
         noteHtml = '<div class="text-[11px] text-slate-700 italic py-1 text-left break-words">' +
           (isId ? "Catatan: " : "Note: ") + this.escapeHtml(txData.note) +
-        '</div>';
+          '</div>';
       }
 
       var discountBreakdownHtml = "";
       if (txData.discount && txData.subtotal) {
         discountBreakdownHtml =
           '<div class="flex justify-between items-center text-[11px] w-full py-0.5" style="color: #4b5563 !important;">' +
-            '<span>' + (isId ? "Subtotal" : "Subtotal") + '</span>' +
-            '<span class="text-right">' + this.escapeHtml(txData.subtotal) + '</span>' +
+          '<span>' + (isId ? "Subtotal" : "Subtotal") + '</span>' +
+          '<span class="text-right">' + this.escapeHtml(txData.subtotal) + '</span>' +
           '</div>' +
           '<div class="flex justify-between items-center text-[11px] w-full py-0.5 font-bold" style="color: #059669 !important;">' +
-            '<span>' + (isId ? "Diskon" : "Discount") + '</span>' +
-            '<span class="text-right">-' + this.escapeHtml(txData.discount) + '</span>' +
+          '<span>' + (isId ? "Diskon" : "Discount") + '</span>' +
+          '<span class="text-right">-' + this.escapeHtml(txData.discount) + '</span>' +
           '</div>';
       }
 
       var html =
         '<div class="font-mono text-[11px] leading-tight w-full select-none" style="color: #111827 !important; background-color: #ffffff !important;">' +
-          '<!-- Centered Header -->' +
-          '<div class="text-center pb-2">' +
-            '<h4 class="font-black text-xs sm:text-sm tracking-wider uppercase" style="color: #000000 !important;">' + storeName + '</h4>' +
-            '<p class="text-[10px] mt-0.5" style="color: #4b5563 !important;">Pardis Barbershop</p>' +
-          '</div>' +
+        '<!-- Centered Header -->' +
+        '<div class="text-center pb-2">' +
+        '<h4 class="font-black text-xs sm:text-sm tracking-wider uppercase" style="color: #000000 !important;">' + storeName + '</h4>' +
+        '<p class="text-[10px] mt-0.5" style="color: #4b5563 !important;">Pardis Barbershop</p>' +
+        '</div>' +
 
-          '<!-- Edge-to-edge dashed Divider -->' +
-          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
+        '<!-- Edge-to-edge dashed Divider -->' +
+        '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
 
-          '<!-- Meta info (Left Label, Right Value) -->' +
-          '<div class="space-y-0.5 w-full py-1 text-[11px]">' +
-            '<div class="flex justify-between items-center w-full">' +
-              '<span style="color: #4b5563 !important;">' + (isId ? "No. Trx" : "Trx ID") + '</span>' +
-              '<span class="font-semibold text-right" style="color: #111827 !important;">' + txNum + '</span>' +
-            '</div>' +
-            '<div class="flex justify-between items-center w-full">' +
-              '<span style="color: #4b5563 !important;">' + (isId ? "Waktu" : "Date") + '</span>' +
-              '<span class="text-right" style="color: #111827 !important;">' + txDate + '</span>' +
-            '</div>' +
-            '<div class="flex justify-between items-center w-full">' +
-              '<span style="color: #4b5563 !important;">' + (isId ? "Kasir" : "Cashier") + '</span>' +
-              '<span class="font-medium text-right" style="color: #111827 !important;">' + txOperator + '</span>' +
-            '</div>' +
-            (txData.kind && txData.kind !== "income" ? (
-              '<div class="flex justify-between items-center w-full">' +
-                '<span style="color: #4b5563 !important;">' + (isId ? "Tipe" : "Type") + '</span>' +
-                '<span class="font-medium text-right" style="color: #111827 !important;">' + (isId ? "Pengeluaran" : "Expense") + '</span>' +
-              '</div>'
-            ) : '') +
-          '</div>' +
+        '<!-- Meta info (Left Label, Right Value) -->' +
+        '<div class="space-y-0.5 w-full py-1 text-[11px]">' +
+        '<div class="flex justify-between items-center w-full">' +
+        '<span style="color: #4b5563 !important;">' + (isId ? "No. Trx" : "Trx ID") + '</span>' +
+        '<span class="font-semibold text-right" style="color: #111827 !important;">' + txNum + '</span>' +
+        '</div>' +
+        '<div class="flex justify-between items-center w-full">' +
+        '<span style="color: #4b5563 !important;">' + (isId ? "Waktu" : "Date") + '</span>' +
+        '<span class="text-right" style="color: #111827 !important;">' + txDate + '</span>' +
+        '</div>' +
+        '<div class="flex justify-between items-center w-full">' +
+        '<span style="color: #4b5563 !important;">' + (isId ? "Kasir" : "Cashier") + '</span>' +
+        '<span class="font-medium text-right" style="color: #111827 !important;">' + txOperator + '</span>' +
+        '</div>' +
+        (txData.kind && txData.kind !== "income" ? (
+          '<div class="flex justify-between items-center w-full">' +
+          '<span style="color: #4b5563 !important;">' + (isId ? "Tipe" : "Type") + '</span>' +
+          '<span class="font-medium text-right" style="color: #111827 !important;">' + (isId ? "Pengeluaran" : "Expense") + '</span>' +
+          '</div>'
+        ) : '') +
+        '</div>' +
 
-          '<!-- Items Header Divider -->' +
-          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
-          '<div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider w-full py-0.5" style="color: #4b5563 !important;">' +
-            '<span>' + (isId ? "Item / Layanan" : "Item / Service") + '</span>' +
-            '<span>' + (isId ? "Harga" : "Price") + '</span>' +
-          '</div>' +
-          '<div style="border-bottom: 1px dashed #9ca3af !important; width: 100%; margin: 4px 0;"></div>' +
+        '<!-- Items Header Divider -->' +
+        '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
+        '<div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider w-full py-0.5" style="color: #4b5563 !important;">' +
+        '<span>' + (isId ? "Item / Layanan" : "Item / Service") + '</span>' +
+        '<span>' + (isId ? "Harga" : "Price") + '</span>' +
+        '</div>' +
+        '<div style="border-bottom: 1px dashed #9ca3af !important; width: 100%; margin: 4px 0;"></div>' +
 
-          '<!-- Items List -->' +
-          '<div class="py-1 space-y-1 w-full">' +
-            itemsHtml +
-          '</div>' +
+        '<!-- Items List -->' +
+        '<div class="py-1 space-y-1 w-full">' +
+        itemsHtml +
+        '</div>' +
 
-          '<!-- Total Divider -->' +
-          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
-          discountBreakdownHtml +
+        '<!-- Total Divider -->' +
+        '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 6px 0;"></div>' +
+        discountBreakdownHtml +
 
-          '<!-- Total (Flush Left & Right) -->' +
-          '<div class="flex justify-between items-center text-xs font-black w-full py-1" style="color: #000000 !important;">' +
-            '<span>TOTAL</span>' +
-            '<span class="text-right">' + totalAmt + '</span>' +
-          '</div>' +
-          noteHtml +
+        '<!-- Total (Flush Left & Right) -->' +
+        '<div class="flex justify-between items-center text-xs font-black w-full py-1" style="color: #000000 !important;">' +
+        '<span>TOTAL</span>' +
+        '<span class="text-right">' + totalAmt + '</span>' +
+        '</div>' +
+        noteHtml +
 
-          '<!-- Footer Divider -->' +
-          '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 8px 0 6px 0;"></div>' +
+        '<!-- Footer Divider -->' +
+        '<div style="border-bottom: 1px dashed #111827 !important; width: 100%; margin: 8px 0 6px 0;"></div>' +
 
-          '<!-- Centered Footer -->' +
-          '<div class="text-center pt-1 pb-1 text-[10px] leading-snug" style="color: #374151 !important;">' +
-            '<p class="font-medium">' + footerNote + '</p>' +
-          '</div>' +
+        '<!-- Centered Footer -->' +
+        '<div class="text-center pt-1 pb-1 text-[10px] leading-snug" style="color: #374151 !important;">' +
+        '<p class="font-medium">' + footerNote + '</p>' +
+        '</div>' +
         '</div>';
 
       return html;
@@ -2178,73 +2193,73 @@ window.handleChartPeriodChange = function (select) {
         acceptAllDevices: true,
         optionalServices: serviceUUIDs
       })
-      .then(function (device) {
-        bluetoothDevice = device;
-        device.addEventListener("gattserverdisconnected", function () {
-          bluetoothCharacteristic = null;
-          ThermalPrinter.updateStatusUI(false);
+        .then(function (device) {
+          bluetoothDevice = device;
+          device.addEventListener("gattserverdisconnected", function () {
+            bluetoothCharacteristic = null;
+            ThermalPrinter.updateStatusUI(false);
+            if (window.showGlobalToast) {
+              window.showGlobalToast(
+                isId ? "Printer Terputus" : "Printer Disconnected",
+                isId ? "Koneksi printer Bluetooth terputus." : "Bluetooth printer disconnected.",
+                3000,
+                "warning"
+              );
+            }
+          });
+          return device.gatt.connect();
+        })
+        .then(function (server) {
+          return server.getPrimaryServices();
+        })
+        .then(function (services) {
+          if (!services || services.length === 0) {
+            throw new Error("Layanan printer BLE tidak ditemukan.");
+          }
+          var searchChar = function (idx) {
+            if (idx >= services.length) {
+              throw new Error("Karakteristik penulisan ESC/POS tidak ditemukan.");
+            }
+            return services[idx].getCharacteristics().then(function (chars) {
+              for (var c = 0; c < chars.length; c++) {
+                var props = chars[c].properties;
+                if (props.write || props.writeWithoutResponse) {
+                  return chars[c];
+                }
+              }
+              return searchChar(idx + 1);
+            });
+          };
+          return searchChar(0);
+        })
+        .then(function (characteristic) {
+          bluetoothCharacteristic = characteristic;
+          var devName = (bluetoothDevice && bluetoothDevice.name) ? bluetoothDevice.name : "Okay 58D Thermal";
+          localStorage.setItem("pos_thermal_device_name", devName);
+          ThermalPrinter.updateStatusUI(true, devName);
+
           if (window.showGlobalToast) {
             window.showGlobalToast(
-              isId ? "Printer Terputus" : "Printer Disconnected",
-              isId ? "Koneksi printer Bluetooth terputus." : "Bluetooth printer disconnected.",
-              3000,
+              isId ? "Printer Terhubung" : "Printer Connected",
+              isId ? "Berhasil terhubung ke " + devName : "Connected to " + devName,
+              3500,
+              "success"
+            );
+          }
+          if (onSuccess) onSuccess(devName);
+        })
+        .catch(function (err) {
+          if (err.name === "NotFoundError") return; // User closed Bluetooth picker
+          if (onError) onError(err);
+          if (window.showGlobalToast) {
+            window.showGlobalToast(
+              isId ? "Gagal Menghubungkan" : "Connection Failed",
+              err.message || (isId ? "Gagal pairing ke printer Bluetooth." : "Failed to connect to Bluetooth printer."),
+              4000,
               "warning"
             );
           }
         });
-        return device.gatt.connect();
-      })
-      .then(function (server) {
-        return server.getPrimaryServices();
-      })
-      .then(function (services) {
-        if (!services || services.length === 0) {
-          throw new Error("Layanan printer BLE tidak ditemukan.");
-        }
-        var searchChar = function (idx) {
-          if (idx >= services.length) {
-            throw new Error("Karakteristik penulisan ESC/POS tidak ditemukan.");
-          }
-          return services[idx].getCharacteristics().then(function (chars) {
-            for (var c = 0; c < chars.length; c++) {
-              var props = chars[c].properties;
-              if (props.write || props.writeWithoutResponse) {
-                return chars[c];
-              }
-            }
-            return searchChar(idx + 1);
-          });
-        };
-        return searchChar(0);
-      })
-      .then(function (characteristic) {
-        bluetoothCharacteristic = characteristic;
-        var devName = (bluetoothDevice && bluetoothDevice.name) ? bluetoothDevice.name : "Okay 58D Thermal";
-        localStorage.setItem("pos_thermal_device_name", devName);
-        ThermalPrinter.updateStatusUI(true, devName);
-
-        if (window.showGlobalToast) {
-          window.showGlobalToast(
-            isId ? "Printer Terhubung" : "Printer Connected",
-            isId ? "Berhasil terhubung ke " + devName : "Connected to " + devName,
-            3500,
-            "success"
-          );
-        }
-        if (onSuccess) onSuccess(devName);
-      })
-      .catch(function (err) {
-        if (err.name === "NotFoundError") return; // User closed Bluetooth picker
-        if (onError) onError(err);
-        if (window.showGlobalToast) {
-          window.showGlobalToast(
-            isId ? "Gagal Menghubungkan" : "Connection Failed",
-            err.message || (isId ? "Gagal pairing ke printer Bluetooth." : "Failed to connect to Bluetooth printer."),
-            4000,
-            "warning"
-          );
-        }
-      });
     },
 
     disconnectBluetooth: function () {
@@ -2314,7 +2329,7 @@ window.handleChartPeriodChange = function (select) {
 
       container.innerHTML = '<div class="thermal-receipt-paper" style="font-family: \'Courier New\', Courier, monospace; font-size: 11px; line-height: 1.25; color: #000000; background: #ffffff; width: 58mm; max-width: 58mm; margin: 0 auto; padding: 2mm 0;">' +
         ThermalPrinter.renderReceiptHtml(txData) +
-      '</div>';
+        '</div>';
 
       document.body.classList.add("printing-thermal");
 
@@ -2391,44 +2406,44 @@ window.handleChartPeriodChange = function (select) {
 
     modal.innerHTML =
       '<div class="relative w-full max-w-sm rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-5 sm:p-6 text-slate-800 dark:text-slate-100 transition-all max-h-[90vh] flex flex-col" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
-        '<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">' +
-          '<div class="flex items-center gap-2.5">' +
-            '<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400">' +
-              '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
-            '</div>' +
-            '<div>' +
-              '<h3 class="font-black text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">' + (isId ? "Pratinjau Struk (58mm)" : "Receipt Preview (58mm)") + '</h3>' +
-              '<p class="text-[11px] text-slate-500 dark:text-slate-400">' + (isId ? "Standar Thermal 32 Karakter" : "32 Columns Thermal Standard") + '</p>' +
-            '</div>' +
-          '</div>' +
-          '<button id="receipt-close-x" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">' +
-            '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
-          '</button>' +
-        '</div>' +
+      '<div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">' +
+      '<div class="flex items-center gap-2.5">' +
+      '<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400">' +
+      '<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+      '</div>' +
+      '<div>' +
+      '<h3 class="font-black text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">' + (isId ? "Pratinjau Struk (58mm)" : "Receipt Preview (58mm)") + '</h3>' +
+      '<p class="text-[11px] text-slate-500 dark:text-slate-400">' + (isId ? "Standar Thermal 32 Karakter" : "32 Columns Thermal Standard") + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<button id="receipt-close-x" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">' +
+      '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+      '</button>' +
+      '</div>' +
 
-        '<!-- Receipt Paper Visual (Accurate 58mm Layout) -->' +
-        '<div class="my-3 overflow-y-auto max-h-[56vh] p-3 sm:p-4 flex justify-center bg-slate-200/90 dark:bg-slate-950/80 rounded-2xl border border-slate-300 dark:border-slate-800/80 shadow-inner [scrollbar-width:thin]">' +
-          '<div class="thermal-receipt-paper rounded-t-lg pt-4 px-4 pb-2 w-full max-w-[270px] mx-auto shadow-2xl font-mono" style="background-color: #ffffff !important; color: #111827 !important; border: 1px solid #cbd5e1;">' +
-            ThermalPrinter.renderReceiptHtml(txData) +
-            '<div class="thermal-receipt-paper-cut mt-3"></div>' +
-          '</div>' +
-        '</div>' +
+      '<!-- Receipt Paper Visual (Accurate 58mm Layout) -->' +
+      '<div class="my-3 overflow-y-auto max-h-[56vh] p-3 sm:p-4 flex justify-center bg-slate-200/90 dark:bg-slate-950/80 rounded-2xl border border-slate-300 dark:border-slate-800/80 shadow-inner [scrollbar-width:thin]">' +
+      '<div class="thermal-receipt-paper rounded-t-lg pt-4 px-4 pb-2 w-full max-w-[270px] mx-auto shadow-2xl font-mono" style="background-color: #ffffff !important; color: #111827 !important; border: 1px solid #cbd5e1;">' +
+      ThermalPrinter.renderReceiptHtml(txData) +
+      '<div class="thermal-receipt-paper-cut mt-3"></div>' +
+      '</div>' +
+      '</div>' +
 
-        '<!-- Action Buttons -->' +
-        '<div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2 shrink-0">' +
-          '<button id="btn-print-bt" type="button" class="w-full min-h-12 inline-flex items-center justify-center text-center rounded-xl px-5 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-sm cursor-pointer">' +
-            '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
-            '<span>' + (isBtConnected ? (isId ? "Cetak ke Printer Thermal" : "Print to Thermal Printer") : (isId ? "Hubungkan & Cetak Thermal" : "Connect & Print Thermal")) + '</span>' +
-          '</button>' +
-          '<div class="flex items-center justify-between gap-3 pt-1">' +
-            '<button id="btn-print-browser" type="button" class="text-xs text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 font-semibold underline cursor-pointer">' +
-              '📄 ' + (isId ? "Cetak via Dialog Browser / PDF" : "Browser / PDF Print") +
-            '</button>' +
-            '<button id="btn-receipt-cancel" type="button" class="btn-secondary !min-h-9 px-4 text-xs font-semibold cursor-pointer">' +
-              (isId ? "Tutup" : "Close") +
-            '</button>' +
-          '</div>' +
-        '</div>' +
+      '<!-- Action Buttons -->' +
+      '<div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2 shrink-0">' +
+      '<button id="btn-print-bt" type="button" class="w-full min-h-12 inline-flex items-center justify-center text-center rounded-xl px-5 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-sm cursor-pointer">' +
+      '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+      '<span>' + (isBtConnected ? (isId ? "Cetak ke Printer Thermal" : "Print to Thermal Printer") : (isId ? "Hubungkan & Cetak Thermal" : "Connect & Print Thermal")) + '</span>' +
+      '</button>' +
+      '<div class="flex items-center justify-between gap-3 pt-1">' +
+      '<button id="btn-print-browser" type="button" class="text-xs text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 font-semibold underline cursor-pointer">' +
+      '📄 ' + (isId ? "Cetak via Dialog Browser / PDF" : "Browser / PDF Print") +
+      '</button>' +
+      '<button id="btn-receipt-cancel" type="button" class="btn-secondary !min-h-9 px-4 text-xs font-semibold cursor-pointer">' +
+      (isId ? "Tutup" : "Close") +
+      '</button>' +
+      '</div>' +
+      '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -2505,94 +2520,94 @@ window.handleChartPeriodChange = function (select) {
 
     modal.innerHTML =
       '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all max-h-[90vh] overflow-y-auto" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
-        '<div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
-          '<div class="flex items-center gap-3">' +
-            '<div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 shadow-sm">' +
-              '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
-            '</div>' +
-            '<div>' +
-              '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Pengaturan Printer Thermal" : "Thermal Printer Settings") + '</h3>' +
-              '<p class="text-xs text-slate-500 dark:text-slate-400">Okay 58D / Standard 58mm</p>' +
-            '</div>' +
-          '</div>' +
-          '<button id="settings-close-x" type="button" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">' +
-            '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
-          '</button>' +
-        '</div>' +
+      '<div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">' +
+      '<div class="flex items-center gap-3">' +
+      '<div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 shadow-sm">' +
+      '<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+      '</div>' +
+      '<div>' +
+      '<h3 class="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">' + (isId ? "Pengaturan Printer Thermal" : "Thermal Printer Settings") + '</h3>' +
+      '<p class="text-xs text-slate-500 dark:text-slate-400">Okay 58D / Standard 58mm</p>' +
+      '</div>' +
+      '</div>' +
+      '<button id="settings-close-x" type="button" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">' +
+      '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+      '</button>' +
+      '</div>' +
 
-        '<!-- Connection Status Card -->' +
-        '<div class="mt-4 p-4 rounded-2xl border ' + (isBtConnected ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800') + '">' +
-          '<div class="flex items-center justify-between">' +
-            '<div class="flex items-center gap-2.5">' +
-              '<span class="flex h-3 w-3 relative">' +
-                (isBtConnected ? '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>' : '') +
-                '<span class="relative inline-flex rounded-full h-3 w-3 ' + (isBtConnected ? 'bg-emerald-500' : 'bg-slate-400') + '"></span>' +
-              '</span>' +
-              '<div>' +
-                '<p class="text-xs font-bold text-slate-900 dark:text-white">' +
-                  (isBtConnected ? ((isId ? "Terhubung ke: " : "Connected to: ") + devName) : (isId ? "Printer Belum Terhubung" : "Printer Not Connected")) +
-                '</p>' +
-                '<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">' +
-                  (isBtConnected ? (isId ? "Siap mencetak langsung via Web Bluetooth." : "Ready to print via Web Bluetooth.") : (isId ? "Gunakan tombol di bawah untuk menghubungkan Bluetooth." : "Click below to connect via Bluetooth.")) +
-                '</p>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
+      '<!-- Connection Status Card -->' +
+      '<div class="mt-4 p-4 rounded-2xl border ' + (isBtConnected ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800') + '">' +
+      '<div class="flex items-center justify-between">' +
+      '<div class="flex items-center gap-2.5">' +
+      '<span class="flex h-3 w-3 relative">' +
+      (isBtConnected ? '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>' : '') +
+      '<span class="relative inline-flex rounded-full h-3 w-3 ' + (isBtConnected ? 'bg-emerald-500' : 'bg-slate-400') + '"></span>' +
+      '</span>' +
+      '<div>' +
+      '<p class="text-xs font-bold text-slate-900 dark:text-white">' +
+      (isBtConnected ? ((isId ? "Terhubung ke: " : "Connected to: ") + devName) : (isId ? "Printer Belum Terhubung" : "Printer Not Connected")) +
+      '</p>' +
+      '<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">' +
+      (isBtConnected ? (isId ? "Siap mencetak langsung via Web Bluetooth." : "Ready to print via Web Bluetooth.") : (isId ? "Gunakan tombol di bawah untuk menghubungkan Bluetooth." : "Click below to connect via Bluetooth.")) +
+      '</p>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
 
-          '<div class="mt-3.5 flex flex-wrap gap-2">' +
-            (isBtConnected ?
-              '<button id="btn-bt-disconnect" type="button" class="btn-secondary !min-h-10 px-4 text-xs font-semibold !text-rose-600 !border-rose-300 dark:!border-rose-900/60 hover:!bg-rose-50 dark:hover:!bg-rose-950/40 transition cursor-pointer">' +
-                (isId ? "Putuskan Koneksi" : "Disconnect") +
-              '</button>' :
-              '<button id="btn-bt-connect" type="button" class="inline-flex min-h-10 items-center justify-center rounded-xl px-4 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm text-xs transition active:scale-95 cursor-pointer">' +
-                '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' +
-                (isId ? "Hubungkan Bluetooth (Okay 58D)" : "Connect Bluetooth (Okay 58D)") +
-              '</button>'
-            ) +
-            '<button id="btn-test-print" type="button" class="btn-secondary !min-h-10 px-4 text-xs font-semibold transition cursor-pointer">' +
-              '🖨️ ' + (isId ? "Cetak Uji Coba (Test Print)" : "Test Print") +
-            '</button>' +
-          '</div>' +
-        '</div>' +
+      '<div class="mt-3.5 flex flex-wrap gap-2">' +
+      (isBtConnected ?
+        '<button id="btn-bt-disconnect" type="button" class="btn-secondary !min-h-10 px-4 text-xs font-semibold !text-rose-600 !border-rose-300 dark:!border-rose-900/60 hover:!bg-rose-50 dark:hover:!bg-rose-950/40 transition cursor-pointer">' +
+        (isId ? "Putuskan Koneksi" : "Disconnect") +
+        '</button>' :
+        '<button id="btn-bt-connect" type="button" class="inline-flex min-h-10 items-center justify-center rounded-xl px-4 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm text-xs transition active:scale-95 cursor-pointer">' +
+        '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' +
+        (isId ? "Hubungkan Bluetooth (Okay 58D)" : "Connect Bluetooth (Okay 58D)") +
+        '</button>'
+      ) +
+      '<button id="btn-test-print" type="button" class="btn-secondary !min-h-10 px-4 text-xs font-semibold transition cursor-pointer">' +
+      '🖨️ ' + (isId ? "Cetak Uji Coba (Test Print)" : "Test Print") +
+      '</button>' +
+      '</div>' +
+      '</div>' +
 
-        (!isBtSupported ?
-          '<div class="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">' +
-            'ℹ️ ' + (isId ? "Browser ini belum mendukung Web Bluetooth secara langsung. Namun Anda tetap dapat mencetak struk dengan rapi menggunakan tombol <strong>Cetak Browser / PDF</strong>." : "This browser does not support Web Bluetooth natively. You can still print seamlessly using <strong>Browser / PDF Print</strong>.") +
-          '</div>' : ''
-        ) +
+      (!isBtSupported ?
+        '<div class="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">' +
+        'ℹ️ ' + (isId ? "Browser ini belum mendukung Web Bluetooth secara langsung. Namun Anda tetap dapat mencetak struk dengan rapi menggunakan tombol <strong>Cetak Browser / PDF</strong>." : "This browser does not support Web Bluetooth natively. You can still print seamlessly using <strong>Browser / PDF Print</strong>.") +
+        '</div>' : ''
+      ) +
 
-        '<!-- Receipt Text Customization -->' +
-        '<div class="mt-5 space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">' +
-          '<h4 class="text-xs font-black uppercase tracking-wider text-slate-400">' + (isId ? "Pengaturan Format Struk" : "Receipt Format Settings") + '</h4>' +
-          '<div>' +
-            '<label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" for="input-store-name">' + (isId ? "Nama Toko / Barbershop (Header):" : "Store Name (Header):") + '</label>' +
-            '<input id="input-store-name" class="field h-10 min-h-10 w-full text-xs" value="' + ThermalPrinter.escapeHtml(currentStoreName) + '">' +
-          '</div>' +
-          '<div>' +
-            '<label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" for="input-footer-note">' + (isId ? "Catatan Kaki (Footer):" : "Footer Note:") + '</label>' +
-            '<input id="input-footer-note" class="field h-10 min-h-10 w-full text-xs" value="' + ThermalPrinter.escapeHtml(currentFooterNote) + '">' +
-          '</div>' +
-          '<div class="pt-1">' +
-            '<label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">' +
-              '<input id="check-auto-prompt" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4" ' + (autoPrompt ? 'checked' : '') + '>' +
-              '<span>' + (isId ? "Tampilkan tawaran cetak otomatis setelah simpan transaksi" : "Offer print automatically after saving transaction") + '</span>' +
-            '</label>' +
-          '</div>' +
-        '</div>' +
+      '<!-- Receipt Text Customization -->' +
+      '<div class="mt-5 space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">' +
+      '<h4 class="text-xs font-black uppercase tracking-wider text-slate-400">' + (isId ? "Pengaturan Format Struk" : "Receipt Format Settings") + '</h4>' +
+      '<div>' +
+      '<label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" for="input-store-name">' + (isId ? "Nama Toko / Barbershop (Header):" : "Store Name (Header):") + '</label>' +
+      '<input id="input-store-name" class="field h-10 min-h-10 w-full text-xs" value="' + ThermalPrinter.escapeHtml(currentStoreName) + '">' +
+      '</div>' +
+      '<div>' +
+      '<label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" for="input-footer-note">' + (isId ? "Catatan Kaki (Footer):" : "Footer Note:") + '</label>' +
+      '<input id="input-footer-note" class="field h-10 min-h-10 w-full text-xs" value="' + ThermalPrinter.escapeHtml(currentFooterNote) + '">' +
+      '</div>' +
+      '<div class="pt-1">' +
+      '<label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">' +
+      '<input id="check-auto-prompt" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4" ' + (autoPrompt ? 'checked' : '') + '>' +
+      '<span>' + (isId ? "Tampilkan tawaran cetak otomatis setelah simpan transaksi" : "Offer print automatically after saving transaction") + '</span>' +
+      '</label>' +
+      '</div>' +
+      '</div>' +
 
-        '<div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">' +
-          '<div id="settings-dirty-status" class="text-xs text-slate-600 dark:text-slate-400 font-medium italic">' +
-            (isId ? "Tidak ada perubahan" : "No changes") +
-          '</div>' +
-          '<div class="flex items-center gap-2">' +
-            '<button id="btn-settings-cancel" type="button" class="btn-secondary !min-h-10 px-4 text-xs sm:text-sm font-semibold cursor-pointer">' +
-              (isId ? "Tutup" : "Close") +
-            '</button>' +
-            '<button id="btn-save-settings" type="button" disabled class="!min-h-10 px-5 text-xs sm:text-sm font-bold rounded-xl transition duration-150 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none">' +
-              '💾 ' + (isId ? "Simpan Pengaturan" : "Save Settings") +
-            '</button>' +
-          '</div>' +
-        '</div>' +
+      '<div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">' +
+      '<div id="settings-dirty-status" class="text-xs text-slate-600 dark:text-slate-400 font-medium italic">' +
+      (isId ? "Tidak ada perubahan" : "No changes") +
+      '</div>' +
+      '<div class="flex items-center gap-2">' +
+      '<button id="btn-settings-cancel" type="button" class="btn-secondary !min-h-10 px-4 text-xs sm:text-sm font-semibold cursor-pointer">' +
+      (isId ? "Tutup" : "Close") +
+      '</button>' +
+      '<button id="btn-save-settings" type="button" disabled class="!min-h-10 px-5 text-xs sm:text-sm font-bold rounded-xl transition duration-150 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed shadow-none">' +
+      '💾 ' + (isId ? "Simpan Pengaturan" : "Save Settings") +
+      '</button>' +
+      '</div>' +
+      '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -2655,8 +2670,8 @@ window.handleChartPeriodChange = function (select) {
       var aVal = autoPromptCheck ? autoPromptCheck.checked : true;
 
       var isDirty = (sVal !== currentStoreName.trim()) ||
-                    (fVal !== currentFooterNote.trim()) ||
-                    (aVal !== autoPrompt);
+        (fVal !== currentFooterNote.trim()) ||
+        (aVal !== autoPrompt);
 
       if (saveBtn) {
         if (isDirty) {
@@ -2733,23 +2748,23 @@ window.handleChartPeriodChange = function (select) {
 
     modal.innerHTML =
       '<div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#070d24] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 text-slate-800 dark:text-slate-100 transition-all text-center" style="animation: modalPopIn .25s cubic-bezier(.16,1,.3,1) forwards;">' +
-        '<div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-100 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 shadow-sm mb-4">' +
-          '<svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' +
-        '</div>' +
-        '<h3 class="font-black text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">' + (isId ? "Transaksi Berhasil Disimpan!" : "Transaction Saved Successfully!") + '</h3>' +
-        '<p class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">' + (txData.amount || "") + '</p>' +
-        '<p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">' +
-          (isId ? "Apakah Anda ingin mencetak struk transaksi ini ke printer thermal?" : "Would you like to print the receipt to the thermal printer now?") +
-        '</p>' +
-        '<div class="mt-6 flex items-center justify-center gap-3">' +
-          '<button id="post-save-skip" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
-            (isId ? "Selesai" : "Done") +
-          '</button>' +
-          '<button id="post-save-print" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
-            '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
-            (isId ? "🖨️ Cetak Struk Thermal" : "🖨️ Print Thermal Receipt") +
-          '</button>' +
-        '</div>' +
+      '<div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-100 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 shadow-sm mb-4">' +
+      '<svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' +
+      '</div>' +
+      '<h3 class="font-black text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">' + (isId ? "Transaksi Berhasil Disimpan!" : "Transaction Saved Successfully!") + '</h3>' +
+      '<p class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">' + (txData.amount || "") + '</p>' +
+      '<p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">' +
+      (isId ? "Apakah Anda ingin mencetak struk transaksi ini ke printer thermal?" : "Would you like to print the receipt to the thermal printer now?") +
+      '</p>' +
+      '<div class="mt-6 flex items-center justify-center gap-3">' +
+      '<button id="post-save-skip" class="btn-secondary !min-h-11 px-5 text-xs sm:text-sm font-semibold transition cursor-pointer" type="button">' +
+      (isId ? "Selesai" : "Done") +
+      '</button>' +
+      '<button id="post-save-print" class="inline-flex min-h-11 items-center justify-center text-center rounded-xl px-6 font-bold shadow-lg transition active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 text-xs sm:text-sm cursor-pointer" type="button">' +
+      '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>' +
+      (isId ? "🖨️ Cetak Struk Thermal" : "🖨️ Print Thermal Receipt") +
+      '</button>' +
+      '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -2787,7 +2802,7 @@ window.handleChartPeriodChange = function (select) {
         showPostSavePromptModal(promptData);
       }, 350);
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // Check saved Bluetooth device name in localStorage to update topbar UI on load
   var savedDeviceName = localStorage.getItem("pos_thermal_device_name");
@@ -2840,7 +2855,7 @@ window.handleChartPeriodChange = function (select) {
     try {
       sessionStorage.removeItem("pos_admin_selected_branch");
       localStorage.removeItem("pos_admin_selected_branch");
-    } catch (e) {}
+    } catch (e) { }
   }
 
   function setup() {
@@ -2862,14 +2877,14 @@ window.handleChartPeriodChange = function (select) {
           branchSelect.value = saved;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Save on manual user selection
     branchSelect.addEventListener("change", function () {
       try {
         sessionStorage.setItem("pos_admin_selected_branch", this.value);
         localStorage.setItem("pos_admin_selected_branch", this.value);
-      } catch (e) {}
+      } catch (e) { }
     });
 
     // Also persist on transaction form submission so it stays selected after reload
@@ -2881,7 +2896,7 @@ window.handleChartPeriodChange = function (select) {
             sessionStorage.setItem("pos_admin_selected_branch", branchSelect.value);
             localStorage.setItem("pos_admin_selected_branch", branchSelect.value);
           }
-        } catch (e) {}
+        } catch (e) { }
       });
     }
 
