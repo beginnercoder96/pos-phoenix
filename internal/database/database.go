@@ -27,6 +27,10 @@ func Open(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate backoffice columns: %w", err)
 	}
+	if err = ensure2FAColumns(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate 2fa columns: %w", err)
+	}
 	if _, err = db.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; " + schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("initialize database: %w", err)
@@ -483,4 +487,28 @@ func backfillUsernames(db *sql.DB) {
 		_, _ = db.Exec(`UPDATE users SET username = ? WHERE id = ? AND (username IS NULL OR username = '')`, u.username, u.id)
 	}
 }
+
+func ensure2FAColumns(db *sql.DB) error {
+	if !hasColumn(db, "users", "totp_secret") {
+		if _, err := db.Exec(`ALTER TABLE users ADD COLUMN totp_secret TEXT`); err != nil {
+			_ = err
+		}
+	}
+	if !hasColumn(db, "users", "totp_enabled") {
+		if _, err := db.Exec(`ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0`); err != nil {
+			_ = err
+		}
+	}
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS pre_auth_tokens (
+		token_hash TEXT PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		failed_attempts INTEGER NOT NULL DEFAULT 0,
+		locked_until DATETIME,
+		expires_at DATETIME NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX IF NOT EXISTS idx_pre_auth_expiry ON pre_auth_tokens(expires_at);`)
+	return nil
+}
+
 

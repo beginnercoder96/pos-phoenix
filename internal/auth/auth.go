@@ -22,6 +22,8 @@ type User struct {
 	PhoneNumber              string
 	BankName                 string
 	BankAccountNumber        string
+	TOTPSecret               string
+	TOTPEnabled              bool
 }
 
 type Service struct {
@@ -206,16 +208,26 @@ func (s Service) Authenticate(ctx context.Context, username, password string) (U
 	// Check temporary fixed credentials (supports either username or email)
 	if fixed, ok := temporaryFixedCredentials[cleanID]; ok && fixed.Password == password {
 		var u User
-		err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE (LOWER(username)=? OR LOWER(email)=? OR LOWER(username)=? OR LOWER(email)=?) AND active=1`, cleanID, cleanID, fixed.Username, fixed.Email).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType)
+		var totpSecret sql.NullString
+		var totpEnabled int
+		err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,COALESCE(branch_id,0),COALESCE(staff_type,''),totp_secret,COALESCE(totp_enabled,0) FROM users WHERE (LOWER(username)=? OR LOWER(email)=? OR LOWER(username)=? OR LOWER(email)=?) AND active=1`, cleanID, cleanID, fixed.Username, fixed.Email).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType, &totpSecret, &totpEnabled)
 		if err == nil {
 			if u.Username == "" {
 				u.Username = fixed.Username
+			}
+			u.TOTPSecret = totpSecret.String
+			u.TOTPEnabled = (totpEnabled == 1)
+			if u.TOTPSecret == "" {
+				sec, _ := GenerateTOTPSecret()
+				u.TOTPSecret = sec
+				_, _ = s.DB.ExecContext(ctx, `UPDATE users SET totp_secret=? WHERE id=?`, sec, u.ID)
 			}
 			return u, nil
 		}
 		// If the user does not exist in DB yet, safely create it so foreign keys (sessions, transactions) work
 		hash, _ := HashPassword(fixed.Password)
-		res, err := s.DB.ExecContext(ctx, `INSERT INTO users(username,email,display_name,password_hash,role,active,staff_type) VALUES(?,?,?,?,?,1,?)`, fixed.Username, fixed.Email, fixed.DisplayName, hash, fixed.Role, fixed.StaffType)
+		sec, _ := GenerateTOTPSecret()
+		res, err := s.DB.ExecContext(ctx, `INSERT INTO users(username,email,display_name,password_hash,role,active,staff_type,totp_secret,totp_enabled) VALUES(?,?,?,?,?,1,?,?,0)`, fixed.Username, fixed.Email, fixed.DisplayName, hash, fixed.Role, fixed.StaffType, sec)
 		if err == nil {
 			id, _ := res.LastInsertId()
 			return User{
@@ -226,13 +238,17 @@ func (s Service) Authenticate(ctx context.Context, username, password string) (U
 				Role:        fixed.Role,
 				Active:      true,
 				StaffType:   fixed.StaffType,
+				TOTPSecret:  sec,
+				TOTPEnabled: false,
 			}, nil
 		}
 	}
 
 	var u User
 	var hash string
-	err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,password_hash,COALESCE(branch_id,0),COALESCE(staff_type,'') FROM users WHERE (LOWER(username)=? OR LOWER(email)=?) AND active=1`, cleanID, cleanID).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &hash, &u.BranchID, &u.StaffType)
+	var totpSecret sql.NullString
+	var totpEnabled int
+	err := s.DB.QueryRowContext(ctx, `SELECT id,COALESCE(username,''),email,display_name,role,password_hash,COALESCE(branch_id,0),COALESCE(staff_type,''),totp_secret,COALESCE(totp_enabled,0) FROM users WHERE (LOWER(username)=? OR LOWER(email)=?) AND active=1`, cleanID, cleanID).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &hash, &u.BranchID, &u.StaffType, &totpSecret, &totpEnabled)
 	if err != nil || !VerifyPassword(hash, password) {
 		return User{}, errors.New("invalid credentials")
 	}
@@ -242,6 +258,13 @@ func (s Service) Authenticate(ctx context.Context, username, password string) (U
 		} else {
 			u.Username = cleanID
 		}
+	}
+	u.TOTPSecret = totpSecret.String
+	u.TOTPEnabled = (totpEnabled == 1)
+	if u.TOTPSecret == "" {
+		sec, _ := GenerateTOTPSecret()
+		u.TOTPSecret = sec
+		_, _ = s.DB.ExecContext(ctx, `UPDATE users SET totp_secret=? WHERE id=?`, sec, u.ID)
 	}
 	return u, nil
 }
@@ -260,7 +283,13 @@ func (s Service) CreateSession(ctx context.Context, userID int64) (string, error
 func (s Service) UserForSession(ctx context.Context, token string) (User, error) {
 	sum := sha256.Sum256([]byte(token))
 	var u User
-	err := s.DB.QueryRowContext(ctx, `SELECT u.id,COALESCE(u.username,''),u.email,u.display_name,u.role,COALESCE(u.branch_id,0),COALESCE(u.staff_type,'') FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1`, base64.RawStdEncoding.EncodeToString(sum[:]), s.now().UTC()).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType)
+	var totpSecret sql.NullString
+	var totpEnabled int
+	err := s.DB.QueryRowContext(ctx, `SELECT u.id,COALESCE(u.username,''),u.email,u.display_name,u.role,COALESCE(u.branch_id,0),COALESCE(u.staff_type,''),u.totp_secret,COALESCE(u.totp_enabled,0) FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1`, base64.RawStdEncoding.EncodeToString(sum[:]), s.now().UTC()).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType, &totpSecret, &totpEnabled)
+	if err == nil {
+		u.TOTPSecret = totpSecret.String
+		u.TOTPEnabled = (totpEnabled == 1)
+	}
 	return u, err
 }
 
@@ -268,6 +297,166 @@ func (s Service) DeleteSession(ctx context.Context, token string) error {
 	sum := sha256.Sum256([]byte(token))
 	_, err := s.DB.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash=?`, base64.RawStdEncoding.EncodeToString(sum[:]))
 	return err
+}
+
+func (s Service) CreatePreAuthToken(ctx context.Context, userID int64) (string, error) {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	sum := sha256.Sum256([]byte(token))
+	tokenHash := base64.RawStdEncoding.EncodeToString(sum[:])
+	expiresAt := s.now().Add(5 * time.Minute).UTC()
+
+	// Check if this user is currently locked out from previous failed attempts
+	var existingLock sql.NullTime
+	var existingAttempts int
+	_ = s.DB.QueryRowContext(ctx, `SELECT locked_until, failed_attempts FROM pre_auth_tokens WHERE user_id=? AND locked_until IS NOT NULL ORDER BY rowid DESC LIMIT 1`, userID).Scan(&existingLock, &existingAttempts)
+
+	// Clean up any old pre_auth_tokens for this user
+	_, _ = s.DB.ExecContext(ctx, `DELETE FROM pre_auth_tokens WHERE user_id=? OR expires_at<=?`, userID, s.now().UTC())
+
+	if existingLock.Valid && existingLock.Time.After(s.now().UTC()) {
+		// Carry forward the lockout so re-entering password at /login cannot bypass the 5-minute cooldown!
+		if existingLock.Time.After(expiresAt) {
+			expiresAt = existingLock.Time
+		}
+		_, err := s.DB.ExecContext(ctx, `INSERT INTO pre_auth_tokens(token_hash, user_id, expires_at, failed_attempts, locked_until) VALUES(?,?,?,?,?)`, tokenHash, userID, expiresAt, existingAttempts, existingLock.Time)
+		return token, err
+	}
+
+	_, err := s.DB.ExecContext(ctx, `INSERT INTO pre_auth_tokens(token_hash, user_id, expires_at) VALUES(?,?,?)`, tokenHash, userID, expiresAt)
+	return token, err
+}
+
+func (s Service) UserLockoutRemaining(ctx context.Context, userID int64) (remainingSec int, isLocked bool) {
+	var existingLock sql.NullTime
+	_ = s.DB.QueryRowContext(ctx, `SELECT locked_until FROM pre_auth_tokens WHERE user_id=? AND locked_until IS NOT NULL ORDER BY rowid DESC LIMIT 1`, userID).Scan(&existingLock)
+	if existingLock.Valid && existingLock.Time.After(s.now().UTC()) {
+		rem := int(existingLock.Time.Sub(s.now().UTC()).Seconds())
+		return rem, true
+	}
+	return 0, false
+}
+
+func (s Service) UserForPreAuthToken(ctx context.Context, token string) (User, error) {
+	sum := sha256.Sum256([]byte(token))
+	tokenHash := base64.RawStdEncoding.EncodeToString(sum[:])
+
+	var u User
+	var totpSecret sql.NullString
+	var totpEnabled int
+	var failedAttempts int
+	var lockedUntil sql.NullTime
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT u.id, COALESCE(u.username,''), u.email, u.display_name, u.role, COALESCE(u.branch_id,0), COALESCE(u.staff_type,''), u.totp_secret, COALESCE(u.totp_enabled,0), p.failed_attempts, p.locked_until
+		 FROM pre_auth_tokens p
+		 JOIN users u ON u.id=p.user_id
+		 WHERE p.token_hash=? AND p.expires_at>? AND u.active=1`,
+		tokenHash, s.now().UTC(),
+	).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.BranchID, &u.StaffType, &totpSecret, &totpEnabled, &failedAttempts, &lockedUntil)
+	if err != nil {
+		return User{}, errors.New("invalid or expired pre-auth session")
+	}
+
+	u.TOTPSecret = totpSecret.String
+	u.TOTPEnabled = (totpEnabled == 1)
+
+	if lockedUntil.Valid && lockedUntil.Time.After(s.now().UTC()) {
+		remaining := int(lockedUntil.Time.Sub(s.now().UTC()).Seconds())
+		return u, fmt.Errorf("RATE_LIMITED:%d", remaining)
+	}
+
+	return u, nil
+}
+
+func (s Service) RecordPreAuthFailure(ctx context.Context, token string) (failedAttempts int, isLocked bool, remainingSec int, err error) {
+	sum := sha256.Sum256([]byte(token))
+	tokenHash := base64.RawStdEncoding.EncodeToString(sum[:])
+
+	var attempts int
+	err = s.DB.QueryRowContext(ctx, `SELECT failed_attempts FROM pre_auth_tokens WHERE token_hash=?`, tokenHash).Scan(&attempts)
+	if err != nil {
+		return 0, false, 0, err
+	}
+
+	attempts++
+	if attempts >= 5 {
+		lockUntil := s.now().Add(5 * time.Minute).UTC()
+		_, err = s.DB.ExecContext(ctx, `UPDATE pre_auth_tokens SET failed_attempts=?, locked_until=? WHERE token_hash=?`, attempts, lockUntil, tokenHash)
+		return attempts, true, 300, err
+	}
+
+	_, err = s.DB.ExecContext(ctx, `UPDATE pre_auth_tokens SET failed_attempts=? WHERE token_hash=?`, attempts, tokenHash)
+	return attempts, false, 0, err
+}
+
+func (s Service) DeletePreAuthToken(ctx context.Context, token string) error {
+	sum := sha256.Sum256([]byte(token))
+	tokenHash := base64.RawStdEncoding.EncodeToString(sum[:])
+	_, err := s.DB.ExecContext(ctx, `DELETE FROM pre_auth_tokens WHERE token_hash=?`, tokenHash)
+	return err
+}
+
+// ClearUserLockout resets failed attempts and lockouts for a user.
+func (s Service) ClearUserLockout(ctx context.Context, userID int64) error {
+	_, err := s.DB.ExecContext(ctx, `UPDATE pre_auth_tokens SET failed_attempts=0, locked_until=NULL WHERE user_id=?`, userID)
+	return err
+}
+
+// FindUserForDevBypass resolves an active user for dev bypass login.
+func (s Service) FindUserForDevBypass(ctx context.Context, identifier string) (User, error) {
+	clean := strings.ToLower(strings.TrimSpace(identifier))
+	var u User
+	var totpSecret sql.NullString
+	var totpEnabled int
+
+	var query string
+	var args []any
+	if clean != "" {
+		query = `SELECT id, COALESCE(username,''), email, display_name, role, active, COALESCE(branch_id,0), COALESCE(staff_type,''), totp_secret, COALESCE(totp_enabled,0)
+		         FROM users WHERE (LOWER(username)=? OR LOWER(email)=?) AND active=1 LIMIT 1`
+		args = []any{clean, clean}
+	} else {
+		query = `SELECT id, COALESCE(username,''), email, display_name, role, active, COALESCE(branch_id,0), COALESCE(staff_type,''), totp_secret, COALESCE(totp_enabled,0)
+		         FROM users WHERE active=1 ORDER BY CASE role WHEN 'superadmin' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END, id ASC LIMIT 1`
+	}
+
+	err := s.DB.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Username, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.BranchID, &u.StaffType, &totpSecret, &totpEnabled)
+	if err != nil {
+		if clean != "" {
+			if fixed, ok := temporaryFixedCredentials[clean]; ok {
+				return s.Authenticate(ctx, fixed.Username, fixed.Password)
+			}
+		}
+		return User{}, err
+	}
+	u.TOTPSecret = totpSecret.String
+	u.TOTPEnabled = (totpEnabled == 1)
+	return u, nil
+}
+
+func (s Service) EnableTOTP(ctx context.Context, userID int64) error {
+	_, err := s.DB.ExecContext(ctx, `UPDATE users SET totp_enabled=1 WHERE id=?`, userID)
+	return err
+}
+
+func (s Service) EnsureUserTOTPSecret(ctx context.Context, userID int64) (string, error) {
+	var secret sql.NullString
+	err := s.DB.QueryRowContext(ctx, `SELECT totp_secret FROM users WHERE id=?`, userID).Scan(&secret)
+	if err != nil {
+		return "", err
+	}
+	if secret.Valid && secret.String != "" {
+		return secret.String, nil
+	}
+	newSecret, err := GenerateTOTPSecret()
+	if err != nil {
+		return "", err
+	}
+	_, err = s.DB.ExecContext(ctx, `UPDATE users SET totp_secret=? WHERE id=?`, newSecret, userID)
+	return newSecret, err
 }
 
 func (s Service) BootstrapAdmin(ctx context.Context, email, password string) error {
@@ -397,4 +586,3 @@ func (s Service) now() time.Time {
 	}
 	return time.Now()
 }
-

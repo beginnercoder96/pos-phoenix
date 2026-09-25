@@ -12,6 +12,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -89,6 +90,12 @@ type pageData struct {
 	ResetToken                  string
 	ResetLink                   string
 	ReserveCents                int64
+	QRCodeDataURL               template.URL
+	SecretKey                   string
+	SecretKeyFormatted          string
+	Username                    string
+	RemainingSec                int
+	IsDevMode                   bool
 }
 
 func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error) {
@@ -114,6 +121,11 @@ func New(db *sql.DB, secure bool, location *time.Location) (http.Handler, error)
 	})
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.login)
+	mux.HandleFunc("POST /login/dev-bypass", s.devBypassLogin)
+	mux.HandleFunc("GET /login/setup-2fa", s.setup2FAPage)
+	mux.HandleFunc("POST /login/setup-2fa", s.setup2FA)
+	mux.HandleFunc("GET /login/verify-otp", s.verifyOTPPage)
+	mux.HandleFunc("POST /login/verify-otp", s.verifyOTP)
 	mux.HandleFunc("GET /forgot-password", s.forgotPasswordPage)
 	mux.HandleFunc("POST /forgot-password", s.requestPasswordReset)
 	mux.HandleFunc("GET /reset-password", s.resetPasswordPage)
@@ -165,8 +177,39 @@ func (s *Server) loadingPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r)}))
+	c, err := r.Cookie("pre_auth")
+	if err == nil && c.Value != "" {
+		if u, err := s.auth.UserForPreAuthToken(r.Context(), c.Value); err != nil && strings.HasPrefix(err.Error(), "RATE_LIMITED:") {
+			var rem int
+			fmt.Sscanf(err.Error(), "RATE_LIMITED:%d", &rem)
+			errMsg := fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), rem)
+			s.renderStatus(w, "login.html", localizedData(r, pageData{
+				CSRF:         s.csrf(w, r),
+				Error:        errMsg,
+				RemainingSec: rem,
+				Username:     u.Username,
+				IsDevMode:    s.isDevMode(),
+			}), http.StatusTooManyRequests)
+			return
+		}
+	}
+	s.render(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), IsDevMode: s.isDevMode()}))
 }
+func (s *Server) isDevMode() bool {
+	env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+	if env == "production" || env == "prod" {
+		return false
+	}
+	if strings.ToLower(strings.TrimSpace(os.Getenv("ENV"))) == "production" {
+		return false
+	}
+	return true
+}
+
+func (s *Server) langLabel(r *http.Request, key string) string {
+	return translate(readPreferences(r).Language, key)
+}
+
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if !s.validCSRF(r) {
 		http.Error(w, "invalid request", http.StatusForbidden)
@@ -177,20 +220,350 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		username = strings.TrimSpace(r.FormValue("email"))
 	}
 	if username == "" {
-		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect."}), http.StatusUnauthorized)
+		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect.", IsDevMode: s.isDevMode()}), http.StatusUnauthorized)
 		return
 	}
 	u, err := s.auth.Authenticate(r.Context(), username, r.FormValue("password"))
 	if err != nil {
-		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect."}), http.StatusUnauthorized)
+		s.renderStatus(w, "login.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: "Username or password is incorrect.", IsDevMode: s.isDevMode()}), http.StatusUnauthorized)
 		return
 	}
-	token, err := s.auth.CreateSession(r.Context(), u.ID)
+
+	remSec, isLocked := s.auth.UserLockoutRemaining(r.Context(), u.ID)
+	if isLocked && remSec > 0 {
+		errMsg := fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), remSec)
+		s.renderStatus(w, "login.html", localizedData(r, pageData{
+			CSRF:         s.csrf(w, r),
+			Error:        errMsg,
+			RemainingSec: remSec,
+			Username:     u.Username,
+			IsDevMode:    s.isDevMode(),
+		}), http.StatusTooManyRequests)
+		return
+	}
+
+	preAuthToken, err := s.auth.CreatePreAuthToken(r.Context(), u.ID)
 	if err != nil {
-		http.Error(w, "unable to sign in", 500)
+		http.Error(w, "unable to initiate sign in", 500)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: "session", Value: token, Path: "/", HttpOnly: true, Secure: s.secure, SameSite: http.SameSiteLaxMode, MaxAge: 43200})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "pre_auth",
+		Value:    preAuthToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   s.secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   300,
+	})
+
+	if !u.TOTPEnabled {
+		http.Redirect(w, r, "/login/setup-2fa", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/login/verify-otp", http.StatusSeeOther)
+}
+
+func (s *Server) devBypassLogin(w http.ResponseWriter, r *http.Request) {
+	if !s.isDevMode() {
+		http.Error(w, "dev mode disabled", http.StatusForbidden)
+		return
+	}
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+
+	var targetUser *auth.User
+
+	// 1. Check if user already has an active pre_auth session (even if rate limited)
+	if c, err := r.Cookie("pre_auth"); err == nil && c.Value != "" {
+		if u, err := s.auth.UserForPreAuthToken(r.Context(), c.Value); err == nil || strings.HasPrefix(err.Error(), "RATE_LIMITED:") {
+			targetUser = &u
+			_ = s.auth.DeletePreAuthToken(r.Context(), c.Value)
+			http.SetCookie(w, &http.Cookie{Name: "pre_auth", Value: "", Path: "/", MaxAge: -1})
+		}
+	}
+
+	// 2. If no pre_auth found, resolve user by supplied username/email or default admin
+	if targetUser == nil {
+		reqUsername := strings.TrimSpace(r.FormValue("username"))
+		u, err := s.auth.FindUserForDevBypass(r.Context(), reqUsername)
+		if err == nil {
+			targetUser = &u
+		}
+	}
+
+	if targetUser == nil {
+		http.Error(w, "no active user found for dev bypass", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Clear any active rate-limit lockout for this user
+	_ = s.auth.ClearUserLockout(r.Context(), targetUser.ID)
+
+	// 4. Create permanent session
+	token, err := s.auth.CreateSession(r.Context(), targetUser.ID)
+	if err != nil {
+		http.Error(w, "unable to create session", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   s.secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   43200, // 12 hours
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:   "pre_auth",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (s *Server) setup2FAPage(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie("pre_auth")
+	if err != nil || c.Value == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	u, err := s.auth.UserForPreAuthToken(r.Context(), c.Value)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "RATE_LIMITED:") {
+			var rem int
+			fmt.Sscanf(err.Error(), "RATE_LIMITED:%d", &rem)
+			errMsg := fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), rem)
+			s.renderStatus(w, "login_setup_2fa.html", localizedData(r, pageData{CSRF: s.csrf(w, r), Error: errMsg, Username: u.Username}), http.StatusTooManyRequests)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: "pre_auth", Value: "", Path: "/", MaxAge: -1})
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if u.TOTPEnabled {
+		http.Redirect(w, r, "/login/verify-otp", http.StatusSeeOther)
+		return
+	}
+
+	secret, err := s.auth.EnsureUserTOTPSecret(r.Context(), u.ID)
+	if err != nil {
+		http.Error(w, "unable to prepare 2fa", 500)
+		return
+	}
+	uri := auth.GenerateTOTPURI(u.Username, secret, "POS Phoenix")
+	qrCodeDataURL, err := auth.GenerateQRCodeDataURL(uri)
+	if err != nil {
+		http.Error(w, "unable to generate qr code", 500)
+		return
+	}
+
+	s.render(w, "login_setup_2fa.html", localizedData(r, pageData{
+		CSRF:               s.csrf(w, r),
+		QRCodeDataURL:      template.URL(qrCodeDataURL),
+		SecretKey:          secret,
+		SecretKeyFormatted: auth.FormatSecretForDisplay(secret),
+		Username:           u.Username,
+		IsDevMode:          s.isDevMode(),
+	}))
+}
+
+func (s *Server) setup2FA(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	c, err := r.Cookie("pre_auth")
+	if err != nil || c.Value == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	u, err := s.auth.UserForPreAuthToken(r.Context(), c.Value)
+	code := strings.TrimSpace(r.FormValue("code"))
+	isDevBypass := s.isDevMode() && (code == auth.DevMasterOTP || code == auth.DevMasterOTPAlt)
+
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "RATE_LIMITED:") {
+			if !isDevBypass {
+				var rem int
+				fmt.Sscanf(err.Error(), "RATE_LIMITED:%d", &rem)
+				errMsg := fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), rem)
+				s.renderStatus(w, "login_setup_2fa.html", localizedData(r, pageData{
+					CSRF:         s.csrf(w, r),
+					Error:        errMsg,
+					Username:     u.Username,
+					IsDevMode:    s.isDevMode(),
+					RemainingSec: rem,
+				}), http.StatusTooManyRequests)
+				return
+			}
+		} else {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+	}
+
+	if !isDevBypass && !auth.ValidateTOTPCode(u.TOTPSecret, code, s.now(), s.isDevMode()) {
+		_, isLocked, rem, _ := s.auth.RecordPreAuthFailure(r.Context(), c.Value)
+		var errMsg string
+		if isLocked {
+			errMsg = fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), rem)
+		} else {
+			errMsg = s.langLabel(r, "invalidOTPCode")
+		}
+		uri := auth.GenerateTOTPURI(u.Username, u.TOTPSecret, "POS Phoenix")
+		qrCodeDataURL, _ := auth.GenerateQRCodeDataURL(uri)
+		s.renderStatus(w, "login_setup_2fa.html", localizedData(r, pageData{
+			CSRF:               s.csrf(w, r),
+			Error:              errMsg,
+			QRCodeDataURL:      template.URL(qrCodeDataURL),
+			SecretKey:          u.TOTPSecret,
+			SecretKeyFormatted: auth.FormatSecretForDisplay(u.TOTPSecret),
+			Username:           u.Username,
+			IsDevMode:          s.isDevMode(),
+			RemainingSec:       rem,
+		}), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.auth.EnableTOTP(r.Context(), u.ID); err != nil {
+		http.Error(w, "failed to activate 2fa", 500)
+		return
+	}
+
+	_ = s.auth.DeletePreAuthToken(r.Context(), c.Value)
+	http.SetCookie(w, &http.Cookie{Name: "pre_auth", Value: "", Path: "/", MaxAge: -1})
+
+	sessionToken, err := s.auth.CreateSession(r.Context(), u.ID)
+	if err != nil {
+		http.Error(w, "unable to establish session", 500)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    sessionToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   s.secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   43200,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (s *Server) verifyOTPPage(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie("pre_auth")
+	if err != nil || c.Value == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	u, err := s.auth.UserForPreAuthToken(r.Context(), c.Value)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "RATE_LIMITED:") {
+			var rem int
+			fmt.Sscanf(err.Error(), "RATE_LIMITED:%d", &rem)
+			errMsg := fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), rem)
+			s.renderStatus(w, "login_otp.html", localizedData(r, pageData{
+				CSRF:         s.csrf(w, r),
+				Error:        errMsg,
+				Username:     u.Username,
+				IsDevMode:    s.isDevMode(),
+				RemainingSec: rem,
+			}), http.StatusTooManyRequests)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: "pre_auth", Value: "", Path: "/", MaxAge: -1})
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if !u.TOTPEnabled {
+		http.Redirect(w, r, "/login/setup-2fa", http.StatusSeeOther)
+		return
+	}
+
+	s.render(w, "login_otp.html", localizedData(r, pageData{
+		CSRF:      s.csrf(w, r),
+		Username:  u.Username,
+		IsDevMode: s.isDevMode(),
+	}))
+}
+
+func (s *Server) verifyOTP(w http.ResponseWriter, r *http.Request) {
+	if !s.validCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	c, err := r.Cookie("pre_auth")
+	if err != nil || c.Value == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	u, err := s.auth.UserForPreAuthToken(r.Context(), c.Value)
+	code := strings.TrimSpace(r.FormValue("code"))
+	isDevBypass := s.isDevMode() && (code == auth.DevMasterOTP || code == auth.DevMasterOTPAlt)
+
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "RATE_LIMITED:") {
+			if !isDevBypass {
+				var rem int
+				fmt.Sscanf(err.Error(), "RATE_LIMITED:%d", &rem)
+				errMsg := fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), rem)
+				s.renderStatus(w, "login_otp.html", localizedData(r, pageData{
+					CSRF:         s.csrf(w, r),
+					Error:        errMsg,
+					Username:     u.Username,
+					IsDevMode:    s.isDevMode(),
+					RemainingSec: rem,
+				}), http.StatusTooManyRequests)
+				return
+			}
+		} else {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+	}
+
+	if !isDevBypass && !auth.ValidateTOTPCode(u.TOTPSecret, code, s.now(), s.isDevMode()) {
+		_, isLocked, rem, _ := s.auth.RecordPreAuthFailure(r.Context(), c.Value)
+		var errMsg string
+		if isLocked {
+			errMsg = fmt.Sprintf(s.langLabel(r, "rateLimitedLocked"), rem)
+		} else {
+			errMsg = s.langLabel(r, "invalidOTPCode")
+		}
+		s.renderStatus(w, "login_otp.html", localizedData(r, pageData{
+			CSRF:         s.csrf(w, r),
+			Error:        errMsg,
+			Username:     u.Username,
+			IsDevMode:    s.isDevMode(),
+			RemainingSec: rem,
+		}), http.StatusBadRequest)
+		return
+	}
+
+	_ = s.auth.DeletePreAuthToken(r.Context(), c.Value)
+	http.SetCookie(w, &http.Cookie{Name: "pre_auth", Value: "", Path: "/", MaxAge: -1})
+
+	sessionToken, err := s.auth.CreateSession(r.Context(), u.ID)
+	if err != nil {
+		http.Error(w, "unable to establish session", 500)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    sessionToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   s.secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   43200,
+	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 

@@ -12,6 +12,35 @@ const http = require('http');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+
+function base32Decode(str) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let cleaned = str.toUpperCase().replace(/=+$/, '');
+  let bits = '';
+  for (let i = 0; i < cleaned.length; i++) {
+    const val = alphabet.indexOf(cleaned[i]);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(parseInt(bits.substr(i, 8), 2));
+  }
+  return Buffer.from(bytes);
+}
+
+function generateTOTP(secret, timeStepSeconds = 30) {
+  const key = base32Decode(secret);
+  const epoch = Math.floor(Date.now() / 1000);
+  const counter = Math.floor(epoch / timeStepSeconds);
+  const buf = Buffer.alloc(8);
+  buf.writeBigInt64BE(BigInt(counter));
+  const hmac = crypto.createHmac('sha1', key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1000000;
+  return code.toString().padStart(6, '0');
+}
 
 async function isServerRunning(url) {
   return new Promise((resolve) => {
@@ -26,7 +55,7 @@ async function isServerRunning(url) {
   });
 }
 
-async function waitForServer(url, timeoutMs = 30000) {
+async function waitForServer(url, timeoutMs = 60000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (await isServerRunning(url)) return true;
@@ -98,6 +127,28 @@ async function run() {
     await page.click('button[type="submit"]');
     await page.waitForLoadState('domcontentloaded');
 
+    // Handle 2FA (Setup or Verify OTP)
+    let currentURL = page.url();
+    if (currentURL.includes('/login/setup-2fa')) {
+      console.log('Detected 2FA Setup page. Generating TOTP code from secret key...');
+      const secretInput = page.locator('#totp-secret-input');
+      await secretInput.waitFor({ state: 'attached', timeout: 5000 });
+      const rawSecret = await secretInput.getAttribute('data-raw-secret');
+      console.log(`2FA Secret Key retrieved for Ipang: ${rawSecret}`);
+      const otpCode = generateTOTP(rawSecret);
+      console.log(`Computed 6-digit TOTP code: ${otpCode}`);
+      await page.fill('#otp-input', otpCode);
+      await page.click('button[type="submit"]');
+      await page.waitForLoadState('domcontentloaded');
+      console.log('2FA Setup successfully activated and logged in');
+    } else if (currentURL.includes('/login/verify-otp')) {
+      console.log('Detected routine 2FA OTP verification page. Entering dev/computed code...');
+      await page.fill('#otp-input', '123456');
+      await page.click('button[type="submit"]');
+      await page.waitForLoadState('domcontentloaded');
+      console.log('2FA OTP successfully verified and logged in');
+    }
+
     // Navigate to Profit Sharing for KLASEMAN
     await page.goto(`${baseURL}/backoffice/profit-sharing?branch=KLASEMAN&period=2026-09`, { waitUntil: 'domcontentloaded' });
     console.log('Navigated to Klaseman Profit Sharing page');
@@ -108,7 +159,7 @@ async function run() {
 
     const ownerInput = page.locator('#owner-pct-input');
     await ownerInput.waitFor({ state: 'visible', timeout: 5000 });
-    
+
     // Set owner percentage to 20%
     await ownerInput.fill('20');
     await ownerInput.dispatchEvent('input');

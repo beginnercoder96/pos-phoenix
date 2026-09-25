@@ -106,15 +106,15 @@ Lihat spesifikasi lengkap, formula matematis, dan simulasi riil di file [BACKOFF
 - [x] Tambahkan unit test HTTP untuk `/transactions` dan update Playwright product tour script
 
 ### Milestone 10: Simplifikasi Login & 2FA Google Authenticator (TOTP RFC 6238)
-- [ ] Database migration: tambahkan `totp_secret` (TEXT, Base32) dan `totp_enabled` (INTEGER DEFAULT 0) pada tabel `users`
-- [ ] Implementasi TOTP engine di Go (`internal/auth/totp.go`): generate secret unik, buat URI `otpauth://totp/...`, dan validasi kode 6 digit berbasis waktu (30s time step ±1 skew)
-- [ ] Alur login 2 langkah:
+- [x] Database migration: tambahkan `totp_secret` (TEXT, Base32) dan `totp_enabled` (INTEGER DEFAULT 0) pada tabel `users`
+- [x] Implementasi TOTP engine di Go (`internal/auth/totp.go`): generate secret unik, buat URI `otpauth://totp/...`, dan validasi kode 6 digit berbasis waktu (30s time step ±1 skew)
+- [x] Alur login 2 langkah:
   - Step 1: Input Username & Password
   - Step 2: Jika `totp_enabled == 0`, tampilkan QR Code untuk di-scan di Google Authenticator & aktivasi kode pertama. Jika `totp_enabled == 1`, minta 6 digit OTP.
-- [ ] Rate limiting: maksimal 5 kali percobaan OTP salah berturut-turut untuk mencegah brute-force
-- [ ] Template UI: `login_otp.html` (6 digit code input) dan `login_setup_2fa.html` (QR code & petunjuk)
-- [ ] Pastikan email hanya wajib saat inisialisasi awal sistem POS (bootstrap superadmin)
-- [ ] Unit test: validasi OTP valid, penolakan OTP salah/expired, dan independensi OTP antar-user
+- [x] Rate limiting: maksimal 5 kali percobaan OTP salah berturut-turut untuk mencegah brute-force
+- [x] Template UI: `login_otp.html` (6 digit code input) dan `login_setup_2fa.html` (QR code & petunjuk)
+- [x] Pastikan email hanya wajib saat inisialisasi awal sistem POS (bootstrap superadmin)
+- [x] Unit test: validasi OTP valid, penolakan OTP salah/expired, dan independensi OTP antar-user
 
 ### Milestone 11: Sistem Product Tour Sinematik (Storyteller Live Caption & Camera Movement)
 - [ ] Buat file stylesheet independen `web/static/css/product_tour_caption.css` khusus untuk product tour (terisolasi penuh dari bundle CSS production dan testing).

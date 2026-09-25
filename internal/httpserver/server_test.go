@@ -1228,43 +1228,89 @@ func TestUsernameLoginAndForgotPasswordHTTP(t *testing.T) {
 	if recLogin.Code != http.StatusSeeOther {
 		t.Fatalf("expected 303 redirect on username login, got %d, body: %s", recLogin.Code, recLogin.Body.String())
 	}
-	if recLogin.Header().Get("Location") != "/" {
-		t.Fatalf("expected redirect to '/', got %s", recLogin.Header().Get("Location"))
+	if recLogin.Header().Get("Location") != "/login/setup-2fa" {
+		t.Fatalf("expected redirect to '/login/setup-2fa', got %s", recLogin.Header().Get("Location"))
 	}
 
-	// 1b. Test Login with Email entered into the form
-	loginFormEmail := url.Values{
-		"csrf":     {csrf},
-		"username": {"admin@example.com"},
-		"password": {"correct horse battery staple"},
+	// Extract pre_auth cookie
+	var preAuthCookie *http.Cookie
+	for _, c := range recLogin.Result().Cookies() {
+		if c.Name == "pre_auth" {
+			preAuthCookie = c
+			break
+		}
 	}
-	reqLoginEmail := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginFormEmail.Encode()))
-	reqLoginEmail.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	reqLoginEmail.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
-	recLoginEmail := httptest.NewRecorder()
-	handler.ServeHTTP(recLoginEmail, reqLoginEmail)
-
-	if recLoginEmail.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303 redirect on email login, got %d, body: %s", recLoginEmail.Code, recLoginEmail.Body.String())
-	}
-	if recLoginEmail.Header().Get("Location") != "/" {
-		t.Fatalf("expected redirect to '/', got %s", recLoginEmail.Header().Get("Location"))
+	if preAuthCookie == nil || preAuthCookie.Value == "" {
+		t.Fatal("expected pre_auth cookie to be set")
 	}
 
-	// 1c. Test Login with legacy email parameter
-	loginFormLegacy := url.Values{
-		"csrf":     {csrf},
-		"email":    {"admin@example.com"},
-		"password": {"correct horse battery staple"},
+	// 1a. Test GET /login/setup-2fa
+	reqSetup := httptest.NewRequest(http.MethodGet, "/login/setup-2fa", nil)
+	reqSetup.AddCookie(preAuthCookie)
+	recSetup := httptest.NewRecorder()
+	handler.ServeHTTP(recSetup, reqSetup)
+	if recSetup.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /login/setup-2fa, got %d", recSetup.Code)
 	}
-	reqLoginLegacy := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginFormLegacy.Encode()))
-	reqLoginLegacy.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	reqLoginLegacy.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
-	recLoginLegacy := httptest.NewRecorder()
-	handler.ServeHTTP(recLoginLegacy, reqLoginLegacy)
+	if !strings.Contains(recSetup.Body.String(), "data:image/png;base64,") {
+		t.Fatal("expected QR code data URL in setup page")
+	}
 
-	if recLoginLegacy.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303 redirect on legacy email login, got %d, body: %s", recLoginLegacy.Code, recLoginLegacy.Body.String())
+	// 1b. Test POST /login/setup-2fa with invalid code
+	badSetupForm := url.Values{
+		"csrf": {csrf},
+		"code": {"999999"},
+	}
+	reqBadSetup := httptest.NewRequest(http.MethodPost, "/login/setup-2fa", strings.NewReader(badSetupForm.Encode()))
+	reqBadSetup.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqBadSetup.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	reqBadSetup.AddCookie(preAuthCookie)
+	recBadSetup := httptest.NewRecorder()
+	handler.ServeHTTP(recBadSetup, reqBadSetup)
+	if recBadSetup.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request on invalid OTP code, got %d", recBadSetup.Code)
+	}
+
+	// 1c. Test POST /login/setup-2fa with valid code
+	var totpSecret string
+	if err := db.QueryRow(`SELECT totp_secret FROM users WHERE id=?`, adminID).Scan(&totpSecret); err != nil {
+		t.Fatal(err)
+	}
+	validCode, err := auth.GenerateTOTPCode(totpSecret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	goodSetupForm := url.Values{
+		"csrf": {csrf},
+		"code": {validCode},
+	}
+	reqGoodSetup := httptest.NewRequest(http.MethodPost, "/login/setup-2fa", strings.NewReader(goodSetupForm.Encode()))
+	reqGoodSetup.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqGoodSetup.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	reqGoodSetup.AddCookie(preAuthCookie)
+	recGoodSetup := httptest.NewRecorder()
+	handler.ServeHTTP(recGoodSetup, reqGoodSetup)
+
+	if recGoodSetup.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on successful 2FA setup, got %d", recGoodSetup.Code)
+	}
+	if recGoodSetup.Header().Get("Location") != "/" {
+		t.Fatalf("expected redirect to '/', got %s", recGoodSetup.Header().Get("Location"))
+	}
+
+	// 1d. Test Login now redirects to /login/verify-otp since TOTP is enabled
+	reqLoginAgain := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginForm.Encode()))
+	reqLoginAgain.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLoginAgain.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLoginAgain := httptest.NewRecorder()
+	handler.ServeHTTP(recLoginAgain, reqLoginAgain)
+
+	if recLoginAgain.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect on routine login, got %d", recLoginAgain.Code)
+	}
+	if recLoginAgain.Header().Get("Location") != "/login/verify-otp" {
+		t.Fatalf("expected redirect to '/login/verify-otp', got %s", recLoginAgain.Header().Get("Location"))
 	}
 
 	// 2. Test GET /forgot-password
@@ -1369,6 +1415,154 @@ func TestUsernameLoginAndForgotPasswordHTTP(t *testing.T) {
 	}
 	if savedUname != "barber_anto" || savedEmail != "anto@example.com" {
 		t.Fatalf("unexpected operator data: uname=%s, email=%s", savedUname, savedEmail)
+	}
+}
+
+func TestTOTPRateLimitingLockout(t *testing.T) {
+	db, handler, _ := testServer(t)
+
+	adminID := addUser(t, db, "rate-limit@example.com", "superadmin")
+	_, err := db.Exec(`UPDATE users SET username='ratelimituser', totp_enabled=1 WHERE id=?`, adminID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	csrf := "01234567890123456789012345678901"
+
+	// 1. Routine Login to get pre_auth cookie
+	loginForm := url.Values{
+		"csrf":     {csrf},
+		"username": {"ratelimituser"},
+		"password": {"correct horse battery staple"},
+	}
+	reqLogin := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginForm.Encode()))
+	reqLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqLogin.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recLogin := httptest.NewRecorder()
+	handler.ServeHTTP(recLogin, reqLogin)
+
+	if recLogin.Code != http.StatusSeeOther || recLogin.Header().Get("Location") != "/login/verify-otp" {
+		t.Fatalf("expected redirect to /login/verify-otp, got code %d, loc %s", recLogin.Code, recLogin.Header().Get("Location"))
+	}
+
+	var preAuthCookie *http.Cookie
+	for _, c := range recLogin.Result().Cookies() {
+		if c.Name == "pre_auth" {
+			preAuthCookie = c
+			break
+		}
+	}
+	if preAuthCookie == nil {
+		t.Fatal("pre_auth cookie not found")
+	}
+
+	// 2. Submit wrong OTP 4 times -> 400 Bad Request
+	for i := 1; i <= 4; i++ {
+		form := url.Values{
+			"csrf": {csrf},
+			"code": {"999999"},
+		}
+		req := httptest.NewRequest(http.MethodPost, "/login/verify-otp", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+		req.AddCookie(preAuthCookie)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("attempt %d: expected 400 Bad Request, got %d", i, rec.Code)
+		}
+	}
+
+	// 3. 5th wrong attempt -> 400 Bad Request with lockout notice
+	form5 := url.Values{
+		"csrf": {csrf},
+		"code": {"999999"},
+	}
+	req5 := httptest.NewRequest(http.MethodPost, "/login/verify-otp", strings.NewReader(form5.Encode()))
+	req5.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req5.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	req5.AddCookie(preAuthCookie)
+	rec5 := httptest.NewRecorder()
+	handler.ServeHTTP(rec5, req5)
+
+	if rec5.Code != http.StatusBadRequest {
+		t.Fatalf("attempt 5: expected 400 Bad Request with lockout notice, got %d", rec5.Code)
+	}
+
+	// 4. 6th attempt with regular code -> 429 StatusTooManyRequests
+	form6 := url.Values{
+		"csrf": {csrf},
+		"code": {"999999"},
+	}
+	req6 := httptest.NewRequest(http.MethodPost, "/login/verify-otp", strings.NewReader(form6.Encode()))
+	req6.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req6.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	req6.AddCookie(preAuthCookie)
+	rec6 := httptest.NewRecorder()
+	handler.ServeHTTP(rec6, req6)
+
+	if rec6.Code != http.StatusTooManyRequests {
+		t.Fatalf("attempt 6: expected 429 StatusTooManyRequests, got %d", rec6.Code)
+	}
+
+	// 5. User tries to bypass lockout by re-logging in at /login with password -> rejected with 429 and countdown timer!
+	reqReLogin := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(loginForm.Encode()))
+	reqReLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqReLogin.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recReLogin := httptest.NewRecorder()
+	handler.ServeHTTP(recReLogin, reqReLogin)
+
+	if recReLogin.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 lockout on /login re-attempt, got %d", recReLogin.Code)
+	}
+	if !strings.Contains(recReLogin.Body.String(), "data-countdown=") {
+		t.Fatalf("expected login page to contain countdown timer: %s", recReLogin.Body.String())
+	}
+	if !strings.Contains(recReLogin.Body.String(), "dev-bypass-login-form") {
+		t.Fatalf("expected login page during lockout to contain dev bypass form: %s", recReLogin.Body.String())
+	}
+
+	// 6. In Dev Mode, Dev Master code 123456 BYPASSES the lockout at /login/verify-otp
+	formBypass := url.Values{
+		"csrf": {csrf},
+		"code": {"123456"},
+	}
+	reqBypass := httptest.NewRequest(http.MethodPost, "/login/verify-otp", strings.NewReader(formBypass.Encode()))
+	reqBypass.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqBypass.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	reqBypass.AddCookie(preAuthCookie)
+	recBypass := httptest.NewRecorder()
+	handler.ServeHTTP(recBypass, reqBypass)
+
+	if recBypass.Code != http.StatusSeeOther || recBypass.Header().Get("Location") != "/" {
+		t.Fatalf("expected dev master code to bypass lockout in dev mode, got code %d, loc %s", recBypass.Code, recBypass.Header().Get("Location"))
+	}
+
+	// 7. Test Dev Bypass directly from /login via POST /login/dev-bypass (even without pre_auth cookie)
+	formDevBypassLogin := url.Values{
+		"csrf":     {csrf},
+		"username": {"ratelimituser"},
+	}
+	reqDevBypassLogin := httptest.NewRequest(http.MethodPost, "/login/dev-bypass", strings.NewReader(formDevBypassLogin.Encode()))
+	reqDevBypassLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqDevBypassLogin.AddCookie(&http.Cookie{Name: "csrf", Value: csrf})
+	recDevBypassLogin := httptest.NewRecorder()
+	handler.ServeHTTP(recDevBypassLogin, reqDevBypassLogin)
+
+	if recDevBypassLogin.Code != http.StatusSeeOther || recDevBypassLogin.Header().Get("Location") != "/" {
+		t.Fatalf("expected /login/dev-bypass to redirect to '/', got code %d, loc %s", recDevBypassLogin.Code, recDevBypassLogin.Header().Get("Location"))
+	}
+
+	var foundSessionCookie bool
+	for _, c := range recDevBypassLogin.Result().Cookies() {
+		if c.Name == "session" && c.Value != "" {
+			foundSessionCookie = true
+			break
+		}
+	}
+	if !foundSessionCookie {
+		t.Fatalf("expected /login/dev-bypass to set 'session' cookie")
 	}
 }
 

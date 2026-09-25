@@ -265,27 +265,27 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 10: Simplifikasi Login & 2FA Google Authenticator (TOTP RFC 6238)
-- [ ] **Database Migration untuk 2FA**:
+- [x] **Database Migration untuk 2FA**:
   - Tambahkan kolom pada tabel `users`: `totp_secret` (TEXT, base32 encoded secret key) dan `totp_enabled` (INTEGER DEFAULT 0).
   - Pastikan setiap pengguna baru atau pengguna yang ada mendapatkan secret key acak unik.
-- [ ] **Implementasi TOTP Engine di Go (`internal/auth/totp.go`)**:
+- [x] **Implementasi TOTP Engine di Go (`internal/auth/totp.go`)**:
   - Pembangkitan secret key acak (16–20 bytes cryptographically secure random, Base32).
   - Pembuatan URI standar: `otpauth://totp/POS%20Phoenix:{username}?secret={secret}&issuer=POS%20Phoenix`.
   - Verifikasi kode 6 digit berbasis waktu (time-step 30 detik) dengan toleransi time-skew (±1 step / 30 detik) menggunakan HMAC-SHA1.
-- [ ] **Alur Autentikasi 2 Langkah (Two-Step Authentication Flow)**:
+- [x] **Alur Autentikasi 2 Langkah (Two-Step Authentication Flow)**:
   - **Langkah 1**: Form login hanya meminta `Username` dan `Password`.
   - **Langkah 2**: Jika kredensial username & password valid:
     - Jika `totp_enabled == 0`: Pengguna diarahkan ke halaman Setup 2FA (`/login/setup-2fa`) menampilkan QR Code (SVG/Data URL) + teks secret key manual untuk di-scan dengan Google Authenticator, serta input 6 digit untuk verifikasi dan aktivasi.
     - Jika `totp_enabled == 1`: Pengguna diarahkan ke halaman verifikasi OTP (`/login/verify-otp`) untuk memasukkan 6 digit kode dari Google Authenticator.
   - Gunakan token pre-auth sementara (berumur pendek, misal 5 menit) di cookie/session sebelum session cookie permanen diterbitkan.
-- [ ] **Rate Limiting & Perlindungan Brute-Force**:
+- [x] **Rate Limiting & Perlindungan Brute-Force**:
   - Batasi percobaan input OTP salah (maksimal 5 kali salah berturut-turut) sebelum cooldown sementara.
-- [ ] **Template UI untuk OTP & Setup 2FA**:
+- [x] **Template UI untuk OTP & Setup 2FA**:
   - `web/templates/login_otp.html`: Input 6 digit angka dengan auto-focus, paste support, dan timer countdown.
   - `web/templates/login_setup_2fa.html`: Tampilan QR code, instruksi download Google Authenticator, dan petunjuk aktivasi.
-- [ ] **Email Khusus Initial Setup**:
+- [x] **Email Khusus Initial Setup**:
   - Pastikan `email` hanya diwajibkan pada proses inisialisasi awal sistem POS (bootstrap superadmin) atau pemulihan darurat, tidak lagi diminta pada login rutin kasir/operator.
-- [ ] **Unit Test & Regression Testing**:
+- [x] **Unit Test & Regression Testing**:
   - Test validasi kode OTP yang benar dan penolakan kode yang salah/kedaluwarsa.
   - Test skenario user A dan user B menghasilkan dan memvalidasi OTP yang berbeda secara independen.
   - Test flow setup awal superadmin tetap mewajibkan email, sementara login harian hanya username.

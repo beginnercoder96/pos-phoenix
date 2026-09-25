@@ -30,11 +30,21 @@ func setupTestDB(t *testing.T) *sql.DB {
 		phone_number TEXT,
 		bank_name TEXT,
 		bank_account_number TEXT,
+		totp_secret TEXT,
+		totp_enabled INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE TABLE sessions (
 		token_hash TEXT PRIMARY KEY,
 		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		expires_at DATETIME NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE pre_auth_tokens (
+		token_hash TEXT PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		failed_attempts INTEGER NOT NULL DEFAULT 0,
+		locked_until DATETIME,
 		expires_at DATETIME NOT NULL,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -234,6 +244,44 @@ func TestPasswordResetFlow(t *testing.T) {
 	// Requesting for non-existent email should fail
 	if _, _, err := svc.CreatePasswordResetToken(ctx, "nonexistent@example.com"); err == nil {
 		t.Fatal("expected non-existent email to fail")
+	}
+}
+
+func TestBootstrapAdminRequiresEmail(t *testing.T) {
+	db := setupTestDB(t)
+	svc := Service{DB: db}
+	ctx := context.Background()
+
+	// Initial system bootstrap requires admin email and password
+	adminEmail := "superowner@example.com"
+	adminPass := "superSecret123!"
+	if err := svc.BootstrapAdmin(ctx, adminEmail, adminPass); err != nil {
+		t.Fatalf("BootstrapAdmin failed: %v", err)
+	}
+
+	// Verify user is recorded in database with role 'superadmin' and extracted username
+	var count int
+	var uname, email, role string
+	err := db.QueryRow(`SELECT COUNT(*), username, email, role FROM users WHERE email=?`, adminEmail).Scan(&count, &uname, &email, &role)
+	if err != nil || count != 1 {
+		t.Fatalf("expected admin created in DB: count=%d, err=%v", count, err)
+	}
+	if role != "superadmin" || email != adminEmail || uname != "superowner" {
+		t.Fatalf("unexpected admin user data: role=%s, email=%s, uname=%s", role, email, uname)
+	}
+
+	// Daily routine login succeeds using username (not requiring email input)
+	u, err := svc.Authenticate(ctx, "superowner", adminPass)
+	if err != nil {
+		t.Fatalf("expected routine login with username 'superowner' to succeed: %v", err)
+	}
+	if u.Role != "superadmin" {
+		t.Fatalf("expected superadmin role, got %s", u.Role)
+	}
+
+	// Bootstrap is idempotent (running again does not recreate or fail)
+	if err := svc.BootstrapAdmin(ctx, "another@example.com", "pass"); err != nil {
+		t.Fatalf("expected subsequent BootstrapAdmin to safely no-op: %v", err)
 	}
 }
 
