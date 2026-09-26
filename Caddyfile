@@ -3,7 +3,20 @@
 }
 
 pardisbarbershop.biz.id {
-	reverse_proxy pos:8080
+	redir /db /db/
+
+	basic_auth /db* {
+		beginnercoder96 JDJhJDE0JHBGaElmTTY2Z2VVOVRwY0ViVWlCbE93UFRLaDQ1eE5DWW9aTGpOUDZlY1V6c3h0OHNhVVVh
+		"yssadhewo@gmail.com" JDJhJDE0JHBGaElmTTY2Z2VVOVRwY0ViVWlCbE93UFRLaDQ1eE5DWW9aTGpOUDZlY1V6c3h0OHNhVVVh
+	}
+
+	handle /db/* {
+		reverse_proxy sqliteweb:8080
+	}
+
+	handle {
+		reverse_proxy pos:8080
+	}
 }
 
 www.pardisbarbershop.biz.id {
