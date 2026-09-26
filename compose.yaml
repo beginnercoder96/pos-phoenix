@@ -16,7 +16,7 @@ services:
   sqliteweb:
     image: coleifer/sqlite-web:latest
     restart: unless-stopped
-    command: sqlite_web -H 0.0.0.0 -p 8080 -x --url-prefix /db/ /data/pos.db
+    command: sqlite_web -H 0.0.0.0 -p 8080 -x --url-prefix /pardis-db-vault/ /data/pos.db
     volumes:
       - ./data:/data
     expose:

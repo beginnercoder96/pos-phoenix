@@ -3,14 +3,14 @@
 }
 
 pardisbarbershop.biz.id {
-	redir /db /db/
+	redir /pardis-db-vault /pardis-db-vault/
 
-	basic_auth /db* {
+	basic_auth /pardis-db-vault* {
 		beginnercoder96 JDJhJDE0JHBGaElmTTY2Z2VVOVRwY0ViVWlCbE93UFRLaDQ1eE5DWW9aTGpOUDZlY1V6c3h0OHNhVVVh
 		"yssadhewo@gmail.com" JDJhJDE0JHBGaElmTTY2Z2VVOVRwY0ViVWlCbE93UFRLaDQ1eE5DWW9aTGpOUDZlY1V6c3h0OHNhVVVh
 	}
 
-	handle /db/* {
+	handle /pardis-db-vault/* {
 		reverse_proxy sqliteweb:8080
 	}
 
