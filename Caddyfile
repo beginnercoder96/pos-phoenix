@@ -1,0 +1,11 @@
+{
+	email admin@example.com
+}
+
+pardisbarbershop.biz.id, www.pardisbarbershop.biz.id {
+	reverse_proxy pos:8080
+}
+
+http://43.157.241.146 {
+	reverse_proxy pos:8080
+}

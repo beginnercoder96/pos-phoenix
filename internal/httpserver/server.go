@@ -185,7 +185,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to sign in", 500)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: "session", Value: token, Path: "/", HttpOnly: true, Secure: s.secure, SameSite: http.SameSiteLaxMode, MaxAge: 43200})
+	http.SetCookie(w, &http.Cookie{Name: "session", Value: token, Path: "/", HttpOnly: true, Secure: s.cookieSecure(r), SameSite: http.SameSiteLaxMode, MaxAge: 43200})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -286,7 +286,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie("session"); err == nil {
 		_ = s.auth.DeleteSession(r.Context(), c.Value)
 	}
-	http.SetCookie(w, &http.Cookie{Name: "session", Path: "/", HttpOnly: true, Secure: s.secure, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: "session", Path: "/", HttpOnly: true, Secure: s.cookieSecure(r), SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -954,8 +954,11 @@ func (s *Server) csrf(w http.ResponseWriter, r *http.Request) string {
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	v := base64.RawURLEncoding.EncodeToString(b)
-	http.SetCookie(w, &http.Cookie{Name: "csrf", Value: v, Path: "/", Secure: s.secure, SameSite: http.SameSiteStrictMode, MaxAge: 43200})
+	http.SetCookie(w, &http.Cookie{Name: "csrf", Value: v, Path: "/", Secure: s.cookieSecure(r), SameSite: http.SameSiteStrictMode, MaxAge: 43200})
 	return v
+}
+func (s *Server) cookieSecure(r *http.Request) bool {
+	return s.secure || (r != nil && (r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"))
 }
 func (s *Server) validCSRF(r *http.Request) bool {
 	c, err := r.Cookie("csrf")
