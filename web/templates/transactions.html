@@ -62,7 +62,7 @@
             </div>
           </div>
           <div class="hidden lg:block">
-            <p class="text-sm font-bold text-slate-300">{{label .Language "transactionsMenu"}} | {{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Email}}{{end}}</p>
+            <p class="text-sm font-bold text-slate-300">{{label .Language "transactionsMenu"}}</p>
           </div>
           <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <button type="button" id="btn-thermal-printer-settings" class="preference-select flex items-center gap-2 !min-h-11 !bg-white !text-slate-900 !border-slate-300 px-3 font-bold text-xs shadow-sm cursor-pointer active:scale-95" title="{{label .Language "thermalPrinter"}}">
@@ -108,16 +108,13 @@
               {{label .Language "activeCashier"}}: <strong class="text-slate-800 dark:text-slate-200">{{.User.DisplayName}}</strong> · <span class="font-mono tabular-nums" data-live-clock>{{.CurrentDateTime}}</span>
             </p>
           </div>
+          {{if eq .User.Role "superadmin"}}
           <div class="flex items-center gap-2">
-            <a class="btn-secondary flex items-center gap-2 !min-h-11" href="/">
-              <span>🏠 {{label .Language "dashboard"}}</span>
-            </a>
-            {{if eq .User.Role "superadmin"}}
             <a class="btn-secondary flex items-center gap-2 !min-h-11" href="{{.ExportURL}}">
               <span>📊 {{label .Language "downloadExcel"}}</span>
             </a>
-            {{end}}
           </div>
+          {{end}}
         </section>
 
         <!-- New Transaction Entry Form -->
@@ -196,7 +193,7 @@
                   </div>
                   <div>
                     <label class="sr-only">{{label .Language "item"}}</label>
-                    <select name="item_name[]" class="field h-11 min-h-11 font-semibold text-xs sm:text-sm item-select">
+                    <select name="item_name[]" class="field h-11 min-h-11 text-xs sm:text-sm item-select">
                       <option value="">-- {{label .Language "selectItem"}} --</option>
                     </select>
                     <input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">

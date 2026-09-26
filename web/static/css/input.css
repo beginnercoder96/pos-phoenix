@@ -490,3 +490,52 @@
   box-shadow: 0 0 12px rgba(225, 29, 72, 0.5) !important;
 }
 
+/* Smooth & lightweight theme transition (200ms) active ONLY during theme change */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 200ms ease, border-color 200ms ease, color 160ms ease !important;
+  transition-delay: 0s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition: none !important;
+  }
+}
+
+/* Subtle & fast page entrance animation (Anti-Slop standard) */
+@keyframes pageEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+main {
+  animation: pageEntrance 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+@media print {
+  main {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+

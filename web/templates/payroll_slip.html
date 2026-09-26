@@ -113,20 +113,6 @@
           <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           <span>Cetak / Simpan PDF</span>
         </button>
-        {{if .ZipURL}}
-        <a href="{{.ZipURL}}"
-          class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 font-semibold text-sm transition" title="Download ZIP (Kumpulan File Excel Setiap Karyawan)">
-          <svg class="w-4 h-4 shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-          <span>Download ZIP</span>
-        </a>
-        {{end}}
-        {{if .ExcelURL}}
-        <a href="{{.ExcelURL}}"
-          class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 font-semibold text-sm transition">
-          <svg class="w-4 h-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          <span>Download Excel</span>
-        </a>
-        {{end}}
       </div>
     </div>
   </header>
@@ -159,7 +145,7 @@
               <td class="py-0.5 font-bold text-black leading-normal">{{$slip.BranchName}}</td>
             </tr>
             <tr>
-              <td class="py-0.5 font-bold text-black leading-normal">Yogyakarta</td>
+              <td class="py-0.5 font-bold text-black leading-normal">Salatiga</td>
             </tr>
           </tbody>
         </table>

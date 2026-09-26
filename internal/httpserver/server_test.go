@@ -1068,20 +1068,24 @@ func TestPayrollSlipViewAndDownload(t *testing.T) {
 		t.Errorf("expected HTML to contain 'Pendapatan'")
 	}
 
-	// 2. Single Employee Slip Excel Download
+	if !strings.Contains(html, "Salatiga") {
+		t.Errorf("expected HTML to contain 'Salatiga'")
+	}
+
+	// 2. Format query parameter (excel) safely falls back to standard PDF/HTML view
 	reqExcel := httptest.NewRequest("GET", "/backoffice/payroll/slip?branch=KLASEMAN&period=2026-01&employee_id="+strconv.FormatInt(empID, 10)+"&format=excel", nil)
 	reqExcel.AddCookie(cookie)
 	recExcel := httptest.NewRecorder()
 	handler.ServeHTTP(recExcel, reqExcel)
 
 	if recExcel.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for excel, got %d", recExcel.Code)
+		t.Fatalf("expected 200 OK, got %d", recExcel.Code)
 	}
-	if !strings.Contains(recExcel.Header().Get("Content-Type"), "spreadsheetml") {
-		t.Errorf("expected spreadsheetml content type, got %s", recExcel.Header().Get("Content-Type"))
+	if !strings.Contains(recExcel.Body.String(), "SLIP GAJI") {
+		t.Errorf("expected HTML slip view even when format=excel is passed")
 	}
 
-	// 3. Bulk Slip-All HTML View
+	// 3. Bulk Slip-All HTML / PDF View
 	reqAll := httptest.NewRequest("GET", "/backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-01", nil)
 	reqAll.AddCookie(cookie)
 	recAll := httptest.NewRecorder()
@@ -1093,22 +1097,21 @@ func TestPayrollSlipViewAndDownload(t *testing.T) {
 	if !strings.Contains(recAll.Body.String(), "SLIP GAJI") {
 		t.Errorf("expected slip-all HTML to contain 'SLIP GAJI'")
 	}
+	if !strings.Contains(recAll.Body.String(), "Salatiga") {
+		t.Errorf("expected slip-all HTML to contain 'Salatiga'")
+	}
 
-
-	// 4. Bulk Slip-All ZIP Download (contains individual .xlsx for each employee)
+	// 4. Bulk Slip-All with format=zip query parameter safely falls back to standard PDF/HTML view
 	reqAllZip := httptest.NewRequest("GET", "/backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-01&format=zip", nil)
 	reqAllZip.AddCookie(cookie)
 	recAllZip := httptest.NewRecorder()
 	handler.ServeHTTP(recAllZip, reqAllZip)
 
 	if recAllZip.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for slip-all zip, got %d", recAllZip.Code)
+		t.Fatalf("expected 200 OK for slip-all fallback, got %d", recAllZip.Code)
 	}
-	if !strings.Contains(recAllZip.Header().Get("Content-Type"), "zip") {
-		t.Errorf("expected zip content type, got %s", recAllZip.Header().Get("Content-Type"))
-	}
-	if recAllZip.Body.Len() == 0 {
-		t.Errorf("expected non-empty zip body")
+	if !strings.Contains(recAllZip.Body.String(), "SLIP GAJI") {
+		t.Errorf("expected slip-all HTML even when format=zip is passed")
 	}
 }
 

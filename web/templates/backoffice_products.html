@@ -265,10 +265,6 @@
   </style>
 
   <script>
-    document.querySelectorAll('[data-auto-submit] select').forEach(function(sel) {
-      sel.addEventListener('change', function() { this.closest('form').submit(); });
-    });
-
     var productForm = document.getElementById('product-form');
     var formTitle = document.getElementById('product-form-title');
     var editBadge = document.getElementById('product-edit-badge');

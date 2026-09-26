@@ -239,11 +239,6 @@
   </div>
 
   <script>
-    // Auto-submit preference form
-    document.querySelectorAll('[data-auto-submit] select').forEach(function(sel) {
-      sel.addEventListener('change', function() { this.closest('form').submit(); });
-    });
-
     // Modal logic for Excel financial report
     (function() {
       var modal = document.getElementById('report-export-modal');

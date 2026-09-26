@@ -95,11 +95,11 @@ All Backoffice endpoints reside under the `/backoffice` namespace and require an
   * Total `owner_percentage` + $\sum(\text{employee\_percentage}) \le 100.0\%$.
   * Remaining unallocated balance is automatically routed to the branch reserve fund.
 
-### 4. Employee Payroll Slips & Bulk Archive
+### 4. Employee Payroll Slips & Bulk Printable PDF
 * **Individual Slip (HTML / PDF)**: `GET /backoffice/payroll/slip?branch=KLASEMAN&period=2026-09&employee_id=1`
   * Renders a printable official payroll slip.
-* **Bulk Export (ZIP)**: `GET /backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-09&format=zip`
-  * Streams a compressed ZIP file containing payroll records for all branch employees.
+* **Bulk Export (PDF)**: `GET /backoffice/payroll/slip-all?branch=KLASEMAN&period=2026-09`
+  * Renders printable payroll slips for all branch employees with automatic page-breaks.
 
 ---
 

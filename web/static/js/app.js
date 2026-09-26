@@ -197,6 +197,45 @@ document.addEventListener("htmx:responseError", function () {
 
 document.querySelectorAll("[data-auto-submit] select").forEach(function (select) {
   select.addEventListener("change", function () {
+    if (select.name === "theme") {
+      var newTheme = select.value;
+      // Enable temporary smooth micro-transition (200ms) without ongoing overhead
+      document.documentElement.classList.add("theme-transitioning");
+
+      document.documentElement.setAttribute("data-theme", newTheme);
+      if (document.body) {
+        document.body.setAttribute("data-theme", newTheme);
+      }
+      document.querySelectorAll('select[name="theme"]').forEach(function (s) {
+        s.value = newTheme;
+      });
+
+      setTimeout(function () {
+        document.documentElement.classList.remove("theme-transitioning");
+      }, 220);
+
+      // Persist preference to server in background
+      if (select.form) {
+        try {
+          var formData = new FormData(select.form);
+          fetch(select.form.action, {
+            method: "POST",
+            body: formData,
+            credentials: "same-origin"
+          }).catch(function (err) {
+            console.warn("Theme preference sync error:", err);
+          });
+        } catch (err) {
+          select.form.submit();
+        }
+      }
+      return;
+    }
+
+    // If changing language, save draft first then submit
+    if (typeof window.posSaveTxDraft === "function") {
+      window.posSaveTxDraft();
+    }
     select.form.submit();
   });
 });
@@ -509,8 +548,8 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
     }
   }
 
-  function addRow() {
-    if (!container) return;
+  function addRow(shouldSave) {
+    if (!container) return null;
     var isId = (document.documentElement.lang === "id");
     var newRow = document.createElement("div");
     newRow.className = "category-row rounded-xl border border-slate-200 dark:border-slate-700 p-3 surface-soft space-y-2 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1fr_130px_auto] sm:gap-2 items-center";
@@ -522,23 +561,148 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
       '</div>' +
       '<div>' +
       '<label class="sr-only">' + (isId ? 'Item / Layanan' : 'Item / Service') + '</label>' +
-      '<select name="item_name[]" class="field h-11 min-h-11 item-select">' +
+      '<select name="item_name[]" class="field h-11 min-h-11 text-xs sm:text-sm item-select">' +
       '<option value="">-- ' + (isId ? 'Pilih layanan / item' : 'Select service / item') + ' --</option>' +
       '</select>' +
       '<input type="hidden" name="bundle_id[]" class="bundle-id-input" value="0">' +
       '</div>' +
       '<div>' +
       '<label class="sr-only">' + (isId ? 'Jumlah' : 'Amount') + '</label>' +
-      '<input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input" placeholder="0" required inputmode="numeric">' +
+      '<input type="text" name="amount[]" class="field h-11 min-h-11 text-right font-bold amount-input font-mono tabular-nums" placeholder="0" required inputmode="numeric">' +
       '</div>' +
       '<div class="flex justify-end sm:justify-center">' +
-      '<button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
+      '<button type="button" class="btn-secondary h-11 min-h-11 w-11 p-0 text-rose-600 font-black remove-row-btn cursor-pointer active:scale-95" title="' + (isId ? 'Hapus' : 'Remove') + '" aria-label="' + (isId ? 'Hapus' : 'Remove') + '">✕</button>' +
       '</div>';
 
     container.appendChild(newRow);
     var catSelect = newRow.querySelector(".category-select");
     populateCategories(catSelect);
     updateTotal();
+    if (shouldSave !== false) {
+      saveDraft();
+    }
+    return newRow;
+  }
+
+  // --- Auto-Draft for Cashier Form (Preserves input on language switch or refresh) ---
+  var isSubmitting = false;
+  window.posTxSubmitting = false;
+
+  function clearDraft() {
+    isSubmitting = true;
+    window.posTxSubmitting = true;
+    try {
+      sessionStorage.removeItem("pos_tx_form_draft");
+      sessionStorage.setItem("pos_tx_just_submitted", "true");
+    } catch (e) { }
+  }
+  window.posClearTxDraft = clearDraft;
+
+  function saveDraft() {
+    if (isSubmitting || window.posTxSubmitting || !form || !container) return;
+    try {
+      if (sessionStorage.getItem("pos_tx_just_submitted") === "true") return;
+      var rows = [];
+      container.querySelectorAll(".category-row").forEach(function (row) {
+        var catSel = row.querySelector(".category-select");
+        var itemSel = row.querySelector(".item-select");
+        var amtInp = row.querySelector(".amount-input");
+        var bundleInp = row.querySelector(".bundle-id-input");
+        var cat = catSel ? catSel.value : "";
+        var item = itemSel ? itemSel.value : "";
+        var amt = amtInp ? amtInp.value : "";
+        var bundle = bundleInp ? bundleInp.value : "0";
+        if (cat || item || amt) {
+          rows.push({
+            category: cat,
+            itemName: item,
+            amount: amt,
+            bundleId: bundle
+          });
+        }
+      });
+
+      var noteInput = form.querySelector('input[name="note"]');
+      var branchSelect = form.querySelector('select[name="branch_id"]');
+
+      if (rows.length > 0 || (noteInput && noteInput.value) || (discountSelect && discountSelect.value)) {
+        var draft = {
+          kind: kindSelect ? kindSelect.value : "income",
+          branchId: branchSelect ? branchSelect.value : "",
+          note: noteInput ? noteInput.value : "",
+          discountId: discountSelect ? discountSelect.value : "",
+          rows: rows,
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem("pos_tx_form_draft", JSON.stringify(draft));
+      } else {
+        sessionStorage.removeItem("pos_tx_form_draft");
+      }
+    } catch (e) { }
+  }
+  window.posSaveTxDraft = saveDraft;
+
+  function restoreDraft() {
+    if (!form || !container) return;
+    try {
+      if (sessionStorage.getItem("pos_tx_just_submitted") === "true") {
+        sessionStorage.removeItem("pos_tx_just_submitted");
+        sessionStorage.removeItem("pos_tx_form_draft");
+        return;
+      }
+      var raw = sessionStorage.getItem("pos_tx_form_draft");
+      if (!raw) return;
+      var draft = JSON.parse(raw);
+      if (!draft || !draft.timestamp || (Date.now() - draft.timestamp > 2 * 60 * 60 * 1000)) {
+        sessionStorage.removeItem("pos_tx_form_draft");
+        return;
+      }
+
+      if (draft.kind && kindSelect) {
+        kindSelect.value = draft.kind;
+      }
+      var branchSelect = form.querySelector('select[name="branch_id"]');
+      if (draft.branchId && branchSelect) {
+        branchSelect.value = draft.branchId;
+      }
+      var noteInput = form.querySelector('input[name="note"]');
+      if (draft.note && noteInput) {
+        noteInput.value = draft.note;
+      }
+      if (draft.discountId && discountSelect) {
+        discountSelect.value = draft.discountId;
+      }
+
+      if (Array.isArray(draft.rows) && draft.rows.length > 0) {
+        container.innerHTML = "";
+        draft.rows.forEach(function (rData) {
+          var lastRow = addRow(false);
+          if (lastRow) {
+            var catSel = lastRow.querySelector(".category-select");
+            var amtInp = lastRow.querySelector(".amount-input");
+            var bundleInp = lastRow.querySelector(".bundle-id-input");
+            if (catSel) {
+              populateCategories(catSel, rData.category);
+              catSel.value = rData.category;
+            }
+            populateItems(lastRow, rData.itemName);
+            var itemSel = lastRow.querySelector(".item-select");
+            if (itemSel && rData.itemName) {
+              itemSel.value = rData.itemName;
+            }
+            if (amtInp && rData.amount) {
+              amtInp.value = rData.amount;
+            }
+            if (bundleInp && rData.bundleId) {
+              bundleInp.value = rData.bundleId;
+            }
+          }
+        });
+        updateTotal();
+      }
+    } catch (e) {
+      console.warn("Failed to restore draft:", e);
+    }
   }
 
   // Delegated event listener for Category changes
@@ -554,6 +718,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
           if (bundleInput) bundleInput.value = "0";
         }
         updateTotal();
+        saveDraft();
       }
     }
     if (e.target && e.target.classList.contains("item-select")) {
@@ -582,6 +747,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
           }
         }
         updateTotal();
+        saveDraft();
       }
     }
     if (e.target === kindSelect) {
@@ -594,6 +760,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
         });
       }
       updateTotal();
+      saveDraft();
     }
   });
 
@@ -601,6 +768,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
   if (discountSelect) {
     discountSelect.addEventListener("change", function () {
       updateTotal();
+      saveDraft();
     });
   }
 
@@ -608,6 +776,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
   document.addEventListener("input", function (e) {
     if (e.target && e.target.classList.contains("amount-input")) {
       updateTotal();
+      saveDraft();
     }
   });
 
@@ -633,6 +802,7 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
           if (bundleInput) bundleInput.value = "0";
         }
         updateTotal();
+        saveDraft();
       }
       return;
     }
@@ -644,6 +814,15 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
       return;
     }
   });
+
+  // Save draft on general form typing
+  form.addEventListener("input", saveDraft);
+  form.addEventListener("change", saveDraft);
+  form.addEventListener("submit", function () {
+    clearDraft();
+  });
+  window.addEventListener("beforeunload", saveDraft);
+  window.addEventListener("pagehide", saveDraft);
 
   // Initialize existing rows on page load
   if (container) {
@@ -658,6 +837,9 @@ document.querySelectorAll("[data-auto-submit] select").forEach(function (select)
     });
   }
   updateTotal();
+
+  // Restore saved draft (e.g. after language switch or accidental refresh)
+  restoreDraft();
 })();
 
 // Live Clock: Formats and refreshes elements with [data-live-clock] every minute
@@ -1524,9 +1706,8 @@ window.handleChartPeriodChange = function (select) {
 
         if (catVal || itemVal || amt > 0) {
           calculatedTotal += amt;
-          var title = catVal + (itemVal ? ": " + itemVal : "");
-          if (!title) title = isId ? "Item Layanan" : "Service Item";
-          itemsList.push({ title: title, amountStr: getFormatIDR(amt) });
+          var title = (itemVal && itemVal !== "Custom") ? itemVal : ((catVal && catVal !== "Other") ? catVal : (isId ? "Item Layanan" : "Service Item"));
+          itemsList.push({ title: title, category: catVal, amountStr: getFormatIDR(amt) });
         }
       });
     }
@@ -1666,7 +1847,7 @@ window.handleChartPeriodChange = function (select) {
           discountName: discountNameStr,
           kind: isIncome ? "income" : "expense",
           items: itemsList.map(function (it) {
-            return { name: it.title, amount: it.amountStr };
+            return { name: it.title, category: it.category, amount: it.amountStr };
           }),
           note: noteVal,
           operator: opName,
@@ -1686,6 +1867,12 @@ window.handleChartPeriodChange = function (select) {
             duration: 3500,
             type: "success"
           }));
+        }
+        if (typeof window.posClearTxDraft === "function") {
+          window.posClearTxDraft();
+        } else {
+          sessionStorage.removeItem("pos_tx_form_draft");
+          sessionStorage.setItem("pos_tx_just_submitted", "true");
         }
       } catch (e) { }
 
@@ -1988,6 +2175,16 @@ window.handleChartPeriodChange = function (select) {
       lines.push(this.centerText32("Pardis Barbershop"));
       lines.push("================================");
 
+      if (!txData.id) {
+        var latestBtn = document.querySelector(".btn-print-receipt");
+        if (latestBtn && latestBtn.getAttribute("data-tx-id")) {
+          txData.id = latestBtn.getAttribute("data-tx-id");
+          if (latestBtn.getAttribute("data-tx-date") && (!txData.date || txData.date === "-")) {
+            txData.date = latestBtn.getAttribute("data-tx-date");
+          }
+        }
+      }
+
       var txNum = txData.id ? ("#" + txData.id) : (isId ? "BARU" : "NEW");
       lines.push(this.formatLine32(isId ? "No. Trx" : "Trx ID", txNum));
       lines.push(this.formatLine32(isId ? "Waktu" : "Date", txData.date || "-"));
@@ -2007,6 +2204,9 @@ window.handleChartPeriodChange = function (select) {
         for (var i = 0; i < items.length; i++) {
           var it = items[i];
           var name = it.name || it.category || "Item";
+          if (it.category && name.indexOf(it.category + ": ") === 0) {
+            name = name.substring((it.category + ": ").length).trim();
+          }
           var amt = it.amount || "-";
           if (name.length > 19) {
             lines.push(name);
@@ -2037,6 +2237,17 @@ window.handleChartPeriodChange = function (select) {
       var isId = (document.documentElement.lang || "id") === "id";
       var storeName = this.escapeHtml(this.getStoreName());
       var footerNote = this.escapeHtml(this.getFooterNote());
+
+      if (!txData.id) {
+        var latestBtn = document.querySelector(".btn-print-receipt");
+        if (latestBtn && latestBtn.getAttribute("data-tx-id")) {
+          txData.id = latestBtn.getAttribute("data-tx-id");
+          if (latestBtn.getAttribute("data-tx-date") && (!txData.date || txData.date === "-")) {
+            txData.date = latestBtn.getAttribute("data-tx-date");
+          }
+        }
+      }
+
       var txNum = txData.id ? ("#" + this.escapeHtml(txData.id)) : (isId ? "BARU" : "NEW");
       var txDate = this.escapeHtml(txData.date || "-");
       var txOperator = this.escapeHtml(txData.operator || "-");
@@ -2054,7 +2265,11 @@ window.handleChartPeriodChange = function (select) {
       } else {
         for (var i = 0; i < items.length; i++) {
           var it = items[i];
-          var itName = this.escapeHtml(it.name || it.category || "Item");
+          var rawName = it.name || it.category || "Item";
+          if (it.category && rawName.indexOf(it.category + ": ") === 0) {
+            rawName = rawName.substring((it.category + ": ").length).trim();
+          }
+          var itName = this.escapeHtml(rawName);
           var itAmt = this.escapeHtml(it.amount || "-");
           itemsHtml += '<div class="flex justify-between items-start text-[11px] leading-snug w-full py-0.5">' +
             '<span class="text-left pr-2">' + itName + '</span>' +
@@ -2792,12 +3007,48 @@ window.handleChartPeriodChange = function (select) {
       sessionStorage.removeItem("autoOpenThermalPrint");
       sessionStorage.removeItem("pendingTxPrintPrompt");
       var autoTxData = JSON.parse(pendingPrompt);
+      if (!autoTxData.id) {
+        var firstBtn = document.querySelector(".btn-print-receipt");
+        if (firstBtn && firstBtn.getAttribute("data-tx-id")) {
+          autoTxData.id = firstBtn.getAttribute("data-tx-id");
+          if (firstBtn.getAttribute("data-tx-date") && (!autoTxData.date || autoTxData.date === "-")) {
+            autoTxData.date = firstBtn.getAttribute("data-tx-date");
+          }
+          var rawItems = firstBtn.getAttribute("data-tx-items");
+          if (rawItems) {
+            try {
+              var parsed = JSON.parse(rawItems);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                autoTxData.items = parsed;
+              }
+            } catch (e) { }
+          }
+        }
+      }
       setTimeout(function () {
         showReceiptPreviewModal(autoTxData);
       }, 350);
     } else if (pendingPrompt) {
       sessionStorage.removeItem("pendingTxPrintPrompt");
       var promptData = JSON.parse(pendingPrompt);
+      if (!promptData.id) {
+        var firstBtn = document.querySelector(".btn-print-receipt");
+        if (firstBtn && firstBtn.getAttribute("data-tx-id")) {
+          promptData.id = firstBtn.getAttribute("data-tx-id");
+          if (firstBtn.getAttribute("data-tx-date") && (!promptData.date || promptData.date === "-")) {
+            promptData.date = firstBtn.getAttribute("data-tx-date");
+          }
+          var rawItems = firstBtn.getAttribute("data-tx-items");
+          if (rawItems) {
+            try {
+              var parsed = JSON.parse(rawItems);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                promptData.items = parsed;
+              }
+            } catch (e) { }
+          }
+        }
+      }
       setTimeout(function () {
         showPostSavePromptModal(promptData);
       }, 350);

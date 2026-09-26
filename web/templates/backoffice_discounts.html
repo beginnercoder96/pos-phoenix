@@ -248,10 +248,6 @@
   </style>
 
   <script>
-    document.querySelectorAll('[data-auto-submit] select').forEach(function(sel) {
-      sel.addEventListener('change', function() { this.closest('form').submit(); });
-    });
-
     // Toggle Bundle Ratio Fields & Synchronize Ratios
     var typeSelect = document.getElementById('discount-type');
     var ratioWrap = document.getElementById('ratio-fields-wrap');

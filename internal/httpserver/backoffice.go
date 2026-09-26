@@ -738,27 +738,11 @@ func (s *Server) backofficePayrollSlip(w http.ResponseWriter, r *http.Request) {
 		ProductSales:      prodSales,
 	}
 
-	if r.URL.Query().Get("format") == "excel" {
-		excelBytes, err := generatePayrollSlipExcel(slipData)
-		if err != nil {
-			http.Error(w, "unable to generate payroll slip", http.StatusInternalServerError)
-			return
-		}
-
-		filename := fmt.Sprintf("slip-gaji-%s-%s.xlsx", empName, periodMonth)
-		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-		w.Header().Set("Content-Length", strconv.Itoa(len(excelBytes)))
-		_, _ = w.Write(excelBytes)
-		return
-	}
-
 	viewData := payrollSlipViewData{
 		Slips:          []payrollSlipData{slipData},
 		IsBulk:         false,
 		SelectedBranch: branchCode,
 		SelectedPeriod: periodMonth,
-		ExcelURL:       fmt.Sprintf("/backoffice/payroll/slip?branch=%s&period=%s&employee_id=%d&format=excel", branchCode, periodMonth, employeeID),
 	}
 	s.renderTemplate(w, "payroll_slip.html", viewData)
 }
@@ -820,40 +804,11 @@ func (s *Server) backofficePayrollSlipAll(w http.ResponseWriter, r *http.Request
 		})
 	}
 
-	if r.URL.Query().Get("format") == "zip" {
-		zipBytes, err := generatePayrollSlipsZip(slips)
-		if err != nil {
-			http.Error(w, "unable to generate payroll slips zip", http.StatusInternalServerError)
-			return
-		}
-
-		safeBranch := strings.Map(func(r rune) rune {
-			if r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' || r == ' ' {
-				return '_'
-			}
-			return r
-		}, branchCode)
-		safePeriod := strings.Map(func(r rune) rune {
-			if r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' || r == ' ' {
-				return '_'
-			}
-			return r
-		}, periodMonth)
-
-		filename := fmt.Sprintf("Slip_Gaji_Semua_%s_%s.zip", safeBranch, safePeriod)
-		w.Header().Set("Content-Type", "application/zip")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipBytes)))
-		w.Write(zipBytes)
-		return
-	}
-
 	viewData := payrollSlipViewData{
 		Slips:          slips,
 		IsBulk:         true,
 		SelectedBranch: branchCode,
 		SelectedPeriod: periodMonth,
-		ZipURL:         fmt.Sprintf("/backoffice/payroll/slip-all?branch=%s&period=%s&format=zip", branchCode, periodMonth),
 	}
 	s.renderTemplate(w, "payroll_slip.html", viewData)
 }
@@ -914,8 +869,6 @@ type payrollSlipViewData struct {
 	IsBulk         bool
 	SelectedBranch string
 	SelectedPeriod string
-	ExcelURL       string
-	ZipURL         string
 }
 
 func formatPeriodIndo(p string) string {
