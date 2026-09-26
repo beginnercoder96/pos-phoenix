@@ -32,6 +32,7 @@ test_*.js
 scratch/
 coverage.out
 videos/
+recordings/
 *.webm
 *.mp4
 

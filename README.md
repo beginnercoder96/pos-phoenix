@@ -25,9 +25,8 @@ A production-grade, mobile-first cash-flow POS and multi-branch backoffice manag
    - Professional spreadsheet typography, styled financial headers, and standard accounting number formats.
 
 4. **Employee Payroll Slip Generator**:
-   - Official Pardis Barbershop payroll slips featuring clean company branding, branch metadata, service commission breakdown, retail product commission details, and final take-home pay.
-   - Interactive HTML preview with direct **"Print / Save PDF"** capability.
-   - Bulk branch export option packaged as compressed ZIP archives.
+   - Official Pardis Barbershop payroll slips featuring clean company branding (Salatiga), branch metadata, service commission breakdown, retail product commission details, and final take-home pay.
+   - Interactive HTML preview with direct **"Print / Save PDF"** capability and bulk branch PDF generation.
 
 5. **Point of Sale & Cash Flow Management**:
    - Fast daily transaction entry with integer-cent monetary precision (`int64`).
@@ -185,3 +184,23 @@ The server binary is configured through standard environment variables:
   * Username / Email: `yogi` / `yogi@contoh.com`
   * Password: `yogioperator`
   * Scope: Front-of-house cash register, order entry, and daily transactions.
+
+---
+
+## 🎬 Automated Product Tour & Showcase Recording (Milestone 11)
+
+The system includes an automated, cinematic Playwright showcase suite to record high-resolution demonstration videos complete with dynamic storyteller subtitles, spotlight camera focus, and zero production runtime overhead:
+
+```bash
+# Render Desktop Full Tour (1440x900, Executive Dashboard -> Cashier -> Receipt -> Payroll Slip)
+npm run record:tour
+
+# Render iPad & Tablet Showcase (1024x768, Touch Targets & Mobile Counter Experience)
+npm run record:ipad
+```
+
+### Key Highlights:
+- **Output Storage**: Videos are saved to the `recordings/` folder (`product_tour_desktop.webm` and `ipad_intro_tablet.webm`).
+- **Auto-Open in IDE**: Upon render completion, the generated video is automatically opened directly inside your active code editor/IDE (Antigravity IDE, VS Code, or Cursor) for instant preview without having to manually search through directories.
+- **Alternative Playback**: You can also drag-and-drop or open the `.webm` files directly in **Google Chrome, Microsoft Edge**, or **VLC Media Player**.
+- **Production Isolation**: The recording engine and caption stylesheet (`product_tour_caption.css`) are strictly isolated from production CSS builds and client bundles.

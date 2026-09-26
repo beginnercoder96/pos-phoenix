@@ -293,17 +293,17 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
 ---
 
 ### Milestone 11: Sistem Product Tour Sinematik (Storyteller Live Caption & Camera Movement)
-- [ ] **Isolasi & Pembuatan CSS Caption Independen**:
+- [x] **Isolasi & Pembuatan CSS Caption Independen**:
   - Buat file stylesheet independen: `web/static/css/product_tour_caption.css`.
   - Pastikan file ini **terpisah penuh** dan tidak di-import di `input.css`, `app.css`, maupun template HTML aplikasi produksi.
   - Desain elemen *cinematic storyteller caption*:
     - Overlay lower-third modern dengan aksen glassmorphism (`backdrop-blur-md`, border halus semitransparan).
     - Tipografi bercerita (storyteller): badge penanda langkah (`STEP 01`), judul fitur tebal, dan teks narasi perilaku sistem layaknya narator manusia yang ramah dan jelas.
     - Animasi transisi masuk & keluar (subtle slide-up & fade-in) 250ms.
-- [ ] **Injeksi Dinamis Playwright (`record_product_tour.js` & `record_ipad_intro.js`)**:
+- [x] **Injeksi Dinamis Playwright (`record_product_tour.js` & `record_ipad_intro.js`)**:
   - Panggil CSS caption secara on-demand hanya saat proses perekaman berjalan menggunakan `page.addStyleTag({ path: './web/static/css/product_tour_caption.css' })`.
   - Buat helper function `setStorytellerCaption({ step, title, narrative, duration })` di konteks Playwright.
-- [ ] **Implementasi Engine Gerakan Kamera (Dynamic Camera Movement)**:
+- [x] **Implementasi Engine Gerakan Kamera (Dynamic Camera Movement)**:
   - Buat fungsi kontrol kamera di Playwright:
     - `cameraZoomTo(selector, scale = 1.3, duration = 800)`: Menghitung posisi bounding rect elemen target, menggeser transform-origin, dan menganimasikan zoom-in terarah secara mulus (*ease-in-out*).
     - `cameraResetZoom(duration = 600)`: Mengembalikan skala tampilan ke 1.0 (zoom-out penuh) sebelum aksi navigasi atau pergantian adegan besar berikutnya.
@@ -312,7 +312,7 @@ $$\text{Total Gaji Bersih}_i = \text{Bagi Hasil Jasa}_i + \text{Total Komisi Pro
     - Zoom-in ke form transaksi saat memilih kategori layanan barberman dan memasukkan diskon.
     - Zoom-in ke modal cetak struk kasir saat transaksi berhasil disimpan.
     - Zoom-out ke tampilan halaman penuh sebelum berpindah antar menu/halaman.
-- [ ] **Pencegahan Kebocoran Aset (Production Separation Guard)**:
+- [x] **Pencegahan Kebocoran Aset (Production Separation Guard)**:
   - Pastikan tidak ada build script npm/Tailwind atau asset pipeline produksi yang menyertakan stylesheet tur ini ke bundle production.
 
 

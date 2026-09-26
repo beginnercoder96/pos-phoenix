@@ -117,11 +117,11 @@ Lihat spesifikasi lengkap, formula matematis, dan simulasi riil di file [BACKOFF
 - [x] Unit test: validasi OTP valid, penolakan OTP salah/expired, dan independensi OTP antar-user
 
 ### Milestone 11: Sistem Product Tour Sinematik (Storyteller Live Caption & Camera Movement)
-- [ ] Buat file stylesheet independen `web/static/css/product_tour_caption.css` khusus untuk product tour (terisolasi penuh dari bundle CSS production dan testing).
-- [ ] Desain storyteller caption modern: lower-third glassmorphism, badge step, judul, dan narasi perilaku produk layaknya presenter manusia.
-- [ ] Injeksi CSS secara dinamis via Playwright (`page.addStyleTag`) hanya pada skrip `record_product_tour.js` dan `record_ipad_intro.js`.
-- [ ] Implementasi camera movement di Playwright: helper `cameraZoomTo(selector, scale, duration)` dan `cameraResetZoom(duration)` untuk zoom-in terarah pada interaksi penting dan zoom-out saat transisi layar.
-- [ ] Pastikan perlindungan isolasi (guard) agar aset tour tidak pernah termuat pada build production.
+- [x] Buat file stylesheet independen `web/static/css/product_tour_caption.css` khusus untuk product tour (terisolasi penuh dari bundle CSS production dan testing).
+- [x] Desain storyteller caption modern: lower-third glassmorphism, badge step, judul, dan narasi perilaku produk layaknya presenter manusia.
+- [x] Injeksi CSS secara dinamis via Playwright (`page.addStyleTag`) hanya pada skrip `record_product_tour.js` dan `record_ipad_intro.js`.
+- [x] Implementasi camera movement di Playwright: helper `cameraZoomTo(selector, scale, duration)` dan `cameraResetZoom(duration)` untuk zoom-in terarah pada interaksi penting dan zoom-out saat transisi layar.
+- [x] Pastikan perlindungan isolasi (guard) agar aset tour tidak pernah termuat pada build production.
 
 
 
