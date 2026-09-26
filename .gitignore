@@ -11,10 +11,13 @@ pos-phoenix
 *.db
 *.db-shm
 *.db-wal
+data/
 
 # Secrets & Local credentials
 .env
 credentials.md
+README_DATABASE.md
+DATABASE_ACCESS.md
 
 # Dependencies & Build artifacts
 node_modules/

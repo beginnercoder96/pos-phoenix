@@ -14,7 +14,7 @@ COPY --from=assets /src/web/static/css/app.css ./web/static/css/app.css
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /pos-phoenix ./cmd/server
 
 FROM alpine:3.22
-RUN adduser -D -u 10001 app && mkdir /data && chown app:app /data
+RUN apk add --no-cache tzdata ca-certificates && adduser -D -u 10001 app && mkdir /data && chown app:app /data
 USER app
 COPY --from=build /pos-phoenix /pos-phoenix
 COPY --from=build /src/web /web

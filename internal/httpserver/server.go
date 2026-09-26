@@ -252,7 +252,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		Value:    preAuthToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   s.secure,
+		Secure:   s.cookieSecure(r),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   300,
 	})
@@ -314,7 +314,7 @@ func (s *Server) devBypassLogin(w http.ResponseWriter, r *http.Request) {
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   s.secure,
+		Secure:   s.cookieSecure(r),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   43200, // 12 hours
 	})
@@ -450,7 +450,7 @@ func (s *Server) setup2FA(w http.ResponseWriter, r *http.Request) {
 		Value:    sessionToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   s.secure,
+		Secure:   s.cookieSecure(r),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   43200,
 	})
@@ -560,7 +560,7 @@ func (s *Server) verifyOTP(w http.ResponseWriter, r *http.Request) {
 		Value:    sessionToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   s.secure,
+		Secure:   s.cookieSecure(r),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   43200,
 	})
@@ -664,7 +664,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie("session"); err == nil {
 		_ = s.auth.DeleteSession(r.Context(), c.Value)
 	}
-	http.SetCookie(w, &http.Cookie{Name: "session", Path: "/", HttpOnly: true, Secure: s.secure, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: "session", Path: "/", HttpOnly: true, Secure: s.cookieSecure(r), SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -1445,8 +1445,11 @@ func (s *Server) csrf(w http.ResponseWriter, r *http.Request) string {
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	v := base64.RawURLEncoding.EncodeToString(b)
-	http.SetCookie(w, &http.Cookie{Name: "csrf", Value: v, Path: "/", Secure: s.secure, SameSite: http.SameSiteStrictMode, MaxAge: 43200})
+	http.SetCookie(w, &http.Cookie{Name: "csrf", Value: v, Path: "/", Secure: s.cookieSecure(r), SameSite: http.SameSiteStrictMode, MaxAge: 43200})
 	return v
+}
+func (s *Server) cookieSecure(r *http.Request) bool {
+	return s.secure || (r != nil && (r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"))
 }
 func (s *Server) validCSRF(r *http.Request) bool {
 	c, err := r.Cookie("csrf")

@@ -1,0 +1,28 @@
+{
+	email yssadhewo@gmail.com
+}
+
+pardisbarbershop.biz.id {
+	redir /pardis-db-vault /pardis-db-vault/
+
+	basic_auth /pardis-db-vault* {
+		beginnercoder96 JDJhJDE0JHBGaElmTTY2Z2VVOVRwY0ViVWlCbE93UFRLaDQ1eE5DWW9aTGpOUDZlY1V6c3h0OHNhVVVh
+		"yssadhewo@gmail.com" JDJhJDE0JHBGaElmTTY2Z2VVOVRwY0ViVWlCbE93UFRLaDQ1eE5DWW9aTGpOUDZlY1V6c3h0OHNhVVVh
+	}
+
+	handle /pardis-db-vault/* {
+		reverse_proxy sqliteweb:8080
+	}
+
+	handle {
+		reverse_proxy pos:8080
+	}
+}
+
+www.pardisbarbershop.biz.id {
+	redir https://pardisbarbershop.biz.id{uri}
+}
+
+http://43.157.241.146 {
+	reverse_proxy pos:8080
+}

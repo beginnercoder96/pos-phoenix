@@ -35,7 +35,7 @@ func (s *Server) setPreferences(w http.ResponseWriter, r *http.Request) {
 		theme = "light"
 	}
 	for name, value := range map[string]string{"language": language, "theme": theme} {
-		http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", Secure: s.secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
+		http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", Secure: s.cookieSecure(r), SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
 	}
 	redirect := r.FormValue("return_to")
 	if !strings.HasPrefix(redirect, "/") || strings.HasPrefix(redirect, "//") {
