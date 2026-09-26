@@ -11,6 +11,7 @@ pos-phoenix
 *.db
 *.db-shm
 *.db-wal
+data/
 
 # Secrets & Local credentials
 .env
