@@ -2,8 +2,12 @@
 	email yssadhewo@gmail.com
 }
 
-pardisbarbershop.biz.id, www.pardisbarbershop.biz.id {
+pardisbarbershop.biz.id {
 	reverse_proxy pos:8080
+}
+
+www.pardisbarbershop.biz.id {
+	redir https://pardisbarbershop.biz.id{uri}
 }
 
 http://43.157.241.146 {
